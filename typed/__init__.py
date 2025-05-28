@@ -1,0 +1,1 @@
+from typed.main import *
