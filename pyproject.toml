@@ -1,0 +1,19 @@
+[project]
+name = "typed"
+version = "0.0.0"
+description = "A typed approach to Python"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "BSD"}
+authors = [
+    {name = "Yuri Ximenes", email = "yx.dev@gmx.ie"},
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["typed*"]
+
