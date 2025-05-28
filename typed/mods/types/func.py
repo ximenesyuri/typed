@@ -3,25 +3,20 @@ from typing import get_type_hints, Any, Callable, Tuple, Type
 from functools import wraps
 from types import FunctionType, LambdaType
 from typed.mods.helper import (
-    __is_domain_hinted,
-    __is_codomain_hinted,
-    __hinted_domain,
-    __hinted_codomain,
-    __runtime_domain,
-    __runtime_codomain,
-    __check_domain,
-    __check_codomain
+    _is_domain_hinted,
+    _is_codomain_hinted,
+    _hinted_domain,
+    _hinted_codomain,
+    _runtime_domain,
+    _runtime_codomain,
+    _check_domain,
+    _check_codomain
 )
 
 # -----------------------------
 #       Plain FuncType
 # -----------------------------
 class PlainFuncType:
-    """
-    The class of 'plain functions':
-        1. objects are callable
-        2. defined comp (composition)
-    """
     def __init__(self, func: Callable):
         if not callable(func):
             raise TypeError(f"'{func}' is not callable.")
@@ -55,21 +50,15 @@ class PlainFuncType:
     def __str__(self) -> str:
         return self.__name__
 
+
 # -------------------------
 #     Hinted FuncType
 # -------------------------
 class HintedDomFuncType(PlainFuncType):
-    """
-    The class of 'domain-hinted functions':
-        1. objects are callable
-        2. have domain type hints
-        3. defined comp (composition)
-    It is a subclass of 'PlainFuncType'.
-    """
     def __init__(self, func: Callable):
-        __is_domain_hinted(func)
+        _is_domain_hinted(func)
         super().__init__(func)
-        self._hinted_domain: Tuple[Type, ...] = __hinted_domain(self.func)
+        self._hinted_domain: Tuple[Type, ...] = _hinted_domain(self.func)
 
     @property
     def domain(self) -> Tuple[Type, ...]:
@@ -84,17 +73,10 @@ class HintedDomFuncType(PlainFuncType):
         return f"{self.__name__}({domain_str})"
 
 class HintedCodFuncType(PlainFuncType):
-    """
-    The class of 'codomain-hinted functions':
-        1. objects are callable
-        2. have codomain type hints
-        3. defined comp (composition)
-    It is a subclass of 'PlainFuncType'.
-    """
     def __init__(self, func: Callable):
-        __is_codomain_hinted(func)
+        _is_codomain_hinted(func)
         super().__init__(func)
-        self._hinted_codomain: Any = __hinted_codomain(self.func)
+        self._hinted_codomain: Any = _hinted_codomain(self.func)
 
     @property
     def codomain(self) -> Any:
@@ -108,21 +90,10 @@ class HintedCodFuncType(PlainFuncType):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__} -> {codomain_str}"
 
-
 class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
-    """
-    The class of 'hinted functions':
-        1. objects are callable
-        2. have both domain and codomain type hints
-        3. defined domain and codomain properties
-        4. safe comp (composition based on hint compatibility)
-    It is a subclass of:
-        1. 'HintedDomFuncType'
-        2. 'HintedCodFuncType'
-    """
     def __init__(self, func: Callable):
-        __is_domain_hinted(func)
-        __is_codomain_hinted(func)
+        _is_domain_hinted(func)
+        _is_codomain_hinted(func)
         HintedDomFuncType.__init__(self, func)
         HintedCodFuncType.__init__(self, func)
 
@@ -157,6 +128,7 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
             else:
                 raise TypeError(f"Cannot perform 'safe' composition between functions with non-standard or incompatible type hints: '{other.__name__}' output '{g_codomain}' vs '{self.__name__}' input '{f_domain[0]}'")
 
+
         def composed_func(*args: other.domain) -> self.codomain:
             inter_result = other.func(*args)
             return self.func(inter_result)
@@ -188,23 +160,15 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
 #       Typed FuncType
 # ---------------------------
 class TypedDomFuncType(HintedDomFuncType):
-    """
-    The class of 'domain-typed functions':
-        1. objects are callable
-        2. have domain type hints
-        3. defined and checked domain (at runtime)
-        4. defined comp (composition)
-    It is a subclass of 'HintedDomFuncType'.
-    """
     def __init__(self, func: Callable):
         super().__init__(func)
         self._param_names = list(inspect.signature(self.func).parameters.keys())
-        self._runtime_domain_checker = __runtime_domain(self.func)
-        self.__domain_hints_for_check = self.domain
+        self._runtime_domain_checker = _runtime_domain(self.func)
+        self._domain_hints_for_check = self.domain
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         actual_types = tuple(type(arg) for arg in args)
-        __check_domain(self.func, self._param_names, self.__domain_hints_for_check, actual_types, args)
+        _check_domain(self.func, self._param_names, self._domain_hints_for_check, actual_types, args)
         return super().__call__(*args, **kwargs)
 
     def __repr__(self) -> str:
@@ -216,24 +180,14 @@ class TypedDomFuncType(HintedDomFuncType):
         return f"{self.__name__}({domain_str})!"
 
 class TypedCodFuncType(HintedCodFuncType):
-    """
-    The class of 'codomain-typed functions':
-        1. objects are callable
-        2. have codomain type hints
-        3. defined and checked codomain (at runtime)
-        4. defined comp (composition)
-    It is a subclass of 'HintedCodFuncType'.
-    """
     def __init__(self, func: Callable):
         super().__init__(func)
-        self.__codomain_hint_for_check = self.codomain
+        self._codomain_hint_for_check = self.codomain
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         result = super().__call__(*args, **kwargs)
-
         actual_codomain = type(result)
-        __check_codomain(self.func, self.__codomain_hint_for_check, actual_codomain, result)
-
+        _check_codomain(self.func, self._codomain_hint_for_check, actual_codomain, result)
         return result
 
     def __repr__(self) -> str:
@@ -245,18 +199,6 @@ class TypedCodFuncType(HintedCodFuncType):
         return f"{self.__name__} -> {codomain_str}!"
 
 class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
-    """
-    The class of 'typed functions':
-        1. objects are callable
-        2. have both domain and codomain type hints
-        3. defined domain and codomain properties
-        4. type hints are checked at runtime (both domain and codomain)
-        5. safe composition (based on hint compatibility and producing a Typed function)
-    It is a subclass of:
-        1. 'HintedFuncType' (provides hinting capture and basic safe comp logic)
-        2. 'TypedDomFuncType' (provides runtime domain checking)
-        3. 'TypedCodFuncType' (provides runtime codomain checking)
-    """
     def __init__(self, func: Callable):
         if not callable(func):
             raise TypeError(f"'{func}' is not callable.")
@@ -269,11 +211,11 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         actual_types = tuple(type(arg) for arg in args)
-        __check_domain(self.func, self._param_names, self.__domain_hints_for_check, actual_types, args)
+        _check_domain(self.func, self._param_names, self._domain_hints_for_check, actual_types, args)
 
         result = self.func(*args, **kwargs)
         actual_codomain = type(result)
-        __check_codomain(self.func, self.__codomain_hint_for_check, actual_codomain, result)
+        _check_codomain(self.func, self._codomain_hint_for_check, actual_codomain, result)
 
         return result
 
@@ -309,6 +251,7 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         composed_runtime_checked_func._composed_domain_hint = other.domain
         composed_runtime_checked_func._composed_codomain_hint = self.codomain
         composed_runtime_checked_func.__name__ = f"({self.__name__} * {other.__name__})"
+
         return TypedFuncType(composed_runtime_checked_func)
 
     @property
@@ -330,11 +273,6 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         return f"{self.__name__}({domain_str})! -> {codomain_str}!"
 
 class BoolFuncType(TypedFuncType):
-    """
-    The class of 'boolean functions':
-        1. are typed functions
-        2. its codomain is always 'bool'
-    """
     def __init__(self, func: Callable):
         super().__init__(func)
 

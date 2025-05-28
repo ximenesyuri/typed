@@ -1,9 +1,8 @@
 from typing import Tuple, Type
-from types import FunctionType
-from typed.mods.types_ import BoolFuncType
+from typed.mods.types.func import BoolFuncType
 from typed.mods.helper import (
-    __hinted_domain,
-    __hinted_codomain
+    _hinted_domain,
+    _hinted_codomain
 )
 
 def Inter(*types: Tuple[Type]) -> Type:
@@ -34,56 +33,46 @@ def Inter(*types: Tuple[Type]) -> Type:
 
     return __Inter(class_name, (object,), {'__types__': unique_types})
 
-def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
+def Filter(X, *funcs):
     """
-    Build the 'filtered subtype' of a given type with filter
-    given by a tuple of boolean functions 'f in funcs' such
-    that 'X is subclass of dom(f)'.
-        > The objects of 'Filter(X, *funcs)' are objects
-        > 'x in X' such that
-            1. 'f(x) is True' for all 'f in funcs'.
+    Build the 'filtered subtype' of a type:
+        > an object 'x' of the Filter(X, *funcs)
+        > is an 'x in X' such that 'f(x) is True'
+        > for every 'f in funcs'
     """
-    if not isinstance(X, type):
-        raise TypeError("Argument 'X' must be a type.")
-
-    validated_funcs = []
-    for i, f in enumerate(funcs):
+    real_filters = []
+    for f in funcs:
         if not isinstance(f, BoolFuncType):
-            raise TypeError(f"Argument at index {i+1} must be an instance of BoolFuncType.")
-        domain_hints = __hinted_domain(f)
-
+            raise TypeError(f"The function '{f.__name__}' is not of type BoolFuncType.")
+        domain_hints = _hinted_domain(f)
         if len(domain_hints) != 1:
-            raise TypeError(f"BoolFunc at index {i} ('{getattr(f, '__name__', 'anonymous')}') must accept exactly one argument (domain hint).")
-
+            raise TypeError(f"Function '{f.__name__}' must take one argument.")
         func_domain_type = domain_hints[0]
         if not (isinstance(func_domain_type, type) and issubclass(X, func_domain_type)):
             raise TypeError(
-                f"BoolFunc at index {i} ('{getattr(f, '__name__', 'anonymous')}') "
+                f"BoolFunc '{getattr(f, '__name__', 'anonymous')}' "
                 f"has domain hint '{getattr(func_domain_type, '__name__', str(func_domain_type))}' "
                 f"which is not a superclass of '{X.__name__}'."
             )
-
-        validated_funcs.append(f)
-
-    class __Filter(X):
-        @classmethod
+        if hasattr(f, 'func'):
+            real_filters.append(f.func)
+        else:
+            real_filters.append(f)
+    class Meta(type):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, cls.__base__):
+            if not isinstance(instance, X):
                 return False
-            try:
-                return all(bool_func(instance) for bool_func in cls.__filters__)
-            except Exception:
-                return False
+            return all(f(instance) for f in real_filters)
+    return Meta(f"Filter({X.__name__})", (X,), {})
 
-    sub_class_name = f"Filter({X.__name__}"
-    if validated_funcs:
-        sub_class_name += f", where {', '.join(getattr(f, '__name__', 'anonymous') for f in validated_funcs)})"
-    else:
-        sub_class_name += ")"
-
-    return type(sub_class_name, (__Filter,), {'__filters__': tuple(validated_funcs)})
 
 def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
+    """
+    Build the 'complement subtype' of a type by given subtypes:
+        > an object 'x' of Compl(X, *subtypes)
+        > is an 'x in X' such that 'is is not in Y'
+        > for every 'Y in subtypes' if 'Y is subclass of X'
+    """
     if not isinstance(X, type):
         raise TypeError(f"Argument 'X' must be a type, but got '{X.__name__}'.")
     unique_subtypes = tuple(set(subtypes))
@@ -110,4 +99,4 @@ def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
                 return False
             return not any(isinstance(instance, subtype) for subtype in cls.__excluded_subtypes__)
 
-    return __Compl(class_name, (object,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
+    return __Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})

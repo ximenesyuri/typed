@@ -1,11 +1,11 @@
 import inspect
-from typing import get_type_hints, Callable, Any, Tuple, Type 
+from typing import get_type_hints, Callable, Any, Tuple, Type
 
-def __flat(*types):
+def _flat(*types): # Use a single underscore for 'internal' use
     if not types:
         return (), False
     flat_list = []
-    is_flexible = True
+    is_flexible = True # You might need to revisit the logic determining is_flexible based on your intended use cases
     def _flatten(item):
        if isinstance(item, type):
            flat_list.append(item)
@@ -13,27 +13,27 @@ def __flat(*types):
             for sub_item in item:
                 _flatten(sub_item)
        else:
-            raise TypeError(f"Unsupported type in __flat: {type(item)}")
+            raise TypeError(f"Unsupported type in _flat: {type(item)}")
     for typ in types:
        _flatten(typ)
     if not all(isinstance(t, type) for t in flat_list):
         raise TypeError("All arguments must be types.")
     return (tuple(flat_list), is_flexible)
 
-def __runtime_domain(func):
+def _runtime_domain(func):
     def wrapper(*args, **kwargs):
         types_at_runtime = tuple(type(arg) for arg in args)
         return tuple(*types_at_runtime)
     return wrapper
 
-def __runtime_codomain(func):
+def _runtime_codomain(func):
     signature = inspect.signature(func)
     return_annotation = signature.return_annotation
     if return_annotation is not inspect.Signature.empty:
         return return_annotation
     return type(None)
 
-def __is_domain_hinted(func):
+def _is_domain_hinted(func):
     type_hints = get_type_hints(func)
     param_hints = {param: type_hints.get(param) for param in inspect.signature(func).parameters}
     non_hinted_params = [param for param, hint in param_hints.items() if hint is None]
@@ -44,14 +44,14 @@ def __is_domain_hinted(func):
         )
     return True
 
-def __is_codomain_hinted(func):
+def _is_codomain_hinted(func):
     """Check if the function has a type hint for its return value and report if missing."""
     type_hints = get_type_hints(func)
     if 'return' not in type_hints or type_hints['return'] is None:
         raise TypeError(f"Function '{func.__name__}' must have a return type hint.")
     return True
 
-def __hinted_domain(func: Callable) -> Tuple[Type, ...]:
+def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
     type_hints = get_type_hints(func)
     if hasattr(func, '_composed_domain_hint'):
         return func._composed_domain_hint
@@ -64,7 +64,7 @@ def __hinted_domain(func: Callable) -> Tuple[Type, ...]:
         pass
     return ()
 
-def __hinted_codomain(func: Callable) -> Any:
+def _hinted_codomain(func: Callable) -> Any:
     type_hints = get_type_hints(func)
     if hasattr(func, '_composed_codomain_hint'):
         return func._composed_codomain_hint
@@ -77,29 +77,32 @@ def __hinted_codomain(func: Callable) -> Any:
         pass
     return inspect.Signature.empty
 
-def __check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
+def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
     for name, expected, actual in zip(param_names, expected_domain, actual_domain):
         expected_name = getattr(expected, '__name__', repr(expected))
         actual_name = getattr(actual, '__name__', repr(actual))
         if expected != actual:
             matched = False
-            if allow_subclass and issubclass(expected, actual) and hasattr(expected, 'check'):
-                matched = True
-                actual_value = args[param_names.index(name)]
-                if not expected.check(actual_value):
-                    raise TypeError(
-                        f"Domain check failed in func '{func.__name__}':"
-                        f"\n\t --> '{name}': expected type '{expected_name}' did not match "
-                        f"the actual value '{actual_value}'."
-                    )
+            # Your existing check logic
+            if allow_subclass and issubclass(actual, expected): # Changed order for subclass check
+                 matched = True
+                 if hasattr(expected, 'check'):
+                      actual_value = args[param_names.index(name)]
+                      if not expected.check(actual_value):
+                           raise TypeError(
+                                f"Domain check failed in func '{func.__name__}':"
+                                f"\n\t --> '{name}': expected type '{expected_name}' did not match "
+                                f"the actual value '{actual_value}'."
+                            )
             if not matched:
                 mismatches.append(f"\n\t --> '{name}': should be '{expected_name}', but got '{actual_name}'")
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
         raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
 
-def __check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
+
+def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
     get_name = lambda x: getattr(x, '__name__', repr(x))
     if isinstance(expected_codomain, type) and isinstance(actual_codomain, type):
         if expected_codomain != actual_codomain:

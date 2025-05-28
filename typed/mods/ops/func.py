@@ -1,9 +1,9 @@
 from typed.mods.helper import (
-    __flat,
-    __hinted_domain,
-    __hinted_codomain
+    _flat,
+    _hinted_domain,
+    _hinted_codomain
 )
-from typed.mods.types_ import (
+from typed.mods.types.func import (
     HintedDomFuncType,
     HintedCodFuncType,
     HintedFuncType,
@@ -24,29 +24,29 @@ def HintedDomainFunc(*domain_types):
         > whose arguments in the domain have type hints that
         > belong to 'Union(X, Y, ...)'
     """
-    __flattypes, is_flexible = __flat(*domain_types)
+    _flattypes, is_flexible = _flat(*domain_types)
 
     class __HintedDomainFunc(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, HintedDomFuncType):
                 return False
-            domain_hints = set(__hinted_domain(instance.func))
+            domain_hints = set(_hinted_domain(instance.func))
             if is_flexible:
-                if not set(__flattypes).issubset(domain_hints):
+                if not set(_flattypes).issubset(domain_hints):
                     return False
             else:
-                if domain_hints != set(__flattypes):
+                if domain_hints != set(_flattypes):
                     return False
             return True
 
         def check(self, instance):
             if not callable(instance):
                 return False
-            domain_hints = set(__hinted_domain(instance))
+            domain_hints = set(_hinted_domain(instance))
             return set(domain_hints) == set(self.__types__)
 
-    class_name = "HintedDomainFunc[" + (", ".join(t.__name__ for t in __flattypes)) + "]"
-    return __HintedDomainFunc(class_name, (HintedDomFuncType,), {'__types__': __flattypes})
+    class_name = "HintedDomainFunc[" + (", ".join(t.__name__ for t in _flattypes)) + "]"
+    return __HintedDomainFunc(class_name, (HintedDomFuncType,), {'__types__': _flattypes})
 
 def HintedCodFunc(cod=None):
     """
@@ -62,13 +62,13 @@ def HintedCodFunc(cod=None):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, HintedCodFuncType):
                 return False
-            return_hint = __hinted_codomain(instance.func)
+            return_hint = _hinted_codomain(instance.func)
             return return_hint == cod
 
         def check(self, instance):
             if not callable(instance):
                 return False
-            return_hint = __hinted_codomain(instance)
+            return_hint = _hinted_codomain(instance)
             return return_hint == self.__codomain__
 
     class_name = f"HintedCodFunc[cod={cod.__name__}]"
@@ -87,30 +87,30 @@ def HintedFunc(*domain_types, cod=None):
     """
     if cod is None:
         raise TypeError("Codomain type must be specified.")
-    __flattypes, is_flexible = __flat(*domain_types)
+    _flattypes, is_flexible = _flat(*domain_types)
     class __HintedFunc(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, HintedFuncType):
                 return False
-            domain_hints = set(__hinted_domain(instance.func))
-            return_hint = __hinted_codomain(instance.func)
+            domain_hints = set(_hinted_domain(instance.func))
+            return_hint = _hinted_codomain(instance.func)
             if is_flexible:
-                if not set(__flattypes).issubset(domain_hints):
+                if not set(_flattypes).issubset(domain_hints):
                     return False
             else:
-                if domain_hints != set(__flattypes):
+                if domain_hints != set(_flattypes):
                     return False
             return return_hint == cod
 
         def check(self, instance):
             if not callable(instance):
                 return False
-            domain_hints = set(__hinted_domain(instance))
-            return_hint = __hinted_codomain(instance)
+            domain_hints = set(_hinted_domain(instance))
+            return_hint = _hinted_codomain(instance)
             return domain_hints == set(self.__types__) and return_hint == self.__codondomain__
 
-    class_name = "HintedFunc[" + (", ".join(t.__name__ for t in __flattypes)) + f"]; cod={cod.__name__}"
-    return __HintedFunc(class_name, (HintedFuncType,), {'__types__': __flattypes, '__codondomain__': cod})
+    class_name = "HintedFunc[" + (", ".join(t.__name__ for t in _flattypes)) + f"]; cod={cod.__name__}"
+    return __HintedFunc(class_name, (HintedFuncType,), {'__types__': _flattypes, '__codondomain__': cod})
 
 def TypedDomFunc(*domain_types):
     """
@@ -123,28 +123,28 @@ def TypedDomFunc(*domain_types):
         > whose arguments in the domain have type hints that
         > belong to 'coprod_(X, Y, ...)'
     """
-    __flattypes, is_flexible = __flat(*domain_types)
+    _flattypes, is_flexible = _flat(*domain_types)
     class __TypedDomFunc(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, TypedDomFuncType):
                 return False
-            domain_hints = set(__hinted_domain(instance.func))
+            domain_hints = set(_hinted_domain(instance.func))
             if is_flexible:
-                if not set(__flattypes).issubset(domain_hints):
+                if not set(_flattypes).issubset(domain_hints):
                     return False
             else:
-                if domain_hints != set(__flattypes):
+                if domain_hints != set(_flattypes):
                     return False
             return True
 
         def check(self, instance):
             if not callable(instance):
                 return False
-            domain_hints = set(__hinted_domain(instance))
+            domain_hints = set(_hinted_domain(instance))
             return set(domain_hints) == set(self.__types__)
 
-    class_name = f"TypedDomFunc([{', '.join(t.__name__ for t in __flattypes)}])"
-    return __TypedDomFunc(class_name, (TypedDomFuncType,), {'__types__': __flattypes})
+    class_name = f"TypedDomFunc([{', '.join(t.__name__ for t in _flattypes)}])"
+    return __TypedDomFunc(class_name, (TypedDomFuncType,), {'__types__': _flattypes})
 
 
 def TypedCodFunc(cod):
@@ -161,12 +161,12 @@ def TypedCodFunc(cod):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, TypedCodFuncType):
                 return False
-            return_hint = __hinted_codomain(instance.func)
+            return_hint = _hinted_codomain(instance.func)
             return return_hint == cod
         def check(self, instance):
             if not callable(instance):
                 return False
-            return_hint = __hinted_codomain(instance)
+            return_hint = _hinted_codomain(instance)
             return return_hint == self.__codomain__
 
     class_name = f"TypedCodFunc[cod={cod.__name__}]"
@@ -177,18 +177,18 @@ def TypedFunc(*domain_types, cod=None):
     if cod is None:
         raise TypeError("Codomain type must be specified.")
 
-    __flattypes, is_flexible = __flat(*domain_types)
+    _flattypes, is_flexible = _flat(*domain_types)
     class __TypedFunc(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, TypedFuncType):
                 return False
-            domain_hints = set(__hinted_domain(instance.func))
-            return_hint = __hinted_codomain(instance.func)
+            domain_hints = set(_hinted_domain(instance.func))
+            return_hint = _hinted_codomain(instance.func)
             if is_flexible:
-                if not set(__flattypes).issubset(domain_hints):
+                if not set(_flattypes).issubset(domain_hints):
                     return False
             else:
-                if domain_hints != set(__flattypes):
+                if domain_hints != set(_flattypes):
                     return False
             if return_hint != cod:
                 return False
@@ -197,12 +197,12 @@ def TypedFunc(*domain_types, cod=None):
         def check(self, instance):
             if not callable(instance):
                 return False
-            domain_hints = set(__hinted_domain(instance))
-            return_hint = __hinted_codomain(instance)
+            domain_hints = set(_hinted_domain(instance))
+            return_hint = _hinted_codomain(instance)
             return domain_hints == set(self.__types__) and return_hint == self.__codmondomain__
 
-    class_name = f"TypedFunc([{', '.join(t.__name__ for t in __flattypes)}], cod={cod.__name__})"
-    return __TypedFunc(class_name, (TypedFuncType,), {'__types__': __flattypes, '__codmondomain__': cod})
+    class_name = f"TypedFunc([{', '.join(t.__name__ for t in _flattypes)}], cod={cod.__name__})"
+    return __TypedFunc(class_name, (TypedFuncType,), {'__types__': _flattypes, '__codmondomain__': cod})
 
 def BoolFunc(*domain_types):
     """
@@ -210,19 +210,19 @@ def BoolFunc(*domain_types):
         > the objects of 'bfunc_(X, Y, ...)'  are
         > typed functions f(x: X, y: Y, ...) -> bool
     """
-    __flattypes, is_flexible = __flat(*domain_types)
+    _flattypes, is_flexible = _flat(*domain_types)
 
     class __BoolFunc(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, BoolFuncType):
                 return False
-            domain_hints = set(__hinted_domain(instance.func))
-            return_hint = __hinted_codomain(instance.func)
+            domain_hints = set(_hinted_domain(instance.func))
+            return_hint = _hinted_codomain(instance.func)
             if is_flexible:
-                if not set(__flattypes).issubset(domain_hints):
+                if not set(_flattypes).issubset(domain_hints):
                     return False
             else:
-                if domain_hints != set(__flattypes):
+                if domain_hints != set(_flattypes):
                     return False
             if return_hint != bool:
                 return False
@@ -231,9 +231,9 @@ def BoolFunc(*domain_types):
         def check(self, instance):
             if not callable(instance):
                 return False
-            domain_hints = set(__hinted_domain(instance))
-            return_hint = __hinted_codomain(instance)
+            domain_hints = set(_hinted_domain(instance))
+            return_hint = _hinted_codomain(instance)
             return domain_hints == set(self.__types__) and return_hint == bool
 
-    class_name = f"BoolFunc([{', '.join(t.__name__ for t in __flattypes)}])"
-    return __BoolFunc(class_name, (BoolFuncType,), {'__types__': __flattypes})
+    class_name = f"BoolFunc([{', '.join(t.__name__ for t in _flattypes)}])"
+    return __BoolFunc(class_name, (BoolFuncType,), {'__types__': _flattypes})

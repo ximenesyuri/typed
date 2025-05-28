@@ -1,5 +1,5 @@
 from typing import Type, Tuple as Tuple_, Hashable
-from typed.mods.helper import __flat
+from typed.mods.helper import _flat
 
 def Union(*types: Tuple_[Type]) -> Type:
     """
@@ -7,20 +7,24 @@ def Union(*types: Tuple_[Type]) -> Type:
         > an object 'p' of 'Union(X, Y, ...)'
         > is an object of some of 'X, Y, ...'
     """
-    __flattypes, _ = __flat(*types)
+    _flattypes, _ = _flat(*types)
 
-    if not __flattypes:
+    if not _flattypes:
         class __EmptyUnion(type):
             def __instancecheck__(cls, instance):
+                return False
+            def __subclasscheck__(cls, subclass):
                 return False
         return __EmptyUnion("Union()", (), {})
 
     class __Union(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__))
+        def __subclasscheck__(cls, subclass):
+            return any(issubclass(subclass, t) for t in cls.__types__)
 
-    class_name = f"Union({', '.join(t.__name__ for t in __flattypes)})"
-    return __Union(class_name, (), {'__types__': __flattypes})
+    class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
+    return __Union(class_name, (), {'__types__': _flattypes}) 
 
 def Prod(*types: Tuple_[Type]) -> Type:
     """
@@ -30,15 +34,16 @@ def Prod(*types: Tuple_[Type]) -> Type:
             1. 'len(x, y, ...) == len(X, Y, ...)'
             2. 'x is in X', 'y is in Y', ...
     """
-    __flattypes, is_flexible = __flat(*types)
+    _flattypes, is_flexible = _flat(*types)
 
     class __Prod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
-            if len(instance) != len(__flattypes):
+            # Access _flattypes from the class itself
+            if len(instance) != len(cls.__types__):
                 return False
-            return all(isinstance(x, t) for x, t in zip(instance, __flattypes))
+            return all(isinstance(x, t) for x, t in zip(instance, cls.__types__))
 
         def check(self, instance):
             if not isinstance(instance, tuple):
@@ -46,8 +51,9 @@ def Prod(*types: Tuple_[Type]) -> Type:
             if len(instance) != len(self.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, self.__types__))
-    class_name = f"Prod({', '.join(t.__name__ for t in __flattypes)})"
-    return __Prod(class_name, (tuple,), {'__types__': __flattypes})
+
+    class_name = f"Prod({', '.join(t.__name__ for t in _flattypes)})"
+    return __Prod(class_name, (tuple,), {'__types__': _flattypes})
 
 def UProd(*types: Tuple_[Type]) -> Type:
     """
@@ -57,17 +63,17 @@ def UProd(*types: Tuple_[Type]) -> Type:
             1. 'len(x, y, ...) == len(X, Y, ...)'
             2. 'x, y, ... are in Union(X, Y, ...)'
     """
-    __flattypes, is_flexible = __flat(*types)
+    _flattypes, is_flexible = _flat(*types)
 
     class __Uprod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
 
-            if len(instance) != len(__flattypes):
+            if len(instance) != len(cls.__types__):
                 return False
 
-            type_counts = {typ: __flattypes.count(typ) for typ in __flattypes}
+            type_counts = {typ: cls.__types__.count(typ) for typ in cls.__types__}
             for elem in instance:
                 for typ in type_counts:
                     if isinstance(elem, typ) and type_counts[typ] > 0:
@@ -82,8 +88,8 @@ def UProd(*types: Tuple_[Type]) -> Type:
                 return False
             return all(any(isinstance(elem, typ) for typ in self.__types__) for elem in instance)
 
-    class_name = f"UProd({', '.join(t.__name__ for t in __flattypes)})"
-    return __Uprod(class_name, (tuple,), {'__types__': __flattypes})
+    class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
+    return __Uprod(class_name, (tuple,), {'__types__': _flattypes})
 
 def Tuple(*args: Tuple_[Type]) -> Type:
     """
@@ -93,12 +99,12 @@ def Tuple(*args: Tuple_[Type]) -> Type:
             1. 'x, y, ... are in Union(X, Y, ...)'
             2. The tuple can have any length >= 0.
     """
-    __flattypes, is_flexible = __flat(*args)
+    _flattypes, is_flexible = _flat(*args)
 
     if not is_flexible and args:
-        raise ValueError("Tuple() based on this definition is always flexible; check __flat implementation.")
+        raise ValueError("Tuple() based on this definition is always flexible; check _flat implementation.")
 
-    if not __flattypes:
+    if not _flattypes:
         class _EmptyFlexibleTupleMeta(type):
             def __instancecheck__(cls, instance):
                 return isinstance(instance, tuple)
@@ -108,7 +114,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__))
 
-    ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': __flattypes})
+    ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': _flattypes})
 
     class __Tuple(type):
         def __instancecheck__(cls, instance):
@@ -116,13 +122,13 @@ def Tuple(*args: Tuple_[Type]) -> Type:
                 return False
             return all(isinstance(x, ElementUnion) for x in instance)
 
-    class_name = f"Tuple({', '.join(t.__name__ for t in __flattypes)})"
-    if __flattypes:
-        class_name = f"Tuple({', '.join(t.__name__ for t in __flattypes)}, ...)"
+    class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)})"
+    if _flattypes:
+        class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Tuple()"
 
-    return __Tuple(class_name, (tuple,), {'__types__': __flattypes})
+    return __Tuple(class_name, (tuple,), {'__types__': _flattypes})
 
 def List(*args: Tuple_[Type]) -> Type:
     """
@@ -133,16 +139,16 @@ def List(*args: Tuple_[Type]) -> Type:
            and
             2. The list can have any length >= 0.
     """
-    __flattypes, is_flexible = __flat(*args)
+    _flattypes, is_flexible = _flat(*args)
 
     if not is_flexible and args:
-        raise ValueError("List() based on this definition is always flexible; check __flat implementation.")
+        raise ValueError("List() based on this definition is always flexible; check _flat implementation.")
 
     class _ElementUnionMeta(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__))
 
-    ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': __flattypes})
+    ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': _flattypes})
 
     class __List(type):
         def __instancecheck__(cls, instance):
@@ -151,13 +157,13 @@ def List(*args: Tuple_[Type]) -> Type:
 
             return all(isinstance(x, ElementUnion) for x in instance)
 
-    class_name = f"List({', '.join(t.__name__ for t in __flattypes)})"
-    if __flattypes:
-        class_name = f"List({', '.join(t.__name__ for t in __flattypes)}, ...)"
+    class_name = f"List({', '.join(t.__name__ for t in _flattypes)})"
+    if _flattypes:
+        class_name = f"List({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "List()"
 
-    return __List(class_name, (list,), {'__types__': __flattypes})
+    return __List(class_name, (list,), {'__types__': _flattypes})
 
 def Set(*args: Type) -> Type:
     """
@@ -169,16 +175,16 @@ def Set(*args: Type) -> Type:
             2. The set can have any size >= 0.
             3. Elements must be hashable.
     """
-    __flattypes, is_flexible = __flat(*args)
+    _flattypes, is_flexible = _flat(*args)
 
     if not is_flexible and args:
-        raise ValueError("Set() based on this definition is always flexible; check __flat implementation.")
+        raise ValueError("Set() based on this definition is always flexible; check _flat implementation.")
 
     class _ElementUnionMeta(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__)) and isinstance(instance, Hashable)
 
-    ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': __flattypes})
+    ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': _flattypes})
 
     class __Set(type):
         def __instancecheck__(cls, instance):
@@ -186,13 +192,13 @@ def Set(*args: Type) -> Type:
                 return False
             return all(isinstance(x, ElementUnion) for x in instance)
 
-    class_name = f"Set({', '.join(t.__name__ for t in __flattypes)})"
-    if __flattypes:
-        class_name = f"Set({', '.join(t.__name__ for t in __flattypes)}, ...)"
+    class_name = f"Set({', '.join(t.__name__ for t in _flattypes)})"
+    if _flattypes:
+        class_name = f"Set({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Set()"
 
-    return __Set(class_name, (set,), {'__types__': __flattypes})
+    return __Set(class_name, (set,), {'__types__': _flattypes})
 
 def Dict(*args: Type) -> Type:
     """
@@ -210,16 +216,16 @@ def Dict(*args: Type) -> Type:
                 return isinstance(instance, dict)
         return _AnyAnyDictMeta("Dict()", (dict,), {})
 
-    __flattypes, is_flexible = __flat(*args)
+    _flattypes, is_flexible = _flat(*args)
 
     if not is_flexible and args:
-        raise ValueError("Dict() based on this definition is always flexible; check __flat implementation.")
+        raise ValueError("Dict() based on this definition is always flexible; check _flat implementation.")
 
     class _ValueUnionMeta(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__))
 
-    ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': __flattypes})
+    ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': _flattypes})
 
     class __Dict(type):
         def __instancecheck__(cls, instance):
@@ -228,7 +234,7 @@ def Dict(*args: Type) -> Type:
 
             return all(isinstance(v, ValueUnion) for v in instance.values())
 
-    class_name = f"Dict({', '.join(t.__name__ for t in __flattypes)})"
-    class_name = f"Dict(..., {', '.join(t.__name__ for t in __flattypes)})"
+    class_name = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
+    class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
 
-    return __Dict(class_name, (dict,), {'__types__': __flattypes})
+    return __Dict(class_name, (dict,), {'__types__': _flattypes})
