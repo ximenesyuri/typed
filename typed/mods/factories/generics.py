@@ -1,3 +1,4 @@
+import re
 from typing import Tuple, Type
 from typed.mods.types.func import BoolFuncType
 from typed.mods.helper import (
@@ -100,3 +101,30 @@ def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
             return not any(isinstance(instance, subtype) for subtype in cls.__excluded_subtypes__)
 
     return __Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
+
+def Regex(regex_string: str) -> Type[str]:
+    """
+    Build the 'regex type' for a given regex:
+        > an object 'x' of Regex(r'some_regex') is a string
+        > that matches the regex r'some_regex'
+    """
+    if not isinstance(regex_string, str):
+        raise TypeError("regex_string must be a string.")
+
+    class __Regex(str):
+        _regex_pattern = re.compile(regex_string)
+        _regex_string = regex_string
+
+        def __instancecheck__(cls, instance: str) -> bool:
+            return isinstance(instance, str) and cls._regex_pattern.match(instance) is not None
+
+        def __subclasscheck__(cls, subclass: Type) -> bool:
+            return issubclass(subclass, str)
+
+        def __repr__(self):
+            return f"Regex(r'{self._regex_string}')"
+
+        def __str__(self):
+            return f"Regex(r'{self._regex_string}')"
+
+    return type(f"Regex_{hash(regex_string)}", (__Regex,), {})
