@@ -15,6 +15,9 @@ def Union(*types: Tuple_[Type]) -> Type:
             def __instancecheck__(cls, instance):
                 return False
             def __subclasscheck__(cls, subclass):
+                from typed.mods.types.base import Any
+                if subclass is cls or subclass is Any:
+                    return True
                 return False
         return __EmptyUnion("Union()", (), {})
 
@@ -22,10 +25,17 @@ def Union(*types: Tuple_[Type]) -> Type:
         def __instancecheck__(cls, instance):
             return isinstance(instance, tuple(cls.__types__))
         def __subclasscheck__(cls, subclass):
-            return any(issubclass(subclass, t) for t in cls.__types__)
+            from typed.mods.types.base import Any
 
+            if subclass is cls:
+                return True
+            if subclass is Any:
+                return True
+            if subclass in cls.__types__:
+                return True
+            return any(issubclass(subclass, t) for t in cls.__types__)
     class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
-    return __Union(class_name, (), {'__types__': _flattypes}) 
+    return __Union(class_name, (), {'__types__': _flattypes})
 
 def Prod(*types: Tuple_[Type]) -> Type:
     """
@@ -36,25 +46,28 @@ def Prod(*types: Tuple_[Type]) -> Type:
             2. 'x is in X', 'y is in Y', ...
     """
     _flattypes, is_flexible = _flat(*types)
-
     class __Prod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
-            # Access _flattypes from the class itself
             if len(instance) != len(cls.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, cls.__types__))
-
         def check(self, instance):
             if not isinstance(instance, tuple):
                 return False
             if len(instance) != len(self.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, self.__types__))
-
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+                return True
+            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
+                return all(issubclass(st, ct) for st, ct in zip(subclass.__types__, cls.__types__))
+            return False
     class_name = f"Prod({', '.join(t.__name__ for t in _flattypes)})"
-    return __Prod(class_name, (tuple,), {'__types__': _flattypes})
+    return __Prod(class_name, (tuple,), {'__types__': _flattypes}) 
 
 def UProd(*types: Tuple_[Type]) -> Type:
     """
@@ -89,8 +102,15 @@ def UProd(*types: Tuple_[Type]) -> Type:
                 return False
             return all(any(isinstance(elem, typ) for typ in self.__types__) for elem in instance)
 
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+                return True
+            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
+                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
+            return False
     class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
-    return __Uprod(class_name, (tuple,), {'__types__': _flattypes})
+    return __Uprod(class_name, (tuple,), {'__types__': _flattypes}) 
 
 def Tuple(*args: Tuple_[Type]) -> Type:
     """
@@ -109,6 +129,11 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         class _EmptyFlexibleTupleMeta(type):
             def __instancecheck__(cls, instance):
                 return isinstance(instance, tuple)
+            def __subclasscheck__(cls, subclass):
+                from typed.mods.types.base import Any
+                if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+                    return True
+                return False
         return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {})
 
     class _ElementUnionMeta(type):
@@ -123,12 +148,20 @@ def Tuple(*args: Tuple_[Type]) -> Type:
                 return False
             return all(isinstance(x, ElementUnion) for x in instance)
 
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+                return True
+            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__'):
+                subclass_element_types = subclass.__types__
+                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+            return False
+
     class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
         class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Tuple()"
-
     return __Tuple(class_name, (tuple,), {'__types__': _flattypes})
 
 def List(*args: Tuple_[Type]) -> Type:
@@ -155,16 +188,22 @@ def List(*args: Tuple_[Type]) -> Type:
         def __instancecheck__(cls, instance):
             if not isinstance(instance, list):
                 return False
-
             return all(isinstance(x, ElementUnion) for x in instance)
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+            if subclass is cls or subclass is Any or issubclass(subclass, list):
+                return True
+            if hasattr(subclass, '__bases__') and list in subclass.__bases__ and hasattr(subclass, '__types__'):
+                subclass_element_types = subclass.__types__
+                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+            return False
 
     class_name = f"List({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
         class_name = f"List({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "List()"
-
-    return __List(class_name, (list,), {'__types__': _flattypes})
+    return __List(class_name, (list,), {'__types__': _flattypes}) 
 
 def Set(*args: Type) -> Type:
     """
@@ -193,6 +232,18 @@ def Set(*args: Type) -> Type:
                 return False
             return all(isinstance(x, ElementUnion) for x in instance)
 
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+
+            if subclass is cls or subclass is Any or issubclass(subclass, set):
+                return True
+
+            if hasattr(subclass, '__bases__') and set in subclass.__bases__ and hasattr(subclass, '__types__'):
+                subclass_element_types = subclass.__types__
+                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+
+            return False
+
     class_name = f"Set({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
         class_name = f"Set({', '.join(t.__name__ for t in _flattypes)}, ...)"
@@ -211,10 +262,16 @@ def Dict(*args: Type) -> Type:
             2. The dict can have any size >= 0.
             3. Keys must be hashable (standard dict behavior).
     """
+
     if not args:
         class _AnyAnyDictMeta(type):
             def __instancecheck__(cls, instance):
                 return isinstance(instance, dict)
+            def __subclasscheck__(cls, subclass):
+                from typed.mods.types.base import Any
+                if subclass is cls or subclass is Any or issubclass(subclass, dict):
+                    return True
+                return False
         return _AnyAnyDictMeta("Dict()", (dict,), {})
 
     _flattypes, is_flexible = _flat(*args)
@@ -235,10 +292,21 @@ def Dict(*args: Type) -> Type:
 
             return all(isinstance(v, ValueUnion) for v in instance.values())
 
-    class_name = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+
+            if subclass is cls or subclass is Any or issubclass(subclass, dict):
+                return True
+
+            if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
+                subclass_value_union_types = subclass.__types__
+                return all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
+
+            return False # Default case
+
     class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
 
-    return __Dict(class_name, (dict,), {'__types__': _flattypes})
+    return __Dict(class_name, (dict,), {'__types__': _flattypes}) 
 
 def Regex(regex_string: str) -> Type[str]:
     """
@@ -255,10 +323,13 @@ def Regex(regex_string: str) -> Type[str]:
         def __instancecheck__(cls, instance: str) -> bool:
             return isinstance(instance, str) and cls._regex_pattern.match(instance) is not None
         def __subclasscheck__(cls, subclass: Type) -> bool:
-            return issubclass(subclass, str)
+            from typed.mods.types.base import Any
+            if subclass is cls or subclass is Any or issubclass(subclass, str):
+                return True
+            return False
         def __repr__(self):
             return f"Regex(r'{self._regex_string}')"
         def __str__(self):
             return f"Regex(r'{self._regex_string}')"
 
-    return type(f"Regex_{hash(regex_string)}", (__Regex,), {})
+    return type(f"Regex_{hash(regex_string)}", (__Regex,), {}) 

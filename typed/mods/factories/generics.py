@@ -35,13 +35,8 @@ def Inter(*types: Tuple[Type]) -> Type:
     return __Inter(class_name, (object,), {'__types__': unique_types})
 
 def Filter(X, *funcs):
-    """
-    Build the 'filtered subtype' of a type:
-        > an object 'x' of the Filter(X, *funcs)
-        > is an 'x in X' such that 'f(x) is True'
-        > for every 'f in funcs'
-    """
     real_filters = []
+    from typed.mods.types.base import Any
     for f in funcs:
         if not isinstance(f, BoolFuncType):
             raise TypeError(f"The function '{f.__name__}' is not of type BoolFuncType.")
@@ -49,7 +44,9 @@ def Filter(X, *funcs):
         if len(domain_hints) != 1:
             raise TypeError(f"Function '{f.__name__}' must take one argument.")
         func_domain_type = domain_hints[0]
-        if not (isinstance(func_domain_type, type) and issubclass(X, func_domain_type)):
+        if func_domain_type is Any:
+            pass
+        elif not issubclass(X, func_domain_type):
             raise TypeError(
                 f"BoolFunc '{getattr(f, '__name__', 'anonymous')}' "
                 f"has domain hint '{getattr(func_domain_type, '__name__', str(func_domain_type))}' "
@@ -59,11 +56,11 @@ def Filter(X, *funcs):
             real_filters.append(f.func)
         else:
             real_filters.append(f)
-    class Meta(type):
+
+    class Meta(type(X)):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, X):
-                return False
-            return all(f(instance) for f in real_filters)
+            return all(f(instance) for f in real_filters) 
+
     return Meta(f"Filter({X.__name__})", (X,), {})
 
 

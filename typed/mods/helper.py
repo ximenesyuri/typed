@@ -51,27 +51,40 @@ def _is_codomain_hinted(func):
         raise TypeError(f"Function '{func.__name__}' must have a return type hint.")
     return True
 
+def _get_original_func(func: Callable) -> Callable:
+    """Recursively gets the original function if it's wrapped."""
+    while hasattr(func, '__wrapped__'):
+        func = func.__wrapped__
+    if hasattr(func, 'func'):
+        return _get_original_func(func.func)
+    return func
+
 def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
-    type_hints = get_type_hints(func)
+    original_func = _get_original_func(func)
+    type_hints = get_type_hints(original_func)
     if hasattr(func, '_composed_domain_hint'):
         return func._composed_domain_hint
-
-    actual_func = func.func if hasattr(func, 'func') else func
     try:
-        sig = inspect.signature(actual_func)
-        return tuple(type_hints[param.name] for param in sig.parameters.values() if param.name in type_hints and type_hints[param.name] is not inspect.Signature.empty)
-    except ValueError: # Handle objects without standard signatures
+        sig = inspect.signature(original_func)
+        return tuple(type_hints.get(param.name, inspect.Signature.empty)
+                   for param in sig.parameters.values()
+                   if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                     inspect.Parameter.POSITIONAL_ONLY,
+                                     inspect.Parameter.KEYWORD_ONLY)
+                   and type_hints.get(param.name, inspect.Signature.empty) is not inspect.Signature.empty)
+    except ValueError:
         pass
     return ()
 
 def _hinted_codomain(func: Callable) -> Any:
-    type_hints = get_type_hints(func)
+    original_func = _get_original_func(func)
+    type_hints = get_type_hints(original_func)
+
     if hasattr(func, '_composed_codomain_hint'):
         return func._composed_codomain_hint
 
-    actual_func = func.func if hasattr(func, 'func') else func
     try:
-        sig = inspect.signature(actual_func)
+        sig = inspect.signature(original_func)
         return type_hints.get('return', inspect.Signature.empty)
     except ValueError:
         pass
