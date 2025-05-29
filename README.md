@@ -37,7 +37,7 @@ def my_function(x: Int, y: Str) -> List(Int, Str):
     return [x, y]
 ```
 
-If at runtime the type of `x` does not match `Int` (respectively the type of `y` does not match `Str` or if the return type of `my_function` does not matches `List(Int, Str)`), then a descriptive `Type Error` message is provided.
+If at runtime the type of `x` does not matches `Int` (respectively the type of `y` does not matches `Str` or the return type of `my_function` does not matches `List(Int, Str)`), then a descriptive `Type Error` message is provided, presenting the received types and the expected types.
 
 # See Also
 
