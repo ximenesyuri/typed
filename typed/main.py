@@ -1,5 +1,5 @@
 from functools import wraps
-from typed.mods.types.builtin       import *
+from typed.mods.types.base          import *
 from typed.mods.types.func          import *
 from typed.mods.types.attr          import *
 from typed.mods.factories.generics  import *
