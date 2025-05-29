@@ -1,3 +1,4 @@
+from pathlib import Path as Path_
 from typed.mods.factories.base import Union, Dict, Set, List
 
 Int   = int
@@ -14,3 +15,4 @@ class Any(type):
         return True
 
 Json = Union(Dict(Str, Any), Set(Any), List(Any))
+Path = Union(Path_, Str)
