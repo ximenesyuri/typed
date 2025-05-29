@@ -1,45 +1,39 @@
-from typing import List, Type
+from typing import Any, Type, List, Union
 
-def Attr(*attributes: List[str]) -> Type:
-    """
-    Build the 'attributable type':
-        > the objects of 'Attr(a1, a2, ...)' are the
-        > classes 'X' such that 'getattr(X, a)' is True
-        > for every 'a in (a1, a2, ...)'
-    """
-    if not attributes:
-        return type
+def Attr(attributes: Union[str, List[str]]) -> Type[Any]:
+    if isinstance(attributes, str):
+        attributes = (attributes,)
+    elif not isinstance(attributes, list):
+        raise TypeError("attributes must be a string or a list of strings")
+
+    type_name = f'Attr{"_and_".join(attr.strip("_").capitalize() for attr in attributes)}'
 
     class __Attr(type):
         def __init__(cls, name, bases, dct, attributes=None):
             super().__init__(name, bases, dct)
             if attributes:
-                setattr(cls, '_attributes', attributes)
+                setattr(cls, '_required_attributes', attributes)
 
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, type):
-                return False
-            attributes = getattr(cls, '_attributes', None)
-            if attributes:
-                return all(hasattr(instance, attr) for attr in attributes)
-            return False
+        def __instancecheck__(cls, instance: Any) -> bool:
+            required_attributes = getattr(cls, '_required_attributes', None)
+            if required_attributes:
+                return all(hasattr(instance, attr) for attr in required_attributes)
+            return True
 
-    return __Attr(
-        f'Supports_{"_and_".join(a.strip("_").capitalize() for a in attributes)}',
-        (type),
-        {},
-        attributes=attributes
-    )
+    class Attr__(metaclass=__Attr):
+        pass
 
-Callable           = Attr('__call__')
-Additive           = Attr('__add__')
-Multiplicative     = Attr('__mul__')
-Nullable           = Attr('__null__')
-Appendable         = Attr('__append__')
-Sized              = Attr('__len__')
-Iterable           = Attr('__iter__')
-Hashable           = Attr('__hash__')
-Container          = Attr('__contains__')
-MutableContainer   = Attr('__contains__', '__setitem__')
-IndexedContainer   = Attr('__contains__', '__getitem__')
-DeletableContainer = Attr('__contains__', '__delitem__')
+    return type(type_name, (Attr__,), {'_required_attributes': tuple(attributes)})
+
+
+Callable = Attr('__call__')
+Iterable = Attr('__iter__')
+Iterator = Attr('__next__')
+Sized = Attr('__len__')
+Container = Attr('__contains__')
+Hashable =  Attr('__hash__')
+Awaitable = Attr('__await__')
+AsyncIterable = Attr('__aiter__')
+AsyncIterator = Attr('__anext__')
+ContextManager = Attr(['__enter__', '__exit__'])
+AsyncContextManager = Attr(['__aenter__', '__aexit__'])
