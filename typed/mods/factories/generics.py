@@ -124,4 +124,4 @@ def Regex(regex_string: str) -> Type[str]:
         def __str__(self):
             return f"Regex(r'{self._regex_string}')"
 
-    return type(f"Regex_{hash(regex_string)}", (__Regex,), {})
+    return type(f"Regex({regex_string})", (__Regex,), {})
