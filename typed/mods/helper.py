@@ -1,11 +1,12 @@
 import inspect
 from typing import get_type_hints, Callable, Any, Tuple, Type
+from typed.mods.types.base import Any as TypedAny
 
-def _flat(*types): # Use a single underscore for 'internal' use
+def _flat(*types):
     if not types:
         return (), False
     flat_list = []
-    is_flexible = True # You might need to revisit the logic determining is_flexible based on your intended use cases
+    is_flexible = True
     def _flatten(item):
        if isinstance(item, type):
            flat_list.append(item)
@@ -112,6 +113,9 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
     get_name = lambda x: getattr(x, '__name__', repr(x))
+
+    if expected_codomain is Any or expected_codomain is TypedAny:
+        return
 
     if hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
         union_types = expected_codomain.__types__
