@@ -14,3 +14,4 @@ Env = Regex(r"^[A-Z0-9_]+$")
 # Color
 RGB = Prod(Range(0, 255), 3)
 HEX = Regex(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
+HSL = Prod(Range(0, 360), Range(0, 100), Range(0, 100))
