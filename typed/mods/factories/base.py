@@ -131,6 +131,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         > the objects of 'Tuple(X, Y, ...)'
         > are the tuples '(x, y, ...)' such that:
             1. 'x, y, ... are in Union(X, Y, ...)'
+           and
             2. The tuple can have any length >= 0.
     """
     _flattypes, is_flexible = _flat(*args)
@@ -139,7 +140,8 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         raise ValueError("Tuple() based on this definition is always flexible; check _flat implementation.")
 
     if not _flattypes:
-        class _EmptyFlexibleTupleMeta(type):
+        # Make it a subclass of tuple
+        class _EmptyFlexibleTupleMeta(type(tuple)): # Inherit from type(tuple)
             def __instancecheck__(cls, instance):
                 return isinstance(instance, tuple)
             def __subclasscheck__(cls, subclass):
@@ -147,7 +149,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
                 if subclass is cls or subclass is Any or issubclass(subclass, tuple):
                     return True
                 return False
-        return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {})
+        return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {}) # Pass tuple as base
 
     class _ElementUnionMeta(type):
         def __instancecheck__(cls, instance):
@@ -155,7 +157,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
 
     ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': _flattypes})
 
-    class __Tuple(type):
+    class __Tuple(type(tuple)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
@@ -175,7 +177,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Tuple()"
-    return __Tuple(class_name, (tuple,), {'__types__': _flattypes})
+    return __Tuple(class_name, (tuple,), {'__types__': _flattypes}) # Pass tuple as base
 
 def List(*args: Tuple_[Type]) -> Type:
     """
@@ -197,7 +199,7 @@ def List(*args: Tuple_[Type]) -> Type:
 
     ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': _flattypes})
 
-    class __List(type):
+    class __List(type(list)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, list):
                 return False
@@ -216,7 +218,7 @@ def List(*args: Tuple_[Type]) -> Type:
         class_name = f"List({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "List()"
-    return __List(class_name, (list,), {'__types__': _flattypes}) 
+    return __List(class_name, (list,), {'__types__': _flattypes}) # Pass list as base
 
 def Set(*args: Type) -> Type:
     """
@@ -238,14 +240,14 @@ def Set(*args: Type) -> Type:
             return isinstance(instance, tuple(cls.__types__)) and isinstance(instance, Hashable)
 
     ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': _flattypes})
-
-    class __Set(type):
+ 
+    class __Set(type(set)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, set):
                 return False
             return all(isinstance(x, ElementUnion) for x in instance)
 
-        def __subclasscheck__(cls, subclass):
+        def __subclasscheck__(cls, subclass: Type) -> bool:
             from typed.mods.types.base import Any
 
             if subclass is cls or subclass is Any or issubclass(subclass, set):
@@ -263,7 +265,7 @@ def Set(*args: Type) -> Type:
     else:
         class_name = "Set()"
 
-    return __Set(class_name, (set,), {'__types__': _flattypes})
+    return __Set(class_name, (set,), {'__types__': _flattypes}) # Pass set as base
 
 def Dict(*args: Type) -> Type:
     """
@@ -275,9 +277,8 @@ def Dict(*args: Type) -> Type:
             2. The dict can have any size >= 0.
             3. Keys must be hashable (standard dict behavior).
     """
-
     if not args:
-        class _AnyAnyDictMeta(type):
+        class _AnyAnyDictMeta(type(dict)):
             def __instancecheck__(cls, instance):
                 return isinstance(instance, dict)
             def __subclasscheck__(cls, subclass):
@@ -298,25 +299,19 @@ def Dict(*args: Type) -> Type:
 
     ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': _flattypes})
 
-    class __Dict(type):
+    class __Dict(type(dict)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, dict):
                 return False
-
             return all(isinstance(v, ValueUnion) for v in instance.values())
-
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
-
             if subclass is cls or subclass is Any or issubclass(subclass, dict):
                 return True
-
             if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
                 subclass_value_union_types = subclass.__types__
                 return all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
-
-            return False # Default case
+            return False
 
     class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
-
-    return __Dict(class_name, (dict,), {'__types__': _flattypes}) 
+    return __Dict(class_name, (dict,), {'__types__': _flattypes})
