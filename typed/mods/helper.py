@@ -92,23 +92,19 @@ def _hinted_codomain(func: Callable) -> Any:
 
 def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
-    for name, expected, actual in zip(param_names, expected_domain, actual_domain):
-        expected_name = getattr(expected, '__name__', repr(expected))
-        actual_name = getattr(actual, '__name__', repr(actual))
-        if expected != actual:
-            matched = False
-            if allow_subclass and issubclass(expected, actual):
-                matched = True
-                if hasattr(expected, 'check'):
-                    actual_value = args[param_names.index(name)]
-                    if not expected.check(actual_value):
-                        raise TypeError(
-                            f"Domain check failed in func '{func.__name__}':"
-                            f"\n\t --> '{name}': expected type '{expected_name}' did not match "
-                            f"the actual value '{actual_value}'."
-                        )
-            if not matched:
-                mismatches.append(f"\n\t --> '{name}': should be '{expected_name}', but got '{actual_name}'")
+    for name, expected_type in zip(param_names, expected_domain):
+        actual_value = args[param_names.index(name)]
+        actual_type = type(actual_value)
+
+        expected_name = getattr(expected_type, '__name__', repr(expected_type))
+        actual_name = getattr(actual_type, '__name__', repr(actual_type))
+
+        if not isinstance(actual_value, expected_type):
+            mismatches.append(f"\n\t --> '{name}': should be instance of '{expected_name}', but got instance of '{actual_name}'")
+        else:
+            if hasattr(expected_type, 'check'):
+                if not expected_type.check(actual_value):
+                    mismatches.append(f"\n\t --> '{name}': instance of '{actual_name}' failed additional check for type '{expected_name}'.")
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
         raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
@@ -134,7 +130,7 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             f"but got result '{result}' of type '{get_name(actual_codomain)}'."
         )
 
-    elif isinstance(expected_codomain, type): # Simplified this case
+    elif isinstance(expected_codomain, type):
         if isinstance(result, expected_codomain):
             if allow_subclass or (not allow_subclass and actual_codomain is expected_codomain):
                 if hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
