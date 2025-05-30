@@ -1,4 +1,5 @@
-from typed.mods.factories.base import Union, Dict, Set, List, Regex
+from typed.mods.factories.base import Union, Dict, Set, List
+from typed.mods.factories.generics import Regex
 
 Int   = int
 Str   = str
