@@ -1,4 +1,3 @@
-from pathlib import Path as Path_
 from typed.mods.factories.base import Union, Dict, Set, List, Regex
 
 Int   = int
@@ -15,4 +14,4 @@ class Any(type):
         return True
 
 Json = Union(Dict(Str, Any), Set(Any), List(Any))
-Path = Regex(r'^(?:[a-zA-Z]:\\|/)?(?:[^\\/:"<>|\r\n*?"]+(?:[\\/])*)*[^\\/:"<>|\r\n*?"]+[/\\\\]?$')
+Path = Regex(r"^/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?$")

@@ -307,29 +307,3 @@ def Dict(*args: Type) -> Type:
     class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
 
     return __Dict(class_name, (dict,), {'__types__': _flattypes}) 
-
-def Regex(regex_string: str) -> Type[str]:
-    """
-    Build the 'regex type' for a given regex:
-        > an object 'x' of Regex(r'some_regex') is a string
-        > that matches the regex r'some_regex'
-    """
-    if not isinstance(regex_string, str):
-        raise TypeError("regex_string must be a string.")
-
-    class __Regex(str):
-        _regex_pattern = re.compile(regex_string)
-        _regex_string = regex_string
-        def __instancecheck__(cls, instance: str) -> bool:
-            return isinstance(instance, str) and cls._regex_pattern.match(instance) is not None
-        def __subclasscheck__(cls, subclass: Type) -> bool:
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, str):
-                return True
-            return False
-        def __repr__(self):
-            return f"Regex(r'{self._regex_string}')"
-        def __str__(self):
-            return f"Regex(r'{self._regex_string}')"
-
-    return type(f"Regex_{hash(regex_string)}", (__Regex,), {}) 
