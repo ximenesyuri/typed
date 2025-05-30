@@ -97,17 +97,16 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         actual_name = getattr(actual, '__name__', repr(actual))
         if expected != actual:
             matched = False
-            # Your existing check logic
-            if allow_subclass and issubclass(actual, expected): # Changed order for subclass check
-                 matched = True
-                 if hasattr(expected, 'check'):
-                      actual_value = args[param_names.index(name)]
-                      if not expected.check(actual_value):
-                           raise TypeError(
-                                f"Domain check failed in func '{func.__name__}':"
-                                f"\n\t --> '{name}': expected type '{expected_name}' did not match "
-                                f"the actual value '{actual_value}'."
-                            )
+            if allow_subclass and issubclass(expected, actual):
+                matched = True
+                if hasattr(expected, 'check'):
+                    actual_value = args[param_names.index(name)]
+                    if not expected.check(actual_value):
+                        raise TypeError(
+                            f"Domain check failed in func '{func.__name__}':"
+                            f"\n\t --> '{name}': expected type '{expected_name}' did not match "
+                            f"the actual value '{actual_value}'."
+                        )
             if not matched:
                 mismatches.append(f"\n\t --> '{name}': should be '{expected_name}', but got '{actual_name}'")
     if mismatches:
@@ -120,7 +119,7 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
     if isinstance(expected_codomain, type) and isinstance(actual_codomain, type):
         if expected_codomain != actual_codomain:
             matched = False
-            if allow_subclass and issubclass(actual_codomain, expected_codomain):
+            if allow_subclass and issubclass(expected_codomain, actual_codomain):
                 matched = True
                 if hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
                     raise TypeError(
