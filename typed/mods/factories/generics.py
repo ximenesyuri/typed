@@ -108,9 +108,11 @@ def Regex(regex_string: str) -> Type[str]:
     if not isinstance(regex_string, str):
         raise TypeError("regex_string must be a string.")
 
-    class __Regex(str):
-        _regex_pattern = re.compile(regex_string)
-        _regex_string = regex_string
+    class __RegexMeta(type):
+        def __new__(cls, name, bases, dct, regex_pattern):
+            dct['_regex_pattern'] = re.compile(regex_pattern)
+            dct['_regex_string'] = regex_pattern
+            return super().__new__(cls, name, bases, dct)
 
         def __instancecheck__(cls, instance: str) -> bool:
             return isinstance(instance, str) and cls._regex_pattern.match(instance) is not None
@@ -118,10 +120,5 @@ def Regex(regex_string: str) -> Type[str]:
         def __subclasscheck__(cls, subclass: Type) -> bool:
             return issubclass(subclass, str)
 
-        def __repr__(self):
-            return f"Regex(r'{self._regex_string}')"
-
-        def __str__(self):
-            return f"Regex(r'{self._regex_string}')"
-
-    return type(f"Regex({regex_string})", (__Regex,), {})
+    class_name = f"Regex({regex_string})"
+    return __RegexMeta(class_name, (str,), {}, regex_pattern=regex_string)
