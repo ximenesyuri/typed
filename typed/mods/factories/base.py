@@ -37,15 +37,25 @@ def Union(*types: Tuple_[Type]) -> Type:
     class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
     return __Union(class_name, (), {'__types__': _flattypes})
 
-def Prod(*types: Tuple_[Type]) -> Type:
+def Prod(*types: Tuple_[Type, int]) -> Type:
     """
     Build the 'product' of types:
         > the objects of 'Product(X, Y, ...)'
         > are the tuples '(x, y, ...)' such that
             1. 'len(x, y, ...) == len(X, Y, ...)'
             2. 'x is in X', 'y is in Y', ...
+
+    New case:
+        > Prod(SomeType, some_int): if SomeType is a type and some_int is some int > 0,
+        > then Prod(SomeType, some_int) = Prod(SomeType, SomeType, SomeType ,...),
+        > with SomeType repeated some_int times
     """
-    _flattypes, is_flexible = _flat(*types)
+    if len(types) == 2 and isinstance(types[0], type) and isinstance(types[1], int) and types[1] > 0:
+        _flattypes = (types[0],) * types[1]
+        is_flexible = False
+    else:
+        _flattypes, is_flexible = _flat(*types)
+
     class __Prod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
@@ -53,12 +63,14 @@ def Prod(*types: Tuple_[Type]) -> Type:
             if len(instance) != len(cls.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, cls.__types__))
+
         def check(self, instance):
             if not isinstance(instance, tuple):
                 return False
             if len(instance) != len(self.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, self.__types__))
+
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
             if subclass is cls or subclass is Any or issubclass(subclass, tuple):
@@ -66,6 +78,7 @@ def Prod(*types: Tuple_[Type]) -> Type:
             if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
                 return all(issubclass(st, ct) for st, ct in zip(subclass.__types__, cls.__types__))
             return False
+
     class_name = f"Prod({', '.join(t.__name__ for t in _flattypes)})"
     return __Prod(class_name, (tuple,), {'__types__': _flattypes}) 
 
@@ -110,7 +123,7 @@ def UProd(*types: Tuple_[Type]) -> Type:
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
             return False
     class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
-    return __Uprod(class_name, (tuple,), {'__types__': _flattypes}) 
+    return __Uprod(class_name, (tuple,), {'__types__': _flattypes})
 
 def Tuple(*args: Tuple_[Type]) -> Type:
     """
