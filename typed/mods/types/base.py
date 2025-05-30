@@ -15,4 +15,4 @@ class Any(type):
         return True
 
 Json = Union(Dict(Str, Any), Set(Any), List(Any))
-Path = Union(Path_, Str)
+Path = Path_
