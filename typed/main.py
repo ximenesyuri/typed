@@ -5,7 +5,6 @@ from typed.mods.types.attr          import *
 from typed.mods.factories.generics  import *
 from typed.mods.factories.base      import *
 from typed.mods.factories.func      import *
-from typed.mods.factories.model     import *
 
 def typed(func):
     """Decorator that wraps a function with the appropriate TypedFuncType subclass."""
