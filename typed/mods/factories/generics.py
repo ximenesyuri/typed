@@ -122,3 +122,28 @@ def Regex(regex_string: str) -> Type[str]:
 
     class_name = f"Regex({regex_string})"
     return __RegexMeta(class_name, (str,), {}, regex_pattern=regex_string)
+
+def Range(x: int, y: int) -> Type[int]:
+    """
+    Build the 'range type' for a given integer range [x, y]:
+        > an object 'z' of Range(x, y) is an integer
+        > such that x <= z <= y
+    """
+    if not isinstance(x, int):
+        raise TypeError("x must be an integer.")
+    if not isinstance(y, int):
+        raise TypeError("y must be an integer.")
+
+    class __RangeMeta(type):
+        def __new__(cls, name, bases, dct, lower_bound, upper_bound):
+            dct['_lower_bound'] = lower_bound
+            dct['_upper_bound'] = upper_bound
+            return super().__new__(cls, name, bases, dct)
+
+        def __instancecheck__(cls, instance: int) -> bool:
+            return isinstance(instance, int) and cls._lower_bound <= instance <= cls._upper_bound
+
+        def __subclasscheck__(cls, subclass: Type) -> bool:
+            return issubclass(subclass, int)
+    class_name = f"Range({x}, {y})"
+    return __RangeMeta(class_name, (int,), {}, lower_bound=x, upper_bound=y)
