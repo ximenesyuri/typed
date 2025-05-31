@@ -56,7 +56,8 @@ class PlainFuncType:
 # -------------------------
 class HintedDomFuncType(PlainFuncType):
     def __init__(self, func: Callable):
-        _is_domain_hinted(func)
+        if inspect.signature(func).parameters:
+            _is_domain_hinted(func)
         super().__init__(func)
         self._hinted_domain: Tuple[Type, ...] = _hinted_domain(self.func)
 
@@ -162,32 +163,50 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
 class TypedDomFuncType(HintedDomFuncType):
     def __init__(self, func: Callable):
         super().__init__(func)
-        self._param_names = list(inspect.signature(self.func).parameters.keys())
-        self._runtime_domain_checker = _runtime_domain(self.func)
-        self._domain_hints_for_check = self.domain
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        actual_types = tuple(type(arg) for arg in args)
-        _check_domain(self.func, self._param_names, self._domain_hints_for_check, actual_types, args)
-        return super().__call__(*args, **kwargs)
+        sig = inspect.signature(self.func)
+        if sig.parameters:
+            bound_args = sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            _check_domain(self.func, sig, bound_args)
+            result = self.func(*bound_args.args, **bound_args.kwargs)
+        else:
+            if args or kwargs:
+                sig = inspect.signature(self.func)
+                bound_args = sig.bind(*args, **kwargs)
+                bound_args.apply_defaults()
+                result = self.func(*bound_args.args, **bound_args.kwargs)
+            else:
+                result = self.func()
+        return result
 
     def __repr__(self) -> str:
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
-        return f"<TypedDomFuncType: {self.__name__}({domain_str}) runtime-checked>"
+        return f"<TypedDomFuncType: {self.__name__}({domain_str}) dynamic-runtime-checked>"
 
     def __str__(self) -> str:
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
-        return f"{self.__name__}({domain_str})!"
+        return f"{self.__name__}({domain_str})!!"
 
 class TypedCodFuncType(HintedCodFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func: callable):
         super().__init__(func)
-        self._codomain_hint_for_check = self.codomain
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        result = super().__call__(*args, **kwargs)
+    def __call__(self, *args: any, **kwargs: any) -> any:
+        try:
+            sig = inspect.signature(self.func)
+            bound_args = sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            result = self.func(*bound_args.args, **bound_args.kwargs)
+
+        except Exception as e:
+            raise e
+
         actual_codomain = type(result)
         _check_codomain(self.func, self._codomain_hint_for_check, actual_codomain, result)
+
         return result
 
     def __repr__(self) -> str:
@@ -200,20 +219,43 @@ class TypedCodFuncType(HintedCodFuncType):
 
 class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
     def __init__(self, func: Callable):
-        if not callable(func):
-            raise TypeError(f"'{func}' is not callable.")
-
         PlainFuncType.__init__(self, func)
         HintedDomFuncType.__init__(self, func)
         HintedCodFuncType.__init__(self, func)
-        TypedDomFuncType.__init__(self, func)
-        TypedCodFuncType.__init__(self, func)
+        try:
+            sig = inspect.signature(self.func)
+            self._param_names = list(sig.parameters.keys())
+            if not hasattr(self, '_hinted_domain'):
+                self._hinted_domain = _hinted_domain(self.func)
+            self._domain_hints_for_check = self._hinted_domain
+        except ValueError:
+            self._param_names = []
+            self._hinted_domain = ()
+            self._domain_hints_for_check = ()
+
+        if not hasattr(self, '_hinted_codomain'):
+            self._hinted_codomain = _hinted_codomain(self.func)
+        self._codomain_hint_for_check = self._hinted_codomain
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        actual_types = tuple(type(arg) for arg in args)
-        _check_domain(self.func, self._param_names, self._domain_hints_for_check, actual_types, args)
+        sig = inspect.signature(self.func)
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        actual_domain_values = list(bound_args.arguments.values())
+        param_names_in_call_order = list(bound_args.arguments.keys())
+        if sig.parameters:
+            _check_domain(
+                self.func,
+                param_names_in_call_order,
+                self._domain_hints_for_check,
+                None,
+                actual_domain_values
+            )
 
-        result = self.func(*args, **kwargs)
+        result = self.func(*bound_args.args, **bound_args.kwargs)
+        if not hasattr(self, '_codomain_hint_for_check'):
+            raise AttributeError(f"'{self.__name__}': missing __codomain__ type hints.")
+
         actual_codomain = type(result)
         _check_codomain(self.func, self._codomain_hint_for_check, actual_codomain, result)
 
