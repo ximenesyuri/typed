@@ -127,6 +127,9 @@ def Model(**kwargs: Type) -> Type[Json]:
 
             return True
 
+        def __call__(cls, entity: Any):
+            return Instance(entity, cls)
+
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
     return __Model(class_name, (dict,), {
@@ -298,6 +301,9 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                     return False
             return True
 
+        def __call__(cls, entity: Any):
+            return Instance(entity, cls)
+
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"ExactModel({args_str})"
 
@@ -317,11 +323,51 @@ def Instance(entity: dict, model: Type) -> Any:
         raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model or ExactModel types. Received type: {type(model).__name__}.")
 
     if not isinstance(entity, dict):
-        raise TypeError(f"'{getattr(entity, '__name__', str(entity))}': not of Json type. Received type: {type(entity).__name__}.")
-
+        raise TypeError(f"'{repr(entity)}': not of Json type. Received type: {type(entity).__name__}.")
 
     if isinstance(entity, model):
         return entity
-    else:
-        raise TypeError(f"'{getattr(entity, '__name__', str(entity))}': not an instance of {model.__name__}.")
 
+    model_name = getattr(model, '__name__', str(model))
+    model_repr = f"'{model_name}'"
+
+    required_attributes_and_types = getattr(model, '_required_attributes_and_types', ())
+    required_attribute_keys = getattr(model, '_required_attribute_keys', set())
+    optional_attributes_and_defaults = getattr(model, '_optional_attributes_and_defaults', {})
+
+    errors = []
+
+    for k in required_attribute_keys:
+        if k not in entity:
+            errors.append(f"      --> '{k}': missing.")
+
+    for k, expected_type in required_attributes_and_types:
+        if k in entity:
+            actual_value = entity[k]
+        elif k in optional_attributes_and_defaults:
+            continue
+        else:
+            continue
+
+        type_is_correct = False
+
+        if isinstance(actual_value, expected_type):
+            type_is_correct = True
+        else:
+            checker = getattr(expected_type, '__instancecheck__', None)
+            if callable(checker):
+                if checker(actual_value):
+                    type_is_correct = True
+
+        if not type_is_correct:
+            errors.append(
+                f"      --> '{k}': received type '{type(actual_value).__name__}'. Expected type '{getattr(expected_type, '__name__', str(expected_type))}'."
+            )
+
+    if errors:
+        raise TypeError(
+            f"{repr(entity)}: not an instance of {model_repr}:\n"
+            + "\n".join(errors)
+        )
+
+    return entity
