@@ -34,12 +34,20 @@ def _runtime_codomain(func):
     return type(None)
 
 def _is_domain_hinted(func):
+    """Check if the function has type hints for all parameters if it has any parameters."""
+    sig = inspect.signature(func)
+    parameters = sig.parameters
+
+    if not parameters:
+        return True
+
     type_hints = get_type_hints(func)
-    param_hints = {param: type_hints.get(param) for param in inspect.signature(func).parameters}
-    non_hinted_params = [param for param, hint in param_hints.items() if hint is None]
+    param_hints = {param_name: type_hints.get(param_name) for param_name, param in parameters.items()}
+    non_hinted_params = [param_name for param_name, hint in param_hints.items() if hint is None]
+
     if non_hinted_params:
         raise TypeError(
-            f"Function '{func.__name__}' must have type hints for all parameters."
+            f"Function '{func.__name__}' must have type hints for all parameters if it has any."
             f"\n\t --> Missing hints: '{', '.join(non_hinted_params)}'."
         )
     return True
@@ -62,26 +70,30 @@ def _get_original_func(func: Callable) -> Callable:
 def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
-    if hasattr(func, '_composed_domain_hint'):
-        return func._composed_domain_hint
+    if hasattr(original_func, '_composed_domain_hint'):
+        return original_func._composed_domain_hint
     try:
         sig = inspect.signature(original_func)
-        return tuple(type_hints.get(param.name, inspect.Signature.empty)
-                   for param in sig.parameters.values()
-                   if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        domain_types = []
+        for param in sig.parameters.values():
+            if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
                                      inspect.Parameter.POSITIONAL_ONLY,
-                                     inspect.Parameter.KEYWORD_ONLY)
-                   and type_hints.get(param.name, inspect.Signature.empty) is not inspect.Signature.empty)
+                                     inspect.Parameter.KEYWORD_ONLY):
+                hint = type_hints.get(param.name, inspect.Signature.empty)
+                if hint is not inspect.Signature.empty:
+                    domain_types.append(hint)
+        return tuple(domain_types)
     except ValueError:
         pass
     return ()
+
 
 def _hinted_codomain(func: Callable) -> Any:
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
 
-    if hasattr(func, '_composed_codomain_hint'):
-        return func._composed_codomain_hint
+    if hasattr(original_func, '_composed_codomain_hint'):
+        return original_func._composed_codomain_hint
 
     try:
         sig = inspect.signature(original_func)
@@ -99,12 +111,20 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         expected_name = getattr(expected_type, '__name__', repr(expected_type))
         actual_name = getattr(actual_type, '__name__', repr(actual_type))
 
-        if not isinstance(actual_value, expected_type):
+        if isinstance(expected_type, type) and hasattr(expected_type, '__types__') and isinstance(expected_type.__types__, tuple):
+            if not any(isinstance(actual_value, t) for t in expected_type.__types__):
+                mismatches.append(f"\n\t --> '{name}': should be instance of one of '{[getattr(t, '__name__', str(t)) for t in expected_type.__types__]}', but got instance of '{actual_name}'")
+            else:
+                for t in expected_type.__types__:
+                    if isinstance(actual_value, t) and hasattr(t, 'check') and not t.check(actual_value):
+                        mismatches.append(f"\n\t --> '{name}': instance of '{actual_name}' failed additional check for type '{getattr(t, '__name__', str(t))}'.")
+        elif not isinstance(actual_value, expected_type):
             mismatches.append(f"\n\t --> '{name}': should be instance of '{expected_name}', but got instance of '{actual_name}'")
         else:
             if hasattr(expected_type, 'check'):
                 if not expected_type.check(actual_value):
                     mismatches.append(f"\n\t --> '{name}': instance of '{actual_name}' failed additional check for type '{expected_name}'.")
+
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
         raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
@@ -114,19 +134,19 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
     get_name = lambda x: getattr(x, '__name__', repr(x))
 
     from typed.mods.types.base import Any as TypedAny
-    if expected_codomain is Any or expected_codomain is TypedAny:
+    if expected_codomain is Any or expected_codomain is TypedAny or expected_codomain is inspect.Signature.empty:
         return
 
-    if hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
+    if isinstance(expected_codomain, type) and hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
         union_types = expected_codomain.__types__
         if any(isinstance(result, union_type) for union_type in union_types):
-            if allow_subclass or (not allow_subclass and actual_codomain in union_types):
-                if hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
+            for t in union_types:
+                if isinstance(result, t) and hasattr(t, 'check') and not t.check(result):
                     raise TypeError(
                         f"Codomain check failed in func '{func.__name__}': expected Union with checks did not match "
                         f"the actual result '{result}' of type '{get_name(actual_codomain)}'."
                     )
-                return
+            return
 
         expected_union_names = [get_name(t) for t in union_types]
         raise TypeError(
@@ -148,18 +168,10 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             f"Codomain mismatch in func '{func.__name__}': expected '{get_name(expected_codomain)}' "
             f"(allow_subclass={allow_subclass}), but got result '{result}' of type '{get_name(actual_codomain)}'."
         )
-
-    elif isinstance(expected_codomain, list) and isinstance(actual_codomain, type):
-        if not any(
-                ((isinstance(result, ec) or (hasattr(ec, 'check') and ec.check(result))) # Check instance here too
-                for ec in expected_codomain)
-        ):
+    else:
+        if not isinstance(result, expected_codomain):
             raise TypeError(
-                f"Codomain mismatch in func '{func.__name__}': expected one of types '{[get_name(ec) for ec in expected_codomain]}', "
+                f"Codomain mismatch in func '{func.__name__}': Expected '{get_name(expected_codomain)}' "
                 f"but got result '{result}' of type '{get_name(actual_codomain)}'."
             )
-    else:
-        raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}': Unexpected type combination. Expected '{get_name(expected_codomain)}', "
-            f"but got result '{result}' of type '{get_name(actual_codomain)}'."
-        )
+
