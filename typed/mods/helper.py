@@ -1,5 +1,5 @@
 import inspect
-from typing import get_type_hints, Callable, Any, Tuple, Type
+from typing import get_type_hints, Callable, Any as Any_, Tuple, Type
 
 def _flat(*types):
     if not types:
@@ -88,7 +88,7 @@ def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
     return ()
 
 
-def _hinted_codomain(func: Callable) -> Any:
+def _hinted_codomain(func: Callable) -> Any_:
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
 
@@ -133,8 +133,8 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
     get_name = lambda x: getattr(x, '__name__', repr(x))
 
-    from typed.mods.types.base import Any as TypedAny
-    if expected_codomain is Any or expected_codomain is TypedAny or expected_codomain is inspect.Signature.empty:
+    from typed.mods.types.base import Any_ as TypedAny_
+    if expected_codomain is Any_ or expected_codomain is TypedAny_ or expected_codomain is inspect.Signature.empty:
         return
 
     if isinstance(expected_codomain, type) and hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):

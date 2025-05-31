@@ -1,5 +1,5 @@
 import inspect
-from typing import get_type_hints, Any, Callable, Tuple, Type
+from typing import get_type_hints, Any as Any_, Callable, Tuple, Type
 from functools import wraps
 from types import FunctionType, LambdaType
 from typed.mods.helper import (
@@ -23,7 +23,7 @@ class PlainFuncType:
         self.func: Callable = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
         return self.func(*args, **kwargs)
 
     def __mul__(self, other: 'PlainFuncType') -> 'PlainFuncType':
@@ -77,10 +77,10 @@ class HintedCodFuncType(PlainFuncType):
     def __init__(self, func: Callable):
         _is_codomain_hinted(func)
         super().__init__(func)
-        self._hinted_codomain: Any = _hinted_codomain(self.func)
+        self._hinted_codomain: Any_ = _hinted_codomain(self.func)
 
     @property
-    def codomain(self) -> Any:
+    def codomain(self) -> Any_:
         return self._hinted_codomain
 
     def __repr__(self) -> str:
@@ -103,7 +103,7 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
         return self._hinted_domain
 
     @property
-    def codomain(self) -> Any:
+    def codomain(self) -> Any_:
         return self._hinted_codomain
 
     def __mul__(self, other: 'HintedFuncType') -> 'HintedFuncType':
@@ -142,7 +142,7 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
                 self._codomain = f_hinted.codomain
                 self.__name__ = f"({f_hinted.__name__} * {g_hinted.__name__})"
 
-            def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
                 inter_result = self.g(*args, **kwargs)
                 return self.f(inter_result)
 
@@ -164,7 +164,7 @@ class TypedDomFuncType(HintedDomFuncType):
     def __init__(self, func: Callable):
         super().__init__(func)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
         sig = inspect.signature(self.func)
         if sig.parameters:
             bound_args = sig.bind(*args, **kwargs)
@@ -237,7 +237,7 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
             self._hinted_codomain = _hinted_codomain(self.func)
         self._codomain_hint_for_check = self._hinted_codomain
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
         sig = inspect.signature(self.func)
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
@@ -301,7 +301,7 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         return self._hinted_domain
 
     @property
-    def codomain(self) -> Any:
+    def codomain(self) -> Any_:
         return self._hinted_codomain
 
     def __repr__(self) -> str:

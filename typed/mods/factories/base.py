@@ -318,7 +318,7 @@ def Dict(*args: Type) -> Type:
         def __instancecheck__(cls, instance):
             for t in cls.__types__:
                 if isinstance(t, type) and hasattr(t, '__instancecheck__'):
-                    result = t.__instancecheck__(t, instance)
+                    result = t.__instancecheck__(instance)
                     if result:
                         return True
                 else:
