@@ -15,3 +15,7 @@ Env = Regex(r"^[A-Z0-9_]+$")
 RGB = Prod(Range(0, 255), 3)
 HEX = Regex(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
 HSL = Prod(Range(0, 360), Range(0, 100), Range(0, 100))
+
+# General
+Email = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+HttpUrl = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
