@@ -24,7 +24,7 @@ def Model(**kwargs: Type) -> Type[Json]:
     Concatenation of Models is supported.
     """
     if not kwargs:
-        raise TypeError("Model factory requires at least one argument.")
+        return Json
 
     if not all(isinstance(key, str) for key in kwargs.keys()):
         raise TypeError("All arguments to Model must be strings representing attribute names.")
@@ -147,7 +147,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
     Concatenation of ExactModels is supported.
     """
     if not kwargs:
-        raise TypeError("ExactModel factory requires at least one argument.")
+        return Json
 
     if not all(isinstance(key, str) for key in kwargs.keys()):
         raise TypeError("All arguments to ExactModel must be strings representing attribute names.")
@@ -220,7 +220,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                         else:
                             return False
                 else:
-                    return False # Should not happen in a valid ExactModel instance
+                    return False
             return True
 
         def __subclasscheck__(cls, subclass: Type) -> bool:
@@ -241,7 +241,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
 
             if (cls_required_keys | cls_optional_keys) != (subclass_required_keys | subclass_optional_keys):
                 return False
- 
+
             if not cls_required_keys.issubset(subclass_required_keys):
                 return False
 
@@ -307,3 +307,17 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
         '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
     })
+
+AnyModel = Model()
+
+def Instance(entity: dict, model: Type) -> Any:
+    if not isinstance(model, type) or not issubclass(model, AnyModel):
+        raise TypeError(f"'{model.__name__}' not of Model or ExactModel types. Received type: {type(model).__name__}.")
+
+    if not isinstance(entity, dict):
+        raise TypeError(f"'{entity.__name__}': not of Json type. Received type: {type(model).__name__}.")
+
+    if isinstance(entity, model):
+        return entity
+    else:
+        raise TypeError(f"'{entity.__name__}': not an instance of {model.__name__}.")
