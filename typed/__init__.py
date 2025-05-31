@@ -8,7 +8,8 @@ json1 = {
 
 Model1 = Model(
     arg1=Str,
-    arg2=Int
+    arg2=Int,
+    arg3=Str
 )
 
 direct_instance = Model1(json1)
