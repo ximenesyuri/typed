@@ -11,7 +11,9 @@ So, with `typed` you have a framework ensuring type safety by:
 2. using those custom types as type hints for `typed functions`
 3. checking the type hints at runtime.
 
-The lib includes a lot ready to use classes from different contexts.
+> `typed` includes a lot ready to use classes from different contexts.
+
+You can also use `typed` to create and validate data models similar to [pydantic](https://github.com/pydantic/pydantic). 
 
 # Install
 
@@ -45,11 +47,11 @@ If at runtime the type of `x` does not matches `Int` (respectively the type of `
 
 # Models
 
-You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, as you did with `BaseModels` in [pydantic](https://github.com/pydantic/pydantic):
+You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, as you did with `BaseModel` in [pydantic](https://github.com/pydantic/pydantic):
 
 ```python
-from typed import typed
-from typed import Model, Int, Str, List
+from typed        import Int, Str, List
+from typed.models import Model
 
 Model1 = Model(
     arg1=Str,
@@ -64,15 +66,115 @@ json1 = {
 }
 ```
 
-With the above, `isinstance(json1, Model1)` returns `False`. As a consequence, if you use that in a `typed function`, this will raise a `TypeError`:
+With the above, `isinstance(json1, Model1)` returns `False`, since `arg2` is expected to be an integer. As a consequence, if you use that in a `typed function`, this will raise a `TypeError`:
 
 ```python
+from typed import typed
+from some.where import Model1
+
 @typed
 def some_function(some_json: Model1) -> Model1:
     ...
     return some_json
 
 some_function(json1) # raise descriptive TypeError
+```
+
+You can validade a model entity before calling it in a typed function using the `Instance` factory:
+
+```python
+from typed        import typed, Int, Str, List
+from typed.models import Model, Instance
+
+Model1 = Model(
+    arg1=Str,
+    arg2=Int,
+    arg3=List(Int, Str)
+)
+
+json1 = {
+    'arg1': 'foo',
+    'arg2': 'bar',
+    'arg3': [1, 'foobar']
+}
+
+model1_instance = Instance(
+    model=Model1,
+    entity=json1
+)
+```
+
+In [pydantic](https://github.com/pydantic/pydantic), a model created from `BaseModel` do a strict validation: a json data is considered an instance of the model iff it exactly matches the non-optional entries.  In `typed` , the `Model` factory creates subtypes of `Json`, so that a typical type checking will only evaluate if a json data **contains** the data defined in the model obtained from `Model`. So, for example, the following will not raise a `TypeError`:
+
+```python
+from typed        import typed, Int, Str, List
+from typed.models import Model, Instance
+
+Model1 = Model(
+    arg1=Str,
+    arg2=Int,
+    arg3=List(Int, Str)
+)
+
+json2 = {
+    'arg1': 'foo',
+    'arg2': 2,
+    'arg3': [1, 'foobar']
+    'arg4': 'bar'
+}
+
+model1_instance = Instance(
+    model=Model1,
+    entity=json2
+)
+```
+
+For an exact evaluation, as occurs while using `BaseModel`, you could use the `ExactModel` factory from `typed.models`. It also provides a `Optional` directive, as in [pydantic](https://github.com/pydantic/pydantic):
+
+```python
+from typed        import typed, Int, Str, List
+from typed.models import ExactModel, Instance
+
+Model1 = ExactModel(
+    arg1=Str,
+    arg2=Optional(Int, 0),  # optional entries always expect a default value
+    arg3=List(Int, Str)
+)
+
+Model2 = ExactModel(
+    arg1=Str,
+    arg2=Int,
+    arg3=List(Int, Str)
+)
+
+json1 = {
+    'arg1': 'foo',
+    'arg3': [1, 'foobar']
+}
+
+json2 = {
+    'arg1': 'foo',
+    'arg2': 2,
+    'arg3': [1, 'foobar']
+}
+
+# will not raise a TypeError
+model1_instance = Instance(
+    model=Model1,
+    entity=json1
+)
+
+# will not raise a TypeError
+model2_instance = Instance(
+    model=Model2,
+    entity=json2
+)
+
+# WILL raise a TypeeError
+model2_instance = Instance(
+    model=Model2,
+    entity=json1
+)
 ```
 
 # See Also
