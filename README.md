@@ -158,23 +158,36 @@ json2 = {
     'arg3': [1, 'foobar']
 }
 
-# will not raise a TypeError
+# will NOT raise a TypeError
 model1_instance = Instance(
     model=Model1,
     entity=json1
 )
 
-# will not raise a TypeError
+# will NOT raise a TypeError
 model2_instance = Instance(
     model=Model2,
     entity=json2
 )
 
-# WILL raise a TypeeError
+# WILL raise a TypeError
 model2_instance = Instance(
     model=Model2,
     entity=json1
 )
+```
+
+As an alternative to the use of `Instance`, you can just call the model or exact model with the json entity you want to validate.
+
+```python
+# using Instance
+instance = Instance(
+    entity=json1,
+    model=Model1
+)
+
+# calling the model directly
+instance = Model1(json1)
 ```
 
 # See Also
