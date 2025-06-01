@@ -175,3 +175,77 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
                 f"but got result '{result}' of type '{get_name(actual_codomain)}'."
             )
 
+class __Any(type):
+    def __instancecheck__(cls, instance):
+        return True
+    def __subclasscheck__(cls, subclass):
+        return True
+
+def _builtin_nulls():
+    from typed.mods.factories.base import List, Tuple, Set, Dict
+    return {
+        Dict: {},
+        dict: {},
+        Tuple: (),
+        tuple: (),
+        List: [],
+        list: [],
+        Set: set(),
+        set: set(),
+        frozenset: frozenset(),
+        str: "",
+        int: 0,
+        float: 0.0,
+        bool: False,
+        type(None): None,
+    }
+
+def _get_null_object(typ):
+    if hasattr(typ, '__bases__'):
+        bases = typ.__bases__
+        if list in bases:
+            if hasattr(typ, '__types__') and typ.__types__:
+                elem_null = _get_null_object(typ.__types__[0])
+                return [elem_null]
+            else:
+                return []
+        if tuple in bases:
+            if hasattr(typ, '__types__') and typ.__types__:
+                if hasattr(typ, '__name__') and typ.__name__.startswith("Prod"):
+                    return tuple(_get_null_object(t) for t in typ.__types__)
+                return tuple()
+            else:
+                return ()
+        if set in bases:
+            if hasattr(typ, '__types__') and typ.__types__:
+                elem_null = _get_null_object(typ.__types__[0])
+                return {elem_null}
+            else:
+                return set()
+        if dict in bases:
+            if hasattr(typ, '__types__') and typ.__types__:
+                vtyp = typ.__types__[0]
+                vnull = _get_null_object(vtyp)
+                if vtyp in (str,):
+                    return {"": vnull}
+                elif vtyp in (int,):
+                    return {0: vnull}
+                elif vtyp in (float,):
+                    return {0.0: vnull}
+                else:
+                    return {None: vnull}
+            else:
+                return {}
+
+    if typ in _builtin_nulls():
+        return _builtin_nulls()[typ]
+    return None
+
+def _is_null_of_type(x, typ):
+    null = _get_null_object(typ)
+    if typ in _builtin_nulls().keys():
+        return x == _builtin_nulls()[typ]
+    if hasattr(typ, '__bases__'):
+        base = typ.__bases__[0]
+        return x == null and isinstance(x, base)
+    return x == null

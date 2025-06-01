@@ -1,6 +1,6 @@
 import re
-from typing import Type, Tuple as Tuple_, Hashable
-from typed.mods.helper import _flat
+from typing import Type, Tuple as Tuple_, Hashable, Callable
+from typed.mods.helper import _flat, _is_null_of_type, _get_null_object
 
 def Union(*types: Tuple_[Type]) -> Type:
     """
@@ -351,3 +351,45 @@ def Dict(*args: Type) -> Type:
 
     class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
     return __Dict(class_name, (dict,), {'__types__': _flattypes})
+
+def Null(typ: Union[Type, Callable]) -> Type:
+    """
+    Null(T) returns a class that's a subclass of T (if possible).
+    isinstance(x, Null(T)) is True iff x is the null/empty of T.
+    """
+    from typed.mods.types.base import Any
+    if typ is Any:
+        class _NullAnyMeta(type):
+            def __instancecheck__(cls, instance):
+                for t in (str, int, float, bool, type(None), list, tuple, set, dict):
+                    if _is_null_of_type(instance, t):
+                        return True
+                for Fact in [List, Tuple, Set, Dict]:
+                    for Tp in (str, int, float, bool):
+                        try:
+                            if _is_null_of_type(instance, Fact(Tp)):
+                                return True
+                        except Exception:
+                            pass
+                try:
+                    if _is_null_of_type(instance, List(Dict(str))):
+                        return True
+                    if _is_null_of_type(instance, List(List(str))):
+                        return True
+                except Exception:
+                    pass
+                return False
+            def __repr__(cls):
+                return "Null[Any]"
+        return _NullAnyMeta("Null[Any]", (object,), {}) 
+
+    null_obj = _get_null_object(typ)
+         
+    class _NullMeta(type):
+        null = null_obj
+        def __instancecheck__(cls, instance):
+            return instance == null_obj
+        def __repr__(cls):
+            return f"<Null[{getattr(typ, '__name__', str(typ))}]>"
+    class_name = f"Null[{getattr(typ, '__name__', str(typ))}]"
+    return _NullMeta(class_name, (), {})
