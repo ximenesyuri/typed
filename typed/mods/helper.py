@@ -133,8 +133,8 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
     get_name = lambda x: getattr(x, '__name__', repr(x))
 
-    from typed.mods.types.base import Any_ as TypedAny_
-    if expected_codomain is Any_ or expected_codomain is TypedAny_ or expected_codomain is inspect.Signature.empty:
+    from typed.mods.types.base import Any as TypedAny_
+    if expected_codomain is TypedAny_ or expected_codomain is inspect.Signature.empty:
         return
 
     if isinstance(expected_codomain, type) and hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
