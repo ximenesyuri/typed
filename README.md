@@ -80,6 +80,8 @@ def some_function(some_json: Model1) -> Model1:
 some_function(json1) # raise descriptive TypeError
 ```
 
+# Validation
+
 You can validade a model entity before calling it in a typed function using the `Instance` factory:
 
 ```python
