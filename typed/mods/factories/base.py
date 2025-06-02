@@ -1,5 +1,5 @@
 import re
-from typing import Type, Tuple as Tuple_, Hashable, Callable
+from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable
 from typed.mods.helper import _flat, _is_null_of_type, _get_null_object
 
 def Union(*types: Tuple_[Type]) -> Type:
@@ -352,7 +352,7 @@ def Dict(*args: Type) -> Type:
     class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
     return __Dict(class_name, (dict,), {'__types__': _flattypes})
 
-def Null(typ: Union[Type, Callable]) -> Type:
+def Null(typ: Union_[Type, Callable]) -> Type:
     """
     Null(T) returns a class that's a subclass of T (if possible).
     isinstance(x, Null(T)) is True iff x is the null/empty of T.
