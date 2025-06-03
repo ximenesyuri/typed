@@ -108,22 +108,35 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         actual_value = args[param_names.index(name)]
         actual_type = type(actual_value)
 
-        expected_name = getattr(expected_type, '__name__', repr(expected_type))
-        actual_name = getattr(actual_type, '__name__', repr(actual_type))
+        def _get_type_display_name(tp):
+            if hasattr(tp, '__display__'):
+                return tp.__display__
+            return getattr(tp, '__name__', repr(tp))
+
+        expected_display_name = _get_type_display_name(expected_type)
+        actual_display_name = _get_type_display_name(actual_type)
 
         if isinstance(expected_type, type) and hasattr(expected_type, '__types__') and isinstance(expected_type.__types__, tuple):
             if not any(isinstance(actual_value, t) for t in expected_type.__types__):
-                mismatches.append(f"\n\t --> '{name}': should be instance of one of '{[getattr(t, '__name__', str(t)) for t in expected_type.__types__]}', but got instance of '{actual_name}'")
+                mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+                mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
+                mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
             else:
                 for t in expected_type.__types__:
                     if isinstance(actual_value, t) and hasattr(t, 'check') and not t.check(actual_value):
-                        mismatches.append(f"\n\t --> '{name}': instance of '{actual_name}' failed additional check for type '{getattr(t, '__name__', str(t))}'.")
+                        mismatches.append(
+                            f"\n\t --> '{name}': instance of '{actual_display_name}' failed additional check for type '{_get_type_display_name(t)}'."
+                        )
         elif not isinstance(actual_value, expected_type):
-            mismatches.append(f"\n\t --> '{name}': should be instance of '{expected_name}', but got instance of '{actual_name}'")
+            mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+            mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
+            mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
         else:
             if hasattr(expected_type, 'check'):
                 if not expected_type.check(actual_value):
-                    mismatches.append(f"\n\t --> '{name}': instance of '{actual_name}' failed additional check for type '{expected_name}'.")
+                    mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+                    mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
+                    mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
 
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
