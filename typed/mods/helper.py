@@ -87,7 +87,6 @@ def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
         pass
     return ()
 
-
 def _hinted_codomain(func: Callable) -> Any_:
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
@@ -102,39 +101,46 @@ def _hinted_codomain(func: Callable) -> Any_:
         pass
     return inspect.Signature.empty
 
+def _get_type_display_name(tp):
+    if hasattr(tp, '__display__'):
+        return tp.__display__
+    name = getattr(tp, '__name__', repr(tp))
+    if name in ['int', 'float', 'str', 'bool']:
+        return name.capitalize()
+    if name == 'NoneType':
+        return "Nill"
+
 def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
     for name, expected_type in zip(param_names, expected_domain):
         actual_value = args[param_names.index(name)]
         actual_type = type(actual_value)
 
-        def _get_type_display_name(tp):
-            if hasattr(tp, '__display__'):
-                return tp.__display__
-            return getattr(tp, '__name__', repr(tp))
-
         expected_display_name = _get_type_display_name(expected_type)
         actual_display_name = _get_type_display_name(actual_type)
 
         if isinstance(expected_type, type) and hasattr(expected_type, '__types__') and isinstance(expected_type.__types__, tuple):
             if not any(isinstance(actual_value, t) for t in expected_type.__types__):
-                mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+                mismatches.append(f"\n\t --> '{name}':")
+                mismatches.append(f"\n\t\t [value]: '{actual_value}'")
                 mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
                 mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
             else:
                 for t in expected_type.__types__:
                     if isinstance(actual_value, t) and hasattr(t, 'check') and not t.check(actual_value):
-                        mismatches.append(
-                            f"\n\t --> '{name}': instance of '{actual_display_name}' failed additional check for type '{_get_type_display_name(t)}'."
-                        )
+                        mismatches.append(f"\n\t --> '{name}': additional check filed.")
+                        mismatches.append(f"\n\t\t [value]: '{actual_value}'")
+                        mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
+                        mismatches.append(f"\n\t\t [failed_type]: '{_get_type_display_name(t)}'")
         elif not isinstance(actual_value, expected_type):
-            mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+            mismatches.append(f"\n\t --> '{name}':")
+            mismatches.append(f"\n\t\t [value]: '{actual_value}'")
             mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
             mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
         else:
             if hasattr(expected_type, 'check'):
                 if not expected_type.check(actual_value):
-                    mismatches.append(f"\n\t --> '{name}': has value '{actual_value}'")
+                    mismatches.append(f"\n\t\t [value]: '{actual_value}'")
                     mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
                     mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
 
@@ -144,27 +150,35 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 
 
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
-    get_name = lambda x: getattr(x, '__name__', repr(x))
-
     from typed.mods.types.base import Any as TypedAny_
     if expected_codomain is TypedAny_ or expected_codomain is inspect.Signature.empty:
         return
+
+    expected_display_name = _get_type_display_name(expected_codomain)
+    actual_display_name = _get_type_display_name(actual_codomain)
 
     if isinstance(expected_codomain, type) and hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
         union_types = expected_codomain.__types__
         if any(isinstance(result, union_type) for union_type in union_types):
             for t in union_types:
-                if isinstance(result, t) and hasattr(t, 'check') and not t.check(result):
-                    raise TypeError(
-                        f"Codomain check failed in func '{func.__name__}': expected Union with checks did not match "
-                        f"the actual result '{result}' of type '{get_name(actual_codomain)}'."
-                    )
+                if isinstance(result, t):
+                    if hasattr(t, 'check') and not t.check(result):
+                        raise TypeError(
+                            f"Codomain mismatch in func '{func.__name__}':"
+                            f"\n\t --> failed additional type check."
+                            f"\n\t\t [result_value]: '{result}'"
+                            f"\n\t\t [expected_type]: '{expected_display_name}'"
+                            f"\n\t\t [received_type]: '{actual_display_name}'"
+                            f"\n\t\t [failed_typed]:  '{_get_type_display_name(t)}'"
+                        )
             return
 
-        expected_union_names = [get_name(t) for t in union_types]
+        expected_union_names = [_get_type_display_name(t) for t in union_types]
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}': expected one of types '{expected_union_names}', "
-            f"but got result '{result}' of type '{get_name(actual_codomain)}'."
+            f"Codomain mismatch in func '{func.__name__}':"
+            f"\n\t [result_value]: '{result}'."
+            f"\n\t [expected_type]: 'Union({', '.join(expected_union_names)})'."
+            f"\n\t [received_type]: '{actual_display_name}'"
         )
 
     elif isinstance(expected_codomain, type):
@@ -172,20 +186,28 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             if allow_subclass or (not allow_subclass and actual_codomain is expected_codomain):
                 if hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
                     raise TypeError(
-                        f"Codomain check failed in func '{func.__name__}': expected type operation "
-                        f"'{get_name(expected_codomain)}' did not match the actual result '{result}' of type '{type(result).__name__}'."
+                        f"Codomain mismatch in func '{func.__name__}':"
+                        f"\n\t --> failed additional type check."
+                        f"\n\t\t [result_value]: '{result}'."
+                        f"\n\t\t [expected_type]: '{expected_display_name}'"
+                        f"\n\t\t [received_type]: '{actual_display_name}'"
+                        f"\n\t\t [failed_typed]:  '{_get_type_display_name(t)}'"
                     )
                 return
 
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}': expected '{get_name(expected_codomain)}' "
-            f"(allow_subclass={allow_subclass}), but got result '{result}' of type '{get_name(actual_codomain)}'."
+            f"Codomain mismatch in func '{func.__name__}':"
+            f"\n\t [result_value]: '{result}'"
+            f"\n\t [expected_type]: '{expected_display_name}'"
+            f"\n\t [received_type]: '{actual_display_name}'"
         )
     else:
         if not isinstance(result, expected_codomain):
             raise TypeError(
-                f"Codomain mismatch in func '{func.__name__}': Expected '{get_name(expected_codomain)}' "
-                f"but got result '{result}' of type '{get_name(actual_codomain)}'."
+                f"Codomain mismatch in func '{func.__name__}':"
+                f"\n\t [result_value]: '{result}'"
+                f"\n\t [expected_type]: '{expected_display_name}'"
+                f"\n\t [received_type]: '{actual_display_name}'"
             )
 
 class __Any(type):
