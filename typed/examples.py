@@ -1,5 +1,5 @@
 from typed.main import typed
-from typed.mods.factories.base     import Prod
+from typed.mods.factories.base     import Prod, Union, Null
 from typed.mods.factories.generics import Filter, Regex, Range
 from typed.mods.types.base         import Json, Str, Any, Dict
 from typed.mods.helper_examples    import _is_json_table, _is_json_flat
@@ -30,7 +30,7 @@ HSL.__display__ = "HSL"
 # Text
 Email      = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 HttpUrl    = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
-RclonePath = Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$')
+RclonePath = Union(Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$'), Null(Str))
 
 Email.__display__      = "Email"
 HttpUrl.__display__    = "HttpUrl"
