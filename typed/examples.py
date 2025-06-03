@@ -15,6 +15,7 @@ JsonEntry.__display__ = "JsonEntry"
 
 # System 
 Env = Regex(r"^[A-Z0-9_]+$")
+
 Env.__display__ = "Env"
 
 # Color
@@ -29,10 +30,11 @@ HSL.__display__ = "HSL"
 # Text
 Email      = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 HttpUrl    = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
-RclonePath = Regex(r'^[^/:\r\n*?\"<>|\\]+:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]*$')
+RclonePath = Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$')
 
-Email.__display__   = "Email"
-HttpUrl.__display__ = "HttpUrl"
+Email.__display__      = "Email"
+HttpUrl.__display__    = "HttpUrl"
+RclonePath.__display__ = "RclonePath"
 
 # Network
 IPv4 = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
