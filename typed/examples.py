@@ -27,13 +27,13 @@ HEX.__display__ = "HEX"
 HSL.__display__ = "HSL"
 
 # Text
-Email = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-HttpUrl = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
+Email      = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+HttpUrl    = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
+RclonePath = Regex(r'^[^/:\r\n*?\"<>|\\]+:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]*$')
 
 Email.__display__   = "Email"
 HttpUrl.__display__ = "HttpUrl"
 
 # Network
 IPv4 = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
-
 IPv4.__display__ = "IPv4"
