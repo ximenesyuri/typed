@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, List
 from typed.mods.types.base import Json, Any
 from typed.mods.helper_models import _OptionalWrapper
 
@@ -12,7 +12,7 @@ def Optional(type: Type, default_value: Any):
             raise TypeError(f"Default value {default_value} is not an instance of {getattr(type, '__name__', str(type))}.")
     return _OptionalWrapper(type, default_value)
 
-def Model(**kwargs: Type) -> Type[Json]:
+def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
     Build a 'model' which is a subclass of Json with support for optional arguments.
         > An object 'x' is an instance of Model(arg1: Type1, arg2: Type2 = default_value, ...) iff:
@@ -23,6 +23,38 @@ def Model(**kwargs: Type) -> Type[Json]:
 
     Concatenation of Models is supported.
     """
+    extended_models = []
+    if __extends__ is not None:
+        if isinstance(__extends__, list):
+            extended_models.extend(__extends__)
+        else:
+            extended_models.append(__extends__)
+
+        combined_kwargs = {}
+        for extended_model in extended_models:
+            if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
+                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model)}")
+
+            extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
+            extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
+
+            for key, value_type in extended_attributes_and_types.items():
+                if key in combined_kwargs:
+                    raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
+                combined_kwargs[key] = value_type
+
+            for key, value_wrapper in extended_optional_attributes_and_defaults.items():
+                if key in combined_kwargs:
+                    raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
+                combined_kwargs[key] = value_wrapper
+
+        for key, value in kwargs.items():
+            if key in combined_kwargs:
+                raise TypeError(f"Attribute '{key}' defined in both extended models and the new model definition.")
+            combined_kwargs[key] = value
+
+        kwargs = combined_kwargs
+
     if not kwargs:
         return dict
 
@@ -36,7 +68,7 @@ def Model(**kwargs: Type) -> Type[Json]:
     for key, value in kwargs.items():
         if isinstance(value, _OptionalWrapper):
             processed_attributes_and_types.append((key, value.type))
-            optional_attributes_and_defaults[key] = value.default_value
+            optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
             processed_attributes_and_types.append((key, value))
             required_attribute_keys.add(key)
@@ -66,21 +98,40 @@ def Model(**kwargs: Type) -> Type[Json]:
             if not isinstance(instance, dict):
                 return False
 
-            required_attributes_and_types = getattr(cls, '_required_attributes_and_types', ())
+            required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
             required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
             optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
 
             if not required_attribute_keys.issubset(instance.keys()):
                 return False
 
-            for attr_name, expected_type in required_attributes_and_types:
-                attr_value = instance.get(attr_name, optional_attributes_and_defaults.get(attr_name))
-
-                if not isinstance(attr_value, expected_type):
-                    if isinstance(expected_type, type) and hasattr(expected_type, '__instancecheck__'):
-                        if not expected_type.__instancecheck__(attr_value):
-                            return False
+            for attr_name, expected_type in required_attributes_and_types_dict.items():
+                if attr_name in instance:
+                    attr_value = instance[attr_name]
+                    type_is_correct = False
+                    if isinstance(attr_value, expected_type):
+                        type_is_correct = True
                     else:
+                        checker = getattr(expected_type, '__instancecheck__', None)
+                        if callable(checker):
+                            if checker(attr_value):
+                                type_is_correct = True
+                    if not type_is_correct:
+                        return False
+
+            for attr_name, wrapper in optional_attributes_and_defaults.items():
+                if attr_name in instance:
+                    attr_value = instance[attr_name]
+                    expected_type = wrapper.type
+                    type_is_correct = False
+                    if isinstance(attr_value, expected_type):
+                        type_is_correct = True
+                    else:
+                        checker = getattr(expected_type, '__instancecheck__', None)
+                        if callable(checker):
+                            if checker(attr_value):
+                                type_is_correct = True
+                    if not type_is_correct:
                         return False
             return True
 
@@ -91,24 +142,25 @@ def Model(**kwargs: Type) -> Type[Json]:
             if not hasattr(subclass, '_required_attributes_and_types') or not hasattr(subclass, '_required_attribute_keys') or not hasattr(subclass, '_optional_attributes_and_defaults'):
                 return False
 
-            cls_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
-            subclass_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
+            cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
+            subclass_required_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
             cls_required_keys = getattr(cls, '_required_attribute_keys', set())
             subclass_required_keys = getattr(subclass, '_required_attribute_keys', set())
-            cls_optional_keys = set(getattr(cls, '_optional_attributes_and_defaults', {}).keys())
-            subclass_optional_keys = set(getattr(subclass, '_optional_attributes_and_defaults', {}).keys())
+            cls_optional_attrs_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
+            subclass_optional_attrs_defaults = getattr(subclass, '_optional_attributes_and_defaults', {})
+            cls_optional_keys = set(cls_optional_attrs_defaults.keys())
 
             if not cls_required_keys.issubset(subclass_required_keys):
                 return False
 
-            if not (cls_required_keys | cls_optional_keys).issubset(subclass_required_keys | subclass_optional_keys):
+            if not (cls_required_keys | cls_optional_keys).issubset(subclass_required_keys | set(subclass_optional_attrs_defaults.keys())):
                 return False
 
-            for attr_name, parent_type in cls_attrs.items():
-                if attr_name not in subclass_attrs:
+            for attr_name, parent_type in cls_required_attrs.items():
+                if attr_name not in subclass_required_attrs:
                     return False
 
-                subclass_type = subclass_attrs[attr_name]
+                subclass_type = subclass_required_attrs[attr_name]
 
                 if isinstance(parent_type, type) and isinstance(subclass_type, type):
                     if not issubclass(subclass_type, parent_type):
@@ -120,11 +172,57 @@ def Model(**kwargs: Type) -> Type[Json]:
                     if not issubclass(subclass_type, parent_type):
                         return False
                 elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                    if not parent_type.__subclasscheck__(subclass_type):
+                      if not parent_type.__subclasscheck__(subclass_type):
                         return False
                 else:
                     return False
 
+            for attr_name, parent_wrapper in cls_optional_attrs_defaults.items():
+                if attr_name not in subclass_optional_attrs_defaults:
+                    if attr_name not in subclass_required_attrs:
+                        return False
+                    parent_type = parent_wrapper.type
+                    subclass_type = subclass_required_attrs[attr_name]
+
+                    if isinstance(parent_type, type) and isinstance(subclass_type, type):
+                        if not issubclass(subclass_type, parent_type):
+                            return False
+                    elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
+                        if not parent_type.__subclasscheck__(subclass_type):
+                            return False
+                    elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
+                        if not issubclass(subclass_type, parent_type):
+                            return False
+                    elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
+                        if not parent_type.__subclasscheck__(subclass_type):
+                            return False
+                    else:
+                        return False
+
+                else:
+                    parent_type = parent_wrapper.type
+                    subclass_wrapper = subclass_optional_attrs_defaults[attr_name]
+                    subclass_type = subclass_wrapper.type
+                    subclass_default_value = subclass_wrapper.default_value
+
+                    if isinstance(parent_type, type) and isinstance(subclass_type, type):
+                        if not issubclass(subclass_type, parent_type):
+                            return False
+                    elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
+                        if not parent_type.__subclasscheck__(subclass_type):
+                            return False
+                    elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
+                        if not issubclass(subclass_type, parent_type):
+                            return False
+                    elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
+                        if not parent_type.__subclasscheck__(subclass_type):
+                            return False
+                    else:
+                        return False
+
+                    if not isinstance(subclass_default_value, parent_type):
+                        if not (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value)):
+                            return False
             return True
 
         def __call__(cls, entity: Any):
@@ -133,12 +231,13 @@ def Model(**kwargs: Type) -> Type[Json]:
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
     return __Model(class_name, (dict,), {
-        '_initial_attributes_and_types': attributes_and_types,
+        '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults
     })
 
-def ExactModel(**kwargs: Type) -> Type[Json]:
+
+def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
     Build an 'exact model' with support for optional arguments.
         > 'x' is an object of 'ExactModel(arg1=Type1, arg2=Type2 = default_value, ...)' iff:
@@ -149,6 +248,38 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
 
     Concatenation of ExactModels is supported.
     """
+    extended_models = []
+    if __extends__ is not None:
+        if isinstance(__extends__, list):
+            extended_models.extend(__extends__)
+        else:
+            extended_models.append(__extends__)
+
+        combined_kwargs = {}
+        for extended_model in extended_models:
+            if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
+                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model)}")
+
+            extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
+            extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
+
+            for key, value_type in extended_attributes_and_types.items():
+                if key in combined_kwargs:
+                    raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
+                combined_kwargs[key] = value_type
+
+            for key, value_wrapper in extended_optional_attributes_and_defaults.items():
+                if key in combined_kwargs:
+                    raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
+                combined_kwargs[key] = value_wrapper # Optional attributes with default
+
+
+        for key, value in kwargs.items():
+            if key in combined_kwargs:
+                raise TypeError(f"Attribute '{key}' defined in both extended models and the new model definition.")
+            combined_kwargs[key] = value
+        kwargs = combined_kwargs
+
     if not kwargs:
         return dict
 
@@ -162,7 +293,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
     for key, value in kwargs.items():
         if isinstance(value, _OptionalWrapper):
             processed_attributes_and_types.append((key, value.type))
-            optional_attributes_and_defaults[key] = value.default_value
+            optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
             processed_attributes_and_types.append((key, value))
             required_attribute_keys.add(key)
@@ -195,33 +326,43 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
             if not isinstance(instance, dict):
                 return False
 
-            required_attributes_and_types = dict(getattr(cls, '_required_attributes_and_types', ()))
+            required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
             required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
             optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
             instance_keys = set(instance.keys())
             all_possible_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
-            if not instance_keys.issubset(all_possible_keys):
+
+            if instance_keys != all_possible_keys:
                 return False
+
             if not required_attribute_keys.issubset(instance_keys):
                 return False
 
             for attr_name, attr_value in instance.items():
-                if attr_name in required_attributes_and_types:
-                    expected_type = required_attributes_and_types[attr_name]
-                    if not isinstance(attr_value, expected_type):
-                        if isinstance(expected_type, type) and hasattr(expected_type, '__instancecheck__'):
-                            if not expected_type.__instancecheck__(attr_value):
-                                return False
-                        else:
-                            return False
+                if attr_name in required_attributes_and_types_dict:
+                    expected_type = required_attributes_and_types_dict[attr_name]
+                    type_is_correct = False
+                    if isinstance(attr_value, expected_type):
+                        type_is_correct = True
+                    else:
+                        checker = getattr(expected_type, '__instancecheck__', None)
+                        if callable(checker):
+                            if checker(attr_value):
+                                type_is_correct = True
+                    if not type_is_correct:
+                        return False
                 elif attr_name in optional_attributes_and_defaults:
                     expected_type = optional_attributes_and_defaults[attr_name].type
-                    if not isinstance(attr_value, expected_type):
-                        if isinstance(expected_type, type) and hasattr(expected_type, '__instancecheck__'):
-                            if not expected_type.__instancecheck__(attr_value):
-                                return False
-                        else:
-                            return False
+                    type_is_correct = False
+                    if isinstance(attr_value, expected_type):
+                        type_is_correct = True
+                    else:
+                        checker = getattr(expected_type, '__instancecheck__', None)
+                        if callable(checker):
+                            if checker(attr_value):
+                                type_is_correct = True
+                    if not type_is_correct:
+                        return False
                 else:
                     return False
             return True
@@ -231,10 +372,10 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                 return False
 
             if not hasattr(subclass, '_required_attributes_and_types') or not hasattr(subclass, '_required_attribute_keys') or not hasattr(subclass, '_optional_attributes_and_defaults'):
-                 return False
+                return False
 
-            cls_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
-            subclass_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
+            cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
+            subclass_required_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
             cls_required_keys = getattr(cls, '_required_attribute_keys', set())
             subclass_required_keys = getattr(subclass, '_required_attribute_keys', set())
             cls_optional_attrs_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
@@ -252,10 +393,11 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                 if attr_name not in subclass_optional_keys:
                     return False
 
-                parent_type = cls_optional_attrs_defaults[attr_name].type
-                subclass_info = subclass_optional_attrs_defaults[attr_name]
-                subclass_type = subclass_info.type
-                subclass_default_value = subclass_info.default_value
+                parent_wrapper = cls_optional_attrs_defaults[attr_name]
+                parent_type = parent_wrapper.type
+                subclass_wrapper = subclass_optional_attrs_defaults[attr_name]
+                subclass_type = subclass_wrapper.type
+                subclass_default_value = subclass_wrapper.default_value
 
                 if isinstance(parent_type, type) and isinstance(subclass_type, type):
                     if not issubclass(subclass_type, parent_type):
@@ -267,23 +409,21 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                     if not issubclass(subclass_type, parent_type):
                         return False
                 elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                      if not parent_type.__subclasscheck__(subclass_type):
+                    if not parent_type.__subclasscheck__(subclass_type):
                         return False
                 else:
                     return False
 
                 if not isinstance(subclass_default_value, parent_type):
-                    if hasattr(parent_type, '__instancecheck__') and not parent_type.__instancecheck__(subclass_default_value):
-                        return False
-                    elif isinstance(parent_type, type):
+                    if not (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value)):
                         return False
 
             for attr_name in cls_required_keys:
-                parent_type = [t for k,t in cls_attrs.items() if k == attr_name][0]
-                if attr_name not in subclass_attrs:
+                parent_type = cls_required_attrs[attr_name]
+                if attr_name not in subclass_required_attrs:
                     return False
 
-                subclass_type = subclass_attrs[attr_name]
+                subclass_type = subclass_required_attrs[attr_name]
 
                 if isinstance(parent_type, type) and isinstance(subclass_type, type):
                     if not issubclass(subclass_type, parent_type):
@@ -299,6 +439,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
                         return False
                 else:
                     return False
+
             return True
 
         def __call__(cls, entity: Any):
@@ -308,7 +449,7 @@ def ExactModel(**kwargs: Type) -> Type[Json]:
     class_name = f"ExactModel({args_str})"
 
     return __ExactModel(class_name, (dict,), {
-        '_initial_attributes_and_types': attributes_and_types,
+        '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
         '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
