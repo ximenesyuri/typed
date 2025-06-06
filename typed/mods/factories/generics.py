@@ -155,16 +155,14 @@ def Not(*types: Tuple[Type]) -> Type:
         > an object x of Not(X, Y, ...)
         > is NOT an instance of any X, Y, ...
     """
+    from typed.mods.types.base import Any, Nill
+
     _flattypes, _ = _flat(*types)
 
     if not _flattypes:
-        from typed.mods.types.base import Any
-        class __EmptyNot(type):
-            def __instancecheck__(cls, instance):
-                return True
-            def __subclasscheck__(cls, subclass):
-                return True
-        return __EmptyNot("Not()", (), {})
+        return Any
+    if Any in _flattypes:
+        return Nill
 
     class __Not(type):
         def __instancecheck__(cls, instance):
