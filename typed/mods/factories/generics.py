@@ -2,6 +2,7 @@ import re
 from typing import Tuple, Type
 from typed.mods.types.func import BoolFuncType
 from typed.mods.helper import (
+    _flat,
     _hinted_domain,
     _hinted_codomain
 )
@@ -147,3 +148,30 @@ def Range(x: int, y: int) -> Type[int]:
             return issubclass(subclass, int)
     class_name = f"Range({x}, {y})"
     return __RangeMeta(class_name, (int,), {}, lower_bound=x, upper_bound=y)
+
+def Not(*types: Tuple[Type]) -> Type:
+    """
+    Build the 'not'-type:
+        > an object x of Not(X, Y, ...)
+        > is NOT an instance of any X, Y, ...
+    """
+    _flattypes, _ = _flat(*types)
+
+    if not _flattypes:
+        from typed.mods.types.base import Any
+        class __EmptyNot(type):
+            def __instancecheck__(cls, instance):
+                return True
+            def __subclasscheck__(cls, subclass):
+                return True
+        return __EmptyNot("Not()", (), {})
+
+    class __Not(type):
+        def __instancecheck__(cls, instance):
+            return not any(isinstance(instance, typ) for typ in cls.__types__)
+
+        def __subclasscheck__(cls, subclass):
+            return not any(issubclass(subclass, typ) for typ in cls.__types__)
+
+    class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
+    return __Not(class_name, (), {'__types__': _flattypes})
