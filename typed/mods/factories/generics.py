@@ -1,5 +1,5 @@
 import re
-from typing import Tuple, Type
+from typing import Tuple, Type, Any
 from typed.mods.types.func import BoolFuncType
 from typed.mods.helper import (
     _flat,
@@ -35,9 +35,9 @@ def Inter(*types: Tuple[Type]) -> Type:
 
     return __Inter(class_name, (object,), {'__types__': unique_types})
 
-def Filter(X, *funcs):
+def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
     real_filters = []
-    from typed.mods.types.base import Any
+    from typed.mods.types.base import Any as Any_
     for f in funcs:
         if not isinstance(f, BoolFuncType):
             raise TypeError(f"The function '{f.__name__}' is not of type BoolFuncType.")
@@ -45,7 +45,7 @@ def Filter(X, *funcs):
         if len(domain_hints) != 1:
             raise TypeError(f"Function '{f.__name__}' must take one argument.")
         func_domain_type = domain_hints[0]
-        if func_domain_type is Any:
+        if func_domain_type is Any_:
             pass
         elif not issubclass(X, func_domain_type):
             raise TypeError(
@@ -60,7 +60,7 @@ def Filter(X, *funcs):
 
     class Meta(type(X)):
         def __instancecheck__(cls, instance):
-            return all(f(instance) for f in real_filters) 
+            return all(f(instance) for f in real_filters)
 
     return Meta(f"Filter({X.__name__})", (X,), {})
 
@@ -173,3 +173,90 @@ def Not(*types: Tuple[Type]) -> Type:
 
     class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
     return __Not(class_name, (), {'__types__': _flattypes})
+
+def Values(typ: Type, *values: Tuple[Any]) -> Type:
+    """
+    Build the 'valued-type':
+        > 'x' is an object of 'Values(typ, *values)' iff:
+            1. isinstance(x, typ) is True
+            2. x in {v1, v2, ...}
+        > Values(typ, ...) is a subclass of 'typ'
+    """
+    values_set = set(values)
+    class_name = "Values({} : {})".format(getattr(typ, '__name__', repr(typ)),
+                                          ", ".join(repr(v) for v in values))
+    class __Values(type):
+        def __instancecheck__(cls, instance):
+            for value in values:
+                if not type(value) is typ:
+                    raise TypeError(
+                        f"Type mismatch for value '{value}':" +
+                        f"\n\t[received_type]: '{type(value).__name__}'" +
+                        f"\n\t[expected_type]: '{typ.__name__}'"
+                    )
+
+            return isinstance(instance, cls.__base_type__) and instance in cls.__allowed_values__
+
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, cls.__base_type__)
+
+    return __Values(class_name, (typ,), {
+        '__base_type__': typ,
+        '__allowed_values__': values_set
+    })
+
+def Single(x: Any) -> Type:
+    """
+    Build the 'singleton-type':
+        > the only object of 'Single(x)' is 'x'
+        > 'Is(x)' is a subclass of 'type(x)'
+    """
+    t = type(x)
+    class_name = f"Single({repr(x)})"
+
+    class __Single(type):
+        def __instancecheck__(cls, instance):
+            return type(instance) is t and instance == cls.__the_value__
+
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, t)
+
+    return __Single(class_name, (t,), {'__the_value__': x})
+
+def Len(typ: Type, size: int) -> Type:
+    """
+    Build a 'sized-type'.
+        > An object of 'Len(X, size)' is an object
+        > 'x' of 'X such that 'len(x) == size'.
+        1. Valid only for sized types and size >= 0
+        2. 'Len(typ, 0)' is 'Null(typ)'
+    """
+    if not isinstance(size, int):
+        raise TypeError(
+            f"'size': Type mismatch." +
+            f"\n\t[received_value]: '{size}'"
+            f"\n\t [received_type]: '{type(size).__name__}'"
+            f"\n\t [expected_value]: 'int'"
+        )
+    if size < 0:
+        raise ValueError(
+            f"'size': invalid value" +
+            f"\n\t[received_value]: '{size}'"
+            f"\n\t[expected_value]: 'a nonnegative integer"
+        )
+    if size == 0:
+        from typed.mods.types.base import Null
+        return Null(typ)
+
+    from typed.mods.types.attr import Sized
+    if not isinstance(typ, type) or not isinstance(typ, Sized):
+        raise TypeError(f"Len: type {typ!r} is not Sized.")
+
+    class __Len(type(typ)):
+        def __instancecheck__(cls, instance):
+            return isinstance(instance, typ) and len(instance) == cls.__len__
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, typ)
+
+    class_name = f"Len({getattr(typ, '__name__', str(typ))}, {size})"
+    return __Len(class_name, (typ,), {'__len__': size})
