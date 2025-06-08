@@ -273,28 +273,31 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
 
         expected_input_type_for_f = f_domain[0]
 
-        compatibility_ok = False
-        if hasattr(expected_input_type_for_f, '__instancecheck__'):
-            pass
+        if isinstance(g_codomain, type) and isinstance(expected_input_type_for_f, type):
+            if not issubclass(g_codomain, expected_input_type_for_f):
+                raise TypeError(
+                    f"Cannot perform composition: Output of '{other.__name__}' ({g_codomain}) "
+                    f"does not match input of '{self.__name__}' ({expected_input_type_for_f})."
+                )
 
-        elif isinstance(g_codomain, type) and isinstance(expected_input_type_for_f, type):
-            compatibility_ok = issubclass(g_codomain, expected_input_type_for_f)
-        else:
-            raise TypeError(f"Cannot perform 'safe' composition between implicitly incompatible type hints: '{other.__name__}' output '{g_codomain}' vs '{self.__name__}' input '{f_domain[0]}'")
+        import inspect
+        from functools import wraps
 
-        def plain_composed_func(*args, **kwargs):
-            inter_result = other.func(*args, **kwargs)
-            return self.func(inter_result)
+        other_sig = inspect.signature(other.func)
+        annots = {}
+        for ((name, param), domain_type) in zip(other_sig.parameters.items(), other.domain):
+            annots[name] = domain_type
+        annots['return'] = self.codomain
 
+        @wraps(self.func)
         def composed_runtime_checked_func(*args, **kwargs):
             inter_result = other.func(*args, **kwargs)
             return self.func(inter_result)
 
-        composed_runtime_checked_func._composed_domain_hint = other.domain
-        composed_runtime_checked_func._composed_codomain_hint = self.codomain
+        composed_runtime_checked_func.__annotations__ = annots
         composed_runtime_checked_func.__name__ = f"({self.__name__} * {other.__name__})"
 
-        return TypedFuncType(composed_runtime_checked_func)
+        return TypedFuncType(composed_runtime_checked_func) 
 
     @property
     def domain(self) -> Tuple[Type, ...]:
