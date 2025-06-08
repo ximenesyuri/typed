@@ -107,8 +107,6 @@ def _get_type_display_name(tp):
     if hasattr(tp, '__types__'):
         types = tp.__types__
         cname = getattr(tp, '__name__', '')
-        # Diagnostic print for debugging
-        print("DEBUG TYPE NAME DISPLAY:", tp, cname, tp.__bases__ if hasattr(tp, '__bases__') else None)
         if tuple in getattr(tp, '__bases__', ()):
             return f"Prod({', '.join(_get_type_display_name(t) for t in types)})"
         elif 'union' in cname.lower():
