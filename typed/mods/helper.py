@@ -104,60 +104,57 @@ def _hinted_codomain(func: Callable) -> Any_:
 def _get_type_display_name(tp):
     if hasattr(tp, '__display__'):
         return tp.__display__
-    name = getattr(tp, '__name__', repr(tp))
+    if hasattr(tp, '__types__'):
+        types = tp.__types__
+        cname = getattr(tp, '__name__', '')
+        # Diagnostic print for debugging
+        print("DEBUG TYPE NAME DISPLAY:", tp, cname, tp.__bases__ if hasattr(tp, '__bases__') else None)
+        if tuple in getattr(tp, '__bases__', ()):
+            return f"Prod({', '.join(_get_type_display_name(t) for t in types)})"
+        elif 'union' in cname.lower():
+            return f"Union({', '.join(_get_type_display_name(t) for t in types)})"
+        else:
+            return ', '.join(_get_type_display_name(t) for t in types)
+    name = getattr(tp, '__name__', None)
     if name in ['int', 'float', 'str', 'bool']:
         return name.capitalize()
     if name == 'NoneType':
         return "Nill"
+    return name or str(tp)
 
 def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
-    for name, expected_type in zip(param_names, expected_domain):
-        actual_value = args[param_names.index(name)]
+    for i, (name, expected_type) in enumerate(zip(param_names, expected_domain)):
+        actual_value = args[i]
         actual_type = type(actual_value)
 
         expected_display_name = _get_type_display_name(expected_type)
         actual_display_name = _get_type_display_name(actual_type)
 
-        if isinstance(expected_type, type) and hasattr(expected_type, '__types__') and isinstance(expected_type.__types__, tuple):
-            if not any(isinstance(actual_value, t) for t in expected_type.__types__):
-                mismatches.append(f"\n\t --> '{name}':")
-                mismatches.append(f"\n\t\t [value]: '{actual_value}'")
-                mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
-                mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
-            else:
-                for t in expected_type.__types__:
-                    if isinstance(actual_value, t) and hasattr(t, 'check') and not t.check(actual_value):
-                        mismatches.append(f"\n\t --> '{name}': additional check filed.")
-                        mismatches.append(f"\n\t\t [value]: '{actual_value}'")
-                        mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
-                        mismatches.append(f"\n\t\t [failed_type]: '{_get_type_display_name(t)}'")
-        elif not isinstance(actual_value, expected_type):
-            mismatches.append(f"\n\t --> '{name}':")
-            mismatches.append(f"\n\t\t [value]: '{actual_value}'")
-            mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
-            mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
-        else:
-            if hasattr(expected_type, 'check'):
-                if not expected_type.check(actual_value):
-                    mismatches.append(f"\n\t\t [value]: '{actual_value}'")
-                    mismatches.append(f"\n\t\t [expected_type]: '{expected_display_name}'")
-                    mismatches.append(f"\n\t\t [received_type]: '{actual_display_name}'")
+        if not isinstance(actual_value, expected_type):
+            mismatches.append(f"\n ==> '{name}' has value '{actual_value}'")
+            mismatches.append(f"\n     [expected_type]: '{expected_display_name}'")
+            mismatches.append(f"\n     [received_type]: '{actual_display_name}'")
+        elif hasattr(expected_type, 'check'):
+            if not expected_type.check(actual_value):
+                mismatches.append(f"\n ==> '{name}' has value '{actual_value}'")
+                mismatches.append(f"\n     [expected_type]: '{expected_display_name}'")
+                mismatches.append(f"\n     [received_type]: '{actual_display_name}'")
 
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
         raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
 
-
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
-    from typed.mods.types.base import Any as TypedAny_
-    if expected_codomain is TypedAny_ or expected_codomain is inspect.Signature.empty:
-        return
-
     expected_display_name = _get_type_display_name(expected_codomain)
     actual_display_name = _get_type_display_name(actual_codomain)
 
-    if isinstance(expected_codomain, type) and hasattr(expected_codomain, '__types__') and isinstance(expected_codomain.__types__, tuple):
+    if (
+        isinstance(expected_codomain, type)
+        and hasattr(expected_codomain, '__types__')
+        and isinstance(expected_codomain.__types__, tuple)
+        and expected_codomain.__name__.startswith('Union')
+    ):
         union_types = expected_codomain.__types__
         if any(isinstance(result, union_type) for union_type in union_types):
             for t in union_types:
@@ -165,50 +162,36 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
                     if hasattr(t, 'check') and not t.check(result):
                         raise TypeError(
                             f"Codomain mismatch in func '{func.__name__}':"
-                            f"\n\t --> failed additional type check."
-                            f"\n\t\t [result_value]: '{result}'"
-                            f"\n\t\t [expected_type]: '{expected_display_name}'"
-                            f"\n\t\t [received_type]: '{actual_display_name}'"
-                            f"\n\t\t [failed_typed]:  '{_get_type_display_name(t)}'"
+                            f"\n ==> received the value '{result}'."
+                            f"\n     [expected_type]: '{expected_display_name}'"
+                            f"\n     [received_type]: '{actual_display_name}'"
+                            f"\n     [failed_typed]:  '{_get_type_display_name(t)}'"
                         )
             return
 
         expected_union_names = [_get_type_display_name(t) for t in union_types]
         raise TypeError(
             f"Codomain mismatch in func '{func.__name__}':"
-            f"\n\t [result_value]: '{result}'."
-            f"\n\t [expected_type]: 'Union({', '.join(expected_union_names)})'."
-            f"\n\t [received_type]: '{actual_display_name}'"
+            f"\n ==> received the value '{result}'."
+            f"\n     [expected_type]: 'Union({', '.join(expected_union_names)})'."
+            f"\n     [received_type]: '{actual_display_name}'"
         )
 
-    elif isinstance(expected_codomain, type):
-        if isinstance(result, expected_codomain):
-            if allow_subclass or (not allow_subclass and actual_codomain is expected_codomain):
-                if hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
-                    raise TypeError(
-                        f"Codomain mismatch in func '{func.__name__}':"
-                        f"\n\t --> failed additional type check."
-                        f"\n\t\t [result_value]: '{result}'."
-                        f"\n\t\t [expected_type]: '{expected_display_name}'"
-                        f"\n\t\t [received_type]: '{actual_display_name}'"
-                        f"\n\t\t [failed_typed]:  '{_get_type_display_name(t)}'"
-                    )
-                return
-
+    if not isinstance(result, expected_codomain):
         raise TypeError(
             f"Codomain mismatch in func '{func.__name__}':"
-            f"\n\t [result_value]: '{result}'"
-            f"\n\t [expected_type]: '{expected_display_name}'"
-            f"\n\t [received_type]: '{actual_display_name}'"
+            f"\n ==> received the value '{result}'."
+            f"\n     [expected_type]: '{expected_display_name}'"
+            f"\n     [received_type]: '{actual_display_name}'"
         )
-    else:
-        if not isinstance(result, expected_codomain):
-            raise TypeError(
-                f"Codomain mismatch in func '{func.__name__}':"
-                f"\n\t [result_value]: '{result}'"
-                f"\n\t [expected_type]: '{expected_display_name}'"
-                f"\n\t [received_type]: '{actual_display_name}'"
-            )
+    elif hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
+        raise TypeError(
+            f"Codomain mismatch in func '{func.__name__}':"
+            f"\n ==> received the value '{result}'."
+            f"\n    [expected_type]: '{expected_display_name}'"
+            f"\n    [received_type]: '{actual_display_name}'"
+            f"\n    [failed_typed]:  '{_get_type_display_name(expected_codomain)}'"
+        )
 
 class __Any(type):
     def __instancecheck__(cls, instance):
