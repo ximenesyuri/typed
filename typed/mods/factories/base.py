@@ -161,8 +161,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         raise ValueError("Tuple() based on this definition is always flexible; check _flat implementation.")
 
     if not _flattypes:
-        # Make it a subclass of tuple
-        class _EmptyFlexibleTupleMeta(type(tuple)): # Inherit from type(tuple)
+        class _EmptyFlexibleTupleMeta(type(tuple)):
             def __instancecheck__(cls, instance):
                 return isinstance(instance, tuple)
             def __subclasscheck__(cls, subclass):
@@ -170,7 +169,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
                 if subclass is cls or subclass is Any or issubclass(subclass, tuple):
                     return True
                 return False
-        return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {}) # Pass tuple as base
+        return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {})
 
     class _ElementUnionMeta(type):
         def __instancecheck__(cls, instance):
@@ -198,7 +197,7 @@ def Tuple(*args: Tuple_[Type]) -> Type:
         class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Tuple()"
-    return __Tuple(class_name, (tuple,), {'__types__': _flattypes}) # Pass tuple as base
+    return __Tuple(class_name, (tuple,), {'__types__': _flattypes})
 
 def List(*args: Tuple_[Type]) -> Type:
     """
@@ -209,6 +208,16 @@ def List(*args: Tuple_[Type]) -> Type:
            and
             2. The list can have any length >= 0.
     """
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
+        f = args[0]
+        from typed.mods.types.func import TypedFuncType
+        if isinstance(f, TypedFuncType):
+            def list_mapper(xs):
+                return [f(x) for x in xs]
+            list_mapper.__annotations__ = {'xs': list, 'return': list}
+            return TypedFuncType(list_mapper)
+        raise TypeError(f"'{f.__name}' is not a typed function.")
+
     _flattypes, is_flexible = _flat(*args)
 
     if not is_flexible and args:
