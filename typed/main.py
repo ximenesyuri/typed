@@ -1,4 +1,5 @@
 from functools import wraps
+from typed.mods.helper import _nill
 from typed.mods.types.base          import *
 from typed.mods.types.func          import *
 from typed.mods.types.attr          import *
@@ -14,3 +15,6 @@ def typed(func):
     except TypeError:
         pass
     return wraps(func)(wrapped_func)
+
+# the null typed function
+nill = typed(_nill)

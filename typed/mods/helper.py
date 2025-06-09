@@ -197,8 +197,13 @@ class __Any(type):
     def __subclasscheck__(cls, subclass):
         return True
 
+def _nill() -> type(None):
+        pass
+
 def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
+    from typed.mods.types.func import TypedFuncType
+
     return {
         Dict: {},
         dict: {},
@@ -214,6 +219,7 @@ def _builtin_nulls():
         float: 0.0,
         bool: False,
         type(None): None,
+        TypedFuncType: TypedFuncType(_nill)
     }
 
 def _get_null_object(typ):
