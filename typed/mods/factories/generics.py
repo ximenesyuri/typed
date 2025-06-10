@@ -1,5 +1,5 @@
 import re
-from typing import Tuple, Type, Any
+from typing import Tuple, Type, Any as Any_
 from typed.mods.types.func import BoolFuncType
 from typed.mods.helper import (
     _flat,
@@ -37,7 +37,7 @@ def Inter(*types: Tuple[Type]) -> Type:
 
 def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
     real_filters = []
-    from typed.mods.types.base import Any as Any_
+    from typed.mods.types.base import Any
     for f in funcs:
         if not isinstance(f, BoolFuncType):
             raise TypeError(f"The function '{f.__name__}' is not of type BoolFuncType.")
@@ -45,7 +45,7 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
         if len(domain_hints) != 1:
             raise TypeError(f"Function '{f.__name__}' must take one argument.")
         func_domain_type = domain_hints[0]
-        if func_domain_type is Any_:
+        if func_domain_type is Any:
             pass
         elif not issubclass(X, func_domain_type):
             raise TypeError(
@@ -176,7 +176,7 @@ def Not(*types: Tuple[Type]) -> Type:
     class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
     return __Not(class_name, (), {'__types__': _flattypes})
 
-def Values(typ: Type, *values: Tuple[Any]) -> Type:
+def Values(typ: Type, *values: Tuple[Any_]) -> Type:
     """
     Build the 'valued-type':
         > 'x' is an object of 'Values(typ, *values)' iff:
@@ -207,7 +207,7 @@ def Values(typ: Type, *values: Tuple[Any]) -> Type:
         '__allowed_values__': values_set
     })
 
-def Single(x: Any) -> Type:
+def Single(x: Any_) -> Type:
     """
     Build the 'singleton-type':
         > the only object of 'Single(x)' is 'x'
