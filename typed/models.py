@@ -3,15 +3,16 @@ from typed.mods.types.base import Json, Any
 from typed.mods.helper_models import _OptionalWrapper
 from typed.mods.helper import _get_type_display_name
 
-def Optional(type: Type, default_value: Any):
-    if not isinstance(type, type) and not hasattr(type, '__instancecheck__'):
-        raise TypeError(f"OptionalArg type must be a type or have an __instancecheck__ method, got {type}.")
-    if not isinstance(default_value, type):
-        if hasattr(type, '__instancecheck__') and not type.__instancecheck__(default_value):
-            raise TypeError(f"Default value {default_value} is not an instance of {getattr(type, '__name__', str(type))}.")
-        elif isinstance(type, type) and not isinstance(default_value, type):
-            raise TypeError(f"Default value {default_value} is not an instance of {getattr(type, '__name__', str(type))}.")
-    return _OptionalWrapper(type, default_value)
+def Optional(typ: Type, default_value: Any):
+    if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
+        raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
+    if not isinstance(default_value, typ):
+        raise TypeError(
+            f"'{default_value}': wrong type\n" +
+            f"    [received_type]: '{_get_type_display_name(type(default_value))}'\n" +
+            f"    [expected_type]: '{_get_type_display_name(typ)}'"
+        )
+    return _OptionalWrapper(typ, default_value)
 
 def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
