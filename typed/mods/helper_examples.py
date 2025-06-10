@@ -1,4 +1,6 @@
-def _is_json_table(data):
+from typed.mods.types.base import Any, Json, Bool
+
+def _is_json_table(data: Any) -> Bool:
     """
     Checks if the data is a valid JSON Table structure
     (list of dicts with same keys).
@@ -13,7 +15,7 @@ def _is_json_table(data):
             return False
     return True
 
-def _is_json_flat(data):
+def _is_json_flat(data: Json) -> Bool:
     """
     Checks if the data represents a 'flat' JSON structure,
     where values are primitive types or None.
