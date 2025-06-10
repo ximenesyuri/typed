@@ -1,6 +1,4 @@
-from typing import Type, Any as Any_
-
 class _OptionalWrapper:
-    def __init__(self, type: Type, default_value: Any_):
-        self.type = type
+    def __init__(self, typ, default_value):
+        self.type = typ
         self.default_value = default_value

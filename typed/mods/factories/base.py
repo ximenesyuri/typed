@@ -106,7 +106,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
             for t in cls.__types__:
                 if isinstance(t, type):
                     if hasattr(t, '__subclasscheck__'):
-                        if t.__subclasscheck__(subclass):  
+                        if t.__subclasscheck__(subclass):
                             return True
                     else:
                         if issubclass(subclass, t):

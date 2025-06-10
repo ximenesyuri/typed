@@ -1,5 +1,5 @@
 import inspect
-from typing import get_type_hints, Any as Any_, Callable, Tuple, Type
+from typing import get_type_hints
 from functools import wraps
 from types import FunctionType, LambdaType
 from typed.mods.helper import (
@@ -17,13 +17,13 @@ from typed.mods.helper import (
 #       Plain FuncType
 # -----------------------------
 class PlainFuncType:
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         if not callable(func):
             raise TypeError(f"'{func}' is not callable.")
-        self.func: Callable = func
+        self.func = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
 
-    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
+    def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
     def __mul__(self, other: 'PlainFuncType') -> 'PlainFuncType':
@@ -44,68 +44,68 @@ class PlainFuncType:
         composed_plain_func.__name__ = f"({self.__name__} * {other.__name__})"
         return composed_plain_func
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"<PlainFuncType: {self.__name__}>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.__name__
 
 # -------------------------
 #     Hinted FuncType
 # -------------------------
 class HintedDomFuncType(PlainFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         if inspect.signature(func).parameters:
             _is_domain_hinted(func)
         super().__init__(func)
-        self._hinted_domain: Tuple[Type, ...] = _hinted_domain(self.func)
+        self._hinted_domain = _hinted_domain(self.func)
 
     @property
-    def domain(self) -> Tuple[Type, ...]:
+    def domain(self):
         return self._hinted_domain
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"<HintedDomFuncType: {self.__name__}({domain_str})>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})"
 
 class HintedCodFuncType(PlainFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
-        self._hinted_codomain: Any_ = _hinted_codomain(self.func)
+        self._hinted_codomain = _hinted_codomain(self.func)
 
     @property
-    def codomain(self) -> Any_:
+    def codomain(self):
         return self._hinted_codomain
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"<HintedCodFuncType: {self.__name__} -> {codomain_str}>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__} -> {codomain_str}"
 
 class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         _is_domain_hinted(func)
         _is_codomain_hinted(func)
         HintedDomFuncType.__init__(self, func)
         HintedCodFuncType.__init__(self, func)
 
     @property
-    def domain(self) -> Tuple[Type, ...]:
+    def domain(self):
         return self._hinted_domain
 
     @property
-    def codomain(self) -> Any_:
+    def codomain(self):
         return self._hinted_codomain
 
-    def __mul__(self, other: 'HintedFuncType') -> 'HintedFuncType':
+    def __mul__(self, other):
         if not isinstance(other, HintedFuncType):
             raise TypeError(f"'{other}' is not a valid hinted function type.")
 
@@ -129,19 +129,19 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
                 raise TypeError(f"Cannot perform 'safe' composition between functions with non-standard or incompatible type hints: '{other.__name__}' output '{g_codomain}' vs '{self.__name__}' input '{f_domain[0]}'")
 
 
-        def composed_func(*args: other.domain) -> self.codomain:
+        def composed_func(*args):
             inter_result = other.func(*args)
             return self.func(inter_result)
 
         class ComposedHintedFunc:
-            def __init__(self, f_hinted: HintedFuncType, g_hinted: HintedFuncType):
+            def __init__(self, f_hinted, g_hinted):
                 self.f = f_hinted.func
                 self.g = g_hinted.func
                 self._domain = g_hinted.domain
                 self._codomain = f_hinted.codomain
                 self.__name__ = f"({f_hinted.__name__} * {g_hinted.__name__})"
 
-            def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
+            def __call__(self, *args, **kwargs):
                 inter_result = self.g(*args, **kwargs)
                 return self.f(inter_result)
 
@@ -160,10 +160,10 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
 #       Typed FuncType
 # ---------------------------
 class TypedDomFuncType(HintedDomFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         super().__init__(func)
 
-    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
+    def __call__(self, *args, **kwargs):
         sig = inspect.signature(self.func)
         if sig.parameters:
             bound_args = sig.bind(*args, **kwargs)
@@ -180,19 +180,19 @@ class TypedDomFuncType(HintedDomFuncType):
                 result = self.func()
         return result
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"<TypedDomFuncType: {self.__name__}({domain_str}) dynamic-runtime-checked>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})!!"
 
 class TypedCodFuncType(HintedCodFuncType):
-    def __init__(self, func: callable):
+    def __init__(self, func):
         super().__init__(func)
 
-    def __call__(self, *args: any, **kwargs: any) -> any:
+    def __call__(self, *args, **kwargs):
         try:
             sig = inspect.signature(self.func)
             bound_args = sig.bind(*args, **kwargs)
@@ -208,16 +208,16 @@ class TypedCodFuncType(HintedCodFuncType):
 
         return result
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"<TypedCodFuncType: {self.__name__} -> {codomain_str} runtime-checked>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__} -> {codomain_str}!"
 
 class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         PlainFuncType.__init__(self, func)
         HintedDomFuncType.__init__(self, func)
         HintedCodFuncType.__init__(self, func)
@@ -236,7 +236,7 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
             self._hinted_codomain = _hinted_codomain(self.func)
         self._codomain_hint_for_check = self._hinted_codomain
 
-    def __call__(self, *args: Any_, **kwargs: Any_) -> Any_:
+    def __call__(self, *args, **kwargs):
         sig = inspect.signature(self.func)
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
@@ -260,7 +260,7 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
 
         return result
 
-    def __mul__(self, other: 'TypedFuncType') -> 'TypedFuncType':
+    def __mul__(self, other):
         if not isinstance(other, TypedFuncType):
             raise TypeError(f"'{other}' is not a valid typed function type for composition.")
 
@@ -299,35 +299,35 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         return TypedFuncType(composed_runtime_checked_func) 
 
     @property
-    def domain(self) -> Tuple[Type, ...]:
+    def domain(self):
         return self._hinted_domain
 
     @property
-    def codomain(self) -> Any_:
+    def codomain(self):
         return self._hinted_codomain
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"<TypedFuncType: {self.__name__}({domain_str}) -> {codomain_str} runtime-checked>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__}({domain_str})! -> {codomain_str}!"
 
 class BoolFuncType(TypedFuncType):
-    def __init__(self, func: Callable):
+    def __init__(self, func):
         super().__init__(func)
 
         if self.codomain is not bool:
             raise TypeError(f"'{self.__name__}' does not have 'bool' as its return type hint.")
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"<BoolFuncType: {self.__name__}({domain_str}) -> bool runtime-checked>"
 
-    def __str__(self) -> str:
+    def __str__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})! -> bool!"
 

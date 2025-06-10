@@ -1,6 +1,6 @@
 import re
 import inspect
-from typing import get_type_hints, Callable, Any as Any_, Tuple, Type
+from typing import get_type_hints
 
 def _flat(*types):
     if not types:
@@ -60,7 +60,7 @@ def _is_codomain_hinted(func):
         raise TypeError(f"Function '{func.__name__}' must have a return type hint.")
     return True
 
-def _get_original_func(func: Callable) -> Callable:
+def _get_original_func(func):
     """Recursively gets the original function if it's wrapped."""
     while hasattr(func, '__wrapped__'):
         func = func.__wrapped__
@@ -68,7 +68,7 @@ def _get_original_func(func: Callable) -> Callable:
         return _get_original_func(func.func)
     return func
 
-def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
+def _hinted_domain(func):
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
     if hasattr(original_func, '_composed_domain_hint'):
@@ -88,7 +88,7 @@ def _hinted_domain(func: Callable) -> Tuple[Type, ...]:
         pass
     return ()
 
-def _hinted_codomain(func: Callable) -> Any_:
+def _hinted_codomain(func):
     original_func = _get_original_func(func)
     type_hints = get_type_hints(original_func)
 

@@ -1,6 +1,4 @@
-from typing import Any, Type, List, Union
-
-def Attr(attributes: Union[str, List[str]]) -> Type[Any]:
+def Attr(attributes):
     if isinstance(attributes, str):
         attributes = (attributes,)
     elif not isinstance(attributes, list):
@@ -14,7 +12,7 @@ def Attr(attributes: Union[str, List[str]]) -> Type[Any]:
             if attributes:
                 setattr(cls, '_required_attributes', attributes)
 
-        def __instancecheck__(cls, instance: Any) -> bool:
+        def __instancecheck__(cls, instance):
             required_attributes = getattr(cls, '_required_attributes', None)
             if required_attributes:
                 return all(hasattr(instance, attr) for attr in required_attributes)
