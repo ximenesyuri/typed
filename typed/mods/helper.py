@@ -1,3 +1,4 @@
+import re
 import inspect
 from typing import get_type_hints, Callable, Any as Any_, Tuple, Type
 
@@ -196,6 +197,20 @@ class __Any(type):
         return True
     def __subclasscheck__(cls, subclass):
         return True
+
+class __Pattern(type):
+    def __instancecheck__(cls, x):
+        if not isinstance(x, str):
+            return False
+        try:
+            re.compile(x)
+            return True
+        except re.error:
+            return False
+    def __subclasscheck__(cls, sub):
+        return issubclass(sub, str)
+    def __repr__(cls):
+        return "Pattern(str): a string valid as Python regex"
 
 def _nill() -> type(None):
         pass

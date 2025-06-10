@@ -106,8 +106,10 @@ def Regex(regex_string: str) -> Type[str]:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
-    if not isinstance(regex_string, str):
-        raise TypeError("regex_string must be a string.")
+    from typed.mods.helper import __Pattern
+    Pattern = __Pattern("Pattern", (str,), {})
+    if not isinstance(regex_string, Pattern):
+        raise TypeError(f"'{regex_string}' is not a valid pattern.")
 
     class __RegexMeta(type):
         def __new__(cls, name, bases, dct, regex_pattern):
