@@ -50,7 +50,6 @@ class PlainFuncType:
     def __str__(self) -> str:
         return self.__name__
 
-
 # -------------------------
 #     Hinted FuncType
 # -------------------------
@@ -332,3 +331,15 @@ class BoolFuncType(TypedFuncType):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})! -> bool!"
 
+# ---------------------------
+#       Displays
+# ---------------------------
+
+PlainFuncType.__display__     = "PlainFuncType"
+HintedDomFuncType.__display__ = "HintedDomFuncType"
+HintedCodFuncType.__display__ = "HintedCodFuncType"
+HintedFuncType.__display__    = "HintedFuncType"
+TypedDomFuncType.__display__  = "TypedDomFuncType"
+TypedCodFuncType.__display__  = "TypedCodFuncType"
+TypedFuncType.__display__     = "TypedFuncType"
+BoolFuncType.__display__      = "BoolFuncType"
