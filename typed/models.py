@@ -481,7 +481,7 @@ def Instance(entity: dict, model: Type) -> Any:
 
     for k in required_attribute_keys:
         if k not in entity:
-            errors.append(f"      --> '{k}': missing.")
+            errors.append(f"\t ==> '{k}': missing.")
 
     for k, expected_type in required_attributes_and_types:
         if k in entity:
@@ -490,9 +490,7 @@ def Instance(entity: dict, model: Type) -> Any:
             continue
         else:
             continue
-
         type_is_correct = False
-
         if isinstance(actual_value, expected_type):
             type_is_correct = True
         else:
@@ -503,15 +501,15 @@ def Instance(entity: dict, model: Type) -> Any:
 
         if not type_is_correct:
             errors.append(
-                f"\t ==> '{k}': has a wrong type." +
-                f"\n\t   [received_type]: '{_get_type_display_name(type(actual_value))}'" +
-                f"\n\t   [expected_type]: '{_get_type_display_name(type(expected_type))}'"
+                f" ==> '{k}': has a wrong type." +
+                f"     [received_type]: '{_get_type_display_name(type(actual_value))}'" +
+                f"     [expected_type]: '{_get_type_display_name(expected_type)}'"
             )
 
     if errors:
         raise TypeError(
-            f"received entity is not an instance of model '{_get_type_display_name(model)}':\n"
-            + "".join(errors)
+            f"not an instance of model '{_get_type_display_name(model)}':\n"
+            + "\n".join(errors)
         )
 
     return entity
