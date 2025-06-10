@@ -1,6 +1,7 @@
 from typing import Type, List
 from typed.mods.types.base import Json, Any
 from typed.mods.helper_models import _OptionalWrapper
+from typed.mods.helper import _get_type_display_name
 
 def Optional(type: Type, default_value: Any):
     if not isinstance(type, type) and not hasattr(type, '__instancecheck__'):
@@ -33,7 +34,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
         combined_kwargs = {}
         for extended_model in extended_models:
             if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
-                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model)}")
+                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model).__name__}")
 
             extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
             extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
@@ -73,7 +74,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             processed_attributes_and_types.append((key, value))
             required_attribute_keys.add(key)
         else:
-            raise TypeError(f"All argument values to Model must be types or OptionalArg instances. Invalid type for '{key}': {type(value)}")
+            raise TypeError(f"All argument values to Model must be types or OptionalArg instances. Invalid type for '{key}': {type(value).__name__}")
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
@@ -231,7 +232,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
     return __Model(class_name, (dict,), {
-        '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
+        '_initial_attributes_and_types': attributes_and_types,
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults
     })
@@ -502,13 +503,15 @@ def Instance(entity: dict, model: Type) -> Any:
 
         if not type_is_correct:
             errors.append(
-                f"      --> '{k}': received type '{type(actual_value).__name__}'. Expected type '{getattr(expected_type, '__name__', str(expected_type))}'."
+                f"\t ==> '{k}': has a wrong type." +
+                f"\n\t   [received_type]: '{_get_type_display_name(type(actual_value))}'" +
+                f"\n\t   [expected_type]: '{_get_type_display_name(type(expected_type))}'"
             )
 
     if errors:
         raise TypeError(
-            f"{repr(entity)}: not an instance of {model_repr}:\n"
-            + "\n".join(errors)
+            f"received entity is not an instance of model '{_get_type_display_name(model)}':\n"
+            + "".join(errors)
         )
 
     return entity
