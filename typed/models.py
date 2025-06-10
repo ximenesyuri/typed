@@ -501,15 +501,15 @@ def Instance(entity: dict, model: Type) -> Any:
 
         if not type_is_correct:
             errors.append(
-                f" ==> '{k}': has a wrong type." +
-                f"     [received_type]: '{_get_type_display_name(type(actual_value))}'" +
+                f" ==> '{k}': has a wrong type.\n" +
+                f"     [received_type]: '{_get_type_display_name(type(actual_value))}'\n" +
                 f"     [expected_type]: '{_get_type_display_name(expected_type)}'"
             )
 
     if errors:
         raise TypeError(
             f"not an instance of model '{_get_type_display_name(model)}':\n"
-            + "\n".join(errors)
+            + "".join(errors)
         )
 
     return entity
