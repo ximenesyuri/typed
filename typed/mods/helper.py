@@ -48,8 +48,8 @@ def _is_domain_hinted(func):
 
     if non_hinted_params:
         raise TypeError(
-            f"Function '{func.__name__}' must have type hints for all parameters if it has any."
-            f"\n\t --> Missing hints: '{', '.join(non_hinted_params)}'."
+            f"'{func.__name__}':  missing type hints for the following parameters:\n"
+            f"  ==> '{', '.join(non_hinted_params)}'."
         )
     return True
 
