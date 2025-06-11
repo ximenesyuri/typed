@@ -8,9 +8,10 @@ def Optional(typ: Type, default_value: Any):
         raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
     if not isinstance(default_value, typ):
         raise TypeError(
-            f"'{default_value}': wrong type\n" +
-            f"    [received_type]: '{_get_type_display_name(type(default_value))}'\n" +
-            f"    [expected_type]: '{_get_type_display_name(typ)}'"
+            f"Error while defining optional type:"
+            f" ==> '{default_value}': has wrong type\n" +
+            f"     [received_type]: '{_get_type_display_name(type(default_value))}'\n" +
+            f"     [expected_type]: '{_get_type_display_name(typ)}'"
         )
     return _OptionalWrapper(typ, default_value)
 
