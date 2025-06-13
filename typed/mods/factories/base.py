@@ -95,6 +95,8 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
 
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
+            if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
+                return True
 
             if subclass is cls:
                 return True

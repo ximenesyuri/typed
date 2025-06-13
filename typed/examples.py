@@ -1,12 +1,41 @@
 from typed.main import typed
 from typed.mods.factories.base     import Prod, Union, Null
 from typed.mods.factories.generics import Filter, Regex, Range
-from typed.mods.types.base         import Json, Str, Any, Dict
-from typed.mods.helper_examples    import _is_json_table, _is_json_flat
+from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict
+from typed.mods.helper_examples    import (
+    _is_json_table,
+    _is_json_flat,
+    _is_natural,
+    _is_positive_int,
+    _is_negative_int,
+    _is_positive_num,
+    _is_negative_num,
+    _is_odd,
+    _is_even
+)
+
+# Numeric
+Num    = Union(Int, Float)
+Nat    = Filter(Int, typed(_is_natural))
+Odd    = Filter(Int, typed(_is_odd))
+Even   = Filter(Int, typed(_is_even))
+PosInt = Filter(Int, typed(_is_positive_int))
+NegInt = Filter(Int, typed(_is_negative_int))
+PosNum = Filter(Num, typed(_is_positive_num))
+NegNum = Filter(Num, typed(_is_negative_num))
+
+Num.__display__    = "Num"
+Nat.__display__    = "Nat"
+Odd.__display__    = "Odd"
+Even.__display__   = "Even"
+PosInt.__display__ = "PosInt"
+NegInt.__display__ = "NegInt"
+PosNum.__display__ = "PosNum"
+NegNum.__display__ = "NegNum"
 
 # Json
-JsonTable     = Filter(Json, typed(_is_json_table))
-JsonFlat      = Filter(Dict(Str, Any), typed(_is_json_flat))
+JsonTable = Filter(Json, typed(_is_json_table))
+JsonFlat  = Filter(Dict(Str, Any), typed(_is_json_flat))
 JsonEntry = Regex(r'^[a-zA-Z0-9_.]+$')
 
 JsonTable.__display__ = "JsonTable"

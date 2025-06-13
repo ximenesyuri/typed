@@ -1,4 +1,48 @@
-from typed.mods.types.base import Any, Json, Bool
+from typed.mods.types.base import Int, Float, Any, Json, Bool
+from typed.mods.factories.base import Union
+
+def _is_natural(x: Int) -> Bool:
+    """
+    Checks if an integer is a natural number.
+    (Assuming Bourbaki convention)
+    """
+    return x >= 0
+
+def _is_odd(x: Int) -> Bool:
+  """
+  Checks if an integer number is odd.
+  """
+  return x % 2 != 0
+
+def _is_even(x: Int) -> Bool:
+  """
+  Checks if an integer number is even.
+  """
+  return x % 2 == 0
+
+def _is_positive_int(x: Int) -> Bool:
+    """
+    Checks if an integer is positive.
+    """
+    return x > 0
+
+def _is_negative_int(x: Int) -> Bool:
+    """
+    Checks if an integer is negative.
+    """
+    return x < 0
+
+def _is_positive_num(x: Union(Int, Float)) -> Bool:
+    """
+    Checks if an integer is positive.
+    """
+    return x > 0
+
+def _is_negative_num(x: Union(Int, Float)) -> Bool:
+    """
+    Checks if an integer is negative.
+    """
+    return x < 0
 
 def _is_json_table(data: Any) -> Bool:
     """
