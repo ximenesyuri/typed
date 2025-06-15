@@ -18,7 +18,7 @@ from typed.mods.helper import (
 # -----------------------------
 class PlainFuncType:
     def __init__(self, func):
-        if not callable(func):
+        if not inspect.isfunction(func):
             raise TypeError(f"'{func}' is not callable.")
         self.func = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
@@ -55,10 +55,11 @@ class PlainFuncType:
 # -------------------------
 class HintedDomFuncType(PlainFuncType):
     def __init__(self, func):
-        if inspect.signature(func).parameters:
-            _is_domain_hinted(func)
-        super().__init__(func)
-        self._hinted_domain = _hinted_domain(self.func)
+        if inspect.isfunction(func):
+            if inspect.signature(func).parameters:
+                _is_domain_hinted(func)
+            super().__init__(func)
+            self._hinted_domain = _hinted_domain(self.func)
 
     @property
     def domain(self):

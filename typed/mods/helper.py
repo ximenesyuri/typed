@@ -289,3 +289,15 @@ def _is_null_of_type(x, typ):
         base = typ.__bases__[0]
         return x == null and isinstance(x, base)
     return x == null
+
+def _variable_checker(typ):
+    def wrapper(x):
+        if not isinstance(x, typ):
+            raise TypeError(
+                f"Mismatch type in variable value.\n"
+                f" ==> received value '{x}':\n"
+                f"     [expected_type]: '{_get_type_display_name(typ)}'\n"
+                f"     [received_type]: '{_get_type_display_name(type(x))}'"
+            )
+        return x
+    return wrapper
