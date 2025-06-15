@@ -1,4 +1,5 @@
-from typed.mods.types.base import Int, Float, Any, Json, Bool
+import os
+from typed.mods.types.base import Int, Float, Any, Json, Bool, Path
 from typed.mods.factories.base import Union
 
 def _is_natural(x: Int) -> Bool:
@@ -72,3 +73,34 @@ def _is_json_flat(data: Json) -> Bool:
         if not isinstance(value, primitive_types):
             return False
     return True
+
+
+def _exists(path: Path) -> Bool:
+    """
+    Checks if a path exists.
+    """
+    return os.path.exists(path)
+
+def _is_file(path: Path) -> Bool:
+    """
+    Checks if a path is an existing file.
+    """
+    return os.path.isfile(path)
+
+def _is_dir(path: Path) -> Bool:
+    """
+    Checks if a path is an existing dir.
+    """
+    return os.path.isdir(path)
+
+def _is_symlink(path: Path) -> Bool:
+    """
+    Checks if a path is a symbolic link.
+    """
+    return os.path.islink(path)
+
+def _is_mount(path: Path) -> Bool:
+    """
+    Checks if a path is a a mount point.
+    """
+    return os.path.ismount(path)

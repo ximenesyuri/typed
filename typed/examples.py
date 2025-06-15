@@ -1,7 +1,7 @@
 from typed.main import typed
 from typed.mods.factories.base     import Prod, Union, Null
-from typed.mods.factories.generics import Filter, Regex, Range
-from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict
+from typed.mods.factories.generics import Filter, Regex, Range, Len
+from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict, Path
 from typed.mods.helper_examples    import (
     _is_json_table,
     _is_json_flat,
@@ -11,7 +11,12 @@ from typed.mods.helper_examples    import (
     _is_positive_num,
     _is_negative_num,
     _is_odd,
-    _is_even
+    _is_even,
+    _exists,
+    _is_file,
+    _is_dir,
+    _is_symlink,
+    _is_mount
 )
 
 # Numeric
@@ -57,17 +62,32 @@ HEX.__display__ = "HEX"
 HSL.__display__ = "HSL"
 
 # Text
-Email      = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-HttpUrl    = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
+Char  = Len(Str, 1)
+Email = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+Char.__display    = "Char"
+Email.__display__ = "Email"
+
+# Path
+Exists     = Filter(Path, typed(_exists))
+File       = Filter(Path, typed(_is_file))
+Dir        = Filter(Path, typed(_is_dir))
+Symlink    = Filter(Path, typed(_is_symlink))
+Mount      = Filter(Path, typed(_is_mount))
 RclonePath = Union(Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$'), Null(Str))
 
-Email.__display__      = "Email"
-HttpUrl.__display__    = "HttpUrl"
+Exists.__display__     = "Exists"
+File.__display__       = "File"
+Dir.__display__        = "Dir"
+Symlink.__display__    = "Symlink"
+Mount.__display__      = "Mount"
 RclonePath.__display__ = "RclonePath"
 
 # Network
 Hostname = Regex(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
 IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+HttpUrl  = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
 
 Hostname.__display__ = "Hostname"
 IPv4.__display__     = "IPv4"
+HttpUrl.__display__  = "HttpUrl"
