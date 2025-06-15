@@ -17,12 +17,6 @@ Json    = Union(Dict(Any), Set(Any), List(Any))
 Pattern = __Pattern("Pattern", (Str,), {})
 Path    = Union(Regex(r"^/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?$"), Null(Str))
 
-Int.__display__     = "Int"
-Str.__display__     = "Str"
-Bool.__display__    = "Bool"
-Float.__display__   = "Float"
-Type.__display__    = "Type"
-Nill.__display__    = "Nill"
 Any.__display__     = "Any"
 Json.__display__    = "Json"
 Path.__display__    = "Path"
