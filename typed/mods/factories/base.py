@@ -445,7 +445,7 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
 
     return __Set(class_name, (set,), {'__types__': _flattypes})
 
-def Dict(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
+def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, TypedFuncType]:
     """
     Build the 'dict' of types:
         > the objects of 'Dict(X, Y, ...)'
@@ -454,6 +454,11 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
            and
             2. The dict can have any size >= 0.
             3. Keys must be hashable (standard dict behavior).
+    Accept argument 'keys':
+        > the objects of 'Dict(X, Y, ..., keys=K)'
+        > are the objects 'd' of 'Dict(X, Y, ...)' such that:
+            1. 'issubclass(K, Str) is True'
+            2. 'isinstance(key, K) is True' for every 'k in d.keys()'
     Can be applied to typed functions:
         > 'Dict(f): Dict(f.domain) -> Dict(f.codomain)' such that
             1. 'f({k: v}) = {k: f(v)}'
@@ -472,8 +477,8 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
         f = args[0]
         if isinstance(f, TypedFuncType):
-            domain_type = Dict(f.domain)
-            codomain_type = Dict(f.codomain)
+            domain_type = Dict(f.domain, keys=keys)
+            codomain_type = Dict(f.codomain, keys=keys)
             def dict_mapper(d: domain_type) -> codomain_type:
                 return codomain_type({k: f(v) for k, v in d.items()})
             dict_mapper.__annotations__ = {'d': domain_type, 'return': codomain_type}
@@ -498,19 +503,30 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
                     if result:
                         return True
             return False
-
     ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': _flattypes})
 
+    key_type = keys
+    if key_type is not None:
+        if not isinstance(key_type, type):
+            raise TypeError(f"keys= must be a type, got {key_type!r}")
+        if not issubclass(key_type, str):
+            raise TypeError("keys= must be subclass of str")
+    else:
+        key_type = None
+
     class __Dict(type(dict)):
+        __types__ = _flattypes
+        __key_type__ = key_type
+
         def __instancecheck__(cls, instance):
             if not isinstance(instance, dict):
                 return False
-            all_values_ok = True
-            for i, v in enumerate(instance.values()):
-                if not isinstance(v, ValueUnion):
-                    all_values_ok = False
-                    break
-            return all_values_ok
+            if not all(isinstance(v, ValueUnion) for v in instance.values()):
+                return False
+            if cls.__key_type__ is not None:
+                if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
+                    return False
+            return True
 
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
@@ -518,11 +534,19 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
                 return True
             if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
                 subclass_value_union_types = subclass.__types__
-                return all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
+                keys_match = True
+                if hasattr(subclass, '__key_type__') and cls.__key_type__ is not None:
+                    keys_match = issubclass(getattr(subclass, '__key_type__'), cls.__key_type__)
+                return (
+                    all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
+                    and keys_match
+                )
             return False
 
-    class_name = f"Dict(..., {', '.join(t.__name__ for t in _flattypes)})"
-    return __Dict(class_name, (dict,), {'__types__': _flattypes})
+    typename = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
+    if key_type is not None:
+        typename = f"Dict({', '.join(t.__name__ for t in _flattypes)}, keys={key_type.__name__})"
+    return __Dict(typename, (dict,), {'__types__': _flattypes, '__key_type__': key_type})
 
 def Null(typ: Union_[Type, Callable]) -> Type:
     """
@@ -553,7 +577,7 @@ def Null(typ: Union_[Type, Callable]) -> Type:
                 return False
             def __repr__(cls):
                 return "Null[Any]"
-        return _NullAnyMeta("Null[Any]", (object,), {}) 
+        return _NullAnyMeta("Null[Any]", (object,), {})
 
     null_obj = _get_null_object(typ)
 
