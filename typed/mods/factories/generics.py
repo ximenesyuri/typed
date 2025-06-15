@@ -106,7 +106,7 @@ def Regex(regex_string: str) -> Type[str]:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
-    from typed.mods.helper import __Pattern
+    from typed.mods.helper_meta import __Pattern
     Pattern = __Pattern("Pattern", (str,), {})
     if not isinstance(regex_string, Pattern):
         raise TypeError(f"'{regex_string}' is not a valid pattern.")

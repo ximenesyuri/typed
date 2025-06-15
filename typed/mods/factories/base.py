@@ -1,7 +1,22 @@
 import re
 from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable
-from typed.mods.helper import _flat, _is_null_of_type, _get_null_object, _get_type_display_name
 from typed.mods.types.func import TypedFuncType
+from typed.mods.helper import (
+    _flat,
+    _is_null_of_type,
+    _get_null_object,
+    _get_type_display_name
+)
+
+from typed.mods.helper_meta import (
+    __Union,
+    __Prod,
+    __Uprod,
+    __Set,
+    __Tuple,
+    __List,
+    __Dict
+)
 
 def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
     """
@@ -79,42 +94,6 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
                 return False
         return __EmptyUnion("Union()", (), {})
 
-    class __Union(type):
-        def __instancecheck__(cls, instance):
-            for t in cls.__types__:
-                if isinstance(t, type):
-                    if hasattr(t, '__instancecheck__'):
-                        result = t.__instancecheck__(instance)
-                        if result:
-                            return True
-                    else:
-                        result = isinstance(instance, t)
-                        if result:
-                            return True
-            return False
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
-                return True
-
-            if subclass is cls:
-                return True
-            if subclass is Any:
-                return True
-            if subclass in cls.__types__:
-                return True
-
-            for t in cls.__types__:
-                if isinstance(t, type):
-                    if hasattr(t, '__subclasscheck__'):
-                        if t.__subclasscheck__(subclass):
-                            return True
-                    else:
-                        if issubclass(subclass, t):
-                            return True
-            return False
-
     class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
     return __Union(class_name, (), {'__types__': _flattypes})
 
@@ -157,29 +136,6 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
         is_flexible = False
     else:
         _flattypes, is_flexible = _flat(*args)
-
-    class __Prod(type):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, tuple):
-                return False
-            if len(instance) != len(cls.__types__):
-                return False
-            return all(isinstance(x, t) for x, t in zip(instance, cls.__types__))
-
-        def check(self, instance):
-            if not isinstance(instance, tuple):
-                return False
-            if len(instance) != len(self.__types__):
-                return False
-            return all(isinstance(x, t) for x, t in zip(instance, self.__types__))
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
-                return True
-            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
-                return all(issubclass(st, ct) for st, ct in zip(subclass.__types__, cls.__types__))
-            return False
 
     def prod_new(cls, *args):
         if len(args) == 1 and isinstance(args[0], tuple):
@@ -224,36 +180,6 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
         return TypedFuncType(uprod_mapper)
     _flattypes, is_flexible = _flat(*args)
 
-    class __Uprod(type):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, tuple):
-                return False
-
-            if len(instance) != len(cls.__types__):
-                return False
-
-            type_counts = {typ: cls.__types__.count(typ) for typ in cls.__types__}
-            for elem in instance:
-                for typ in type_counts:
-                    if isinstance(elem, typ) and type_counts[typ] > 0:
-                        type_counts[typ] -= 1
-                        break
-                else:
-                    return False
-            return all(count == 0 for count in type_counts.values())
-
-        def check(self, instance):
-            if not isinstance(instance, set):
-                return False
-            return all(any(isinstance(elem, typ) for typ in self.__types__) for elem in instance)
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
-                return True
-            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
-                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
-            return False
     class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
     return __Uprod(class_name, (tuple,), {'__types__': _flattypes})
 
@@ -305,21 +231,6 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
 
     ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': _flattypes})
 
-    class __Tuple(type(tuple)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, tuple):
-                return False
-            return all(isinstance(x, ElementUnion) for x in instance)
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
-                return True
-            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__'):
-                subclass_element_types = subclass.__types__
-                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
-            return False
-
     class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
         class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
@@ -361,20 +272,6 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
             return isinstance(instance, tuple(cls.__types__))
 
     ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': _flattypes})
-
-    class __List(type(list)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, list):
-                return False
-            return all(isinstance(x, ElementUnion) for x in instance)
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, list):
-                return True
-            if hasattr(subclass, '__bases__') and list in subclass.__bases__ and hasattr(subclass, '__types__'):
-                subclass_element_types = subclass.__types__
-                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
-            return False
 
     class_name = f"List({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
@@ -418,24 +315,6 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
             return isinstance(instance, tuple(cls.__types__)) and isinstance(instance, Hashable)
 
     ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': _flattypes})
-
-    class __Set(type(set)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, set):
-                return False
-            return all(isinstance(x, ElementUnion) for x in instance)
-
-        def __subclasscheck__(cls, subclass: Type) -> bool:
-            from typed.mods.types.base import Any
-
-            if subclass is cls or subclass is Any or issubclass(subclass, set):
-                return True
-
-            if hasattr(subclass, '__bases__') and set in subclass.__bases__ and hasattr(subclass, '__types__'):
-                subclass_element_types = subclass.__types__
-                return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
-
-            return False
 
     class_name = f"Set({', '.join(t.__name__ for t in _flattypes)})"
     if _flattypes:
@@ -491,62 +370,20 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
     if not is_flexible and args:
         pass
 
-    class _ValueUnionMeta(type):
-        def __instancecheck__(cls, instance):
-            for t in cls.__types__:
-                if isinstance(t, type) and hasattr(t, '__instancecheck__'):
-                    result = t.__instancecheck__(instance)
-                    if result:
-                        return True
-                else:
-                    result = isinstance(instance, t)
-                    if result:
-                        return True
-            return False
-    ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': _flattypes})
-
-    key_type = keys
-    if key_type is not None:
-        if not isinstance(key_type, type):
-            raise TypeError(f"keys= must be a type, got {key_type!r}")
-        if not issubclass(key_type, str):
+    key_type_val = keys #
+    if key_type_val is not None:
+        if not isinstance(key_type_val, type):
+            raise TypeError(f"keys= must be a type, got {key_type_val!r}")
+        if not issubclass(key_type_val, str):
             raise TypeError("keys= must be subclass of str")
     else:
-        key_type = None
+        key_type_val = None
 
-    class __Dict(type(dict)):
-        __types__ = _flattypes
-        __key_type__ = key_type
+    typename = f"Dict({', '.join(_get_type_display_name(t) for t in _flattypes)})"
+    if key_type_val is not None:
+        typename = f"Dict({', '.join(_get_type_display_name(t) for t in _flattypes)}, keys={_get_type_display_name(key_type_val)})"
 
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, dict):
-                return False
-            if not all(isinstance(v, ValueUnion) for v in instance.values()):
-                return False
-            if cls.__key_type__ is not None:
-                if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
-                    return False
-            return True
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, dict):
-                return True
-            if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
-                subclass_value_union_types = subclass.__types__
-                keys_match = True
-                if hasattr(subclass, '__key_type__') and cls.__key_type__ is not None:
-                    keys_match = issubclass(getattr(subclass, '__key_type__'), cls.__key_type__)
-                return (
-                    all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
-                    and keys_match
-                )
-            return False
-
-    typename = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
-    if key_type is not None:
-        typename = f"Dict({', '.join(t.__name__ for t in _flattypes)}, keys={key_type.__name__})"
-    return __Dict(typename, (dict,), {'__types__': _flattypes, '__key_type__': key_type})
+    return __Dict(typename, (dict,), {}, types=_flattypes, key_type=key_type_val)
 
 def Null(typ: Union_[Type, Callable]) -> Type:
     """
@@ -555,7 +392,7 @@ def Null(typ: Union_[Type, Callable]) -> Type:
     """
     from typed.mods.types.base import Any
     if typ is Any:
-        class _NullAnyMeta(type):
+        class __NullAny(type):
             def __instancecheck__(cls, instance):
                 for t in (str, int, float, bool, type(None), list, tuple, set, dict):
                     if _is_null_of_type(instance, t):
@@ -577,15 +414,15 @@ def Null(typ: Union_[Type, Callable]) -> Type:
                 return False
             def __repr__(cls):
                 return "Null[Any]"
-        return _NullAnyMeta("Null[Any]", (object,), {})
+        return __NullAny("Null[Any]", (object,), {})
 
     null_obj = _get_null_object(typ)
 
-    class _NullMeta(type):
+    class __Null(type):
         null = null_obj
         def __instancecheck__(cls, instance):
             return instance == null_obj
         def __repr__(cls):
             return f"<Null[{getattr(typ, '__name__', str(typ))}]>"
     class_name = f"Null[{getattr(typ, '__name__', str(typ))}]"
-    return _NullMeta(class_name, (), {})
+    return __Null(class_name, (), {})
