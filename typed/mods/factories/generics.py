@@ -1,12 +1,14 @@
 import re
+from functools import lru_cache as cache
 from typing import Tuple, Type, Any as Any_
 from typed.mods.types.func import BoolFuncType
-from typed.mods.helper import (
+from typed.mods.helper.helper import (
     _flat,
     _hinted_domain,
     _hinted_codomain
 )
 
+@cache
 def Inter(*types: Tuple[Type]) -> Type:
     """
     Build the 'intersection' of types:
@@ -35,6 +37,7 @@ def Inter(*types: Tuple[Type]) -> Type:
 
     return __Inter(class_name, (object,), {'__types__': unique_types})
 
+@cache
 def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
     real_filters = []
     from typed.mods.types.base import Any
@@ -58,13 +61,13 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
         else:
             real_filters.append(f)
 
-    class Meta(type(X)):
+    class __Filder(type(X)):
         def __instancecheck__(cls, instance):
             return all(f(instance) for f in real_filters)
 
-    return Meta(f"Filter({X.__name__})", (X,), {})
+    return __Filter(f"Filter({X.__name__})", (X,), {})
 
-
+@cache
 def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
     """
     Build the 'complement subtype' of a type by given subtypes:
@@ -100,18 +103,19 @@ def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
 
     return __Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
 
+@cache
 def Regex(regex_string: str) -> Type[str]:
     """
     Build the 'regex type' for a given regex:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
-    from typed.mods.helper_meta import __Pattern
+    from typed.mods.helper.meta import __Pattern
     Pattern = __Pattern("Pattern", (str,), {})
     if not isinstance(regex_string, Pattern):
         raise TypeError(f"'{regex_string}' is not a valid pattern.")
 
-    class __RegexMeta(type):
+    class __Regex(type):
         def __new__(cls, name, bases, dct, regex_pattern):
             dct['_regex_pattern'] = re.compile(regex_pattern)
             dct['_regex_string'] = regex_pattern
@@ -124,8 +128,9 @@ def Regex(regex_string: str) -> Type[str]:
             return issubclass(subclass, str)
 
     class_name = f"Regex({regex_string})"
-    return __RegexMeta(class_name, (str,), {}, regex_pattern=regex_string)
+    return __Regex(class_name, (str,), {}, regex_pattern=regex_string)
 
+@cache
 def Range(x: int, y: int) -> Type[int]:
     """
     Build the 'range type' for a given integer range [x, y]:
@@ -137,7 +142,7 @@ def Range(x: int, y: int) -> Type[int]:
     if not isinstance(y, int):
         raise TypeError("y must be an integer.")
 
-    class __RangeMeta(type):
+    class __Range(type):
         def __new__(cls, name, bases, dct, lower_bound, upper_bound):
             dct['_lower_bound'] = lower_bound
             dct['_upper_bound'] = upper_bound
@@ -149,8 +154,9 @@ def Range(x: int, y: int) -> Type[int]:
         def __subclasscheck__(cls, subclass: Type) -> bool:
             return issubclass(subclass, int)
     class_name = f"Range({x}, {y})"
-    return __RangeMeta(class_name, (int,), {}, lower_bound=x, upper_bound=y)
+    return __Range(class_name, (int,), {}, lower_bound=x, upper_bound=y)
 
+@cache
 def Not(*types: Tuple[Type]) -> Type:
     """
     Build the 'not'-type:
@@ -176,6 +182,7 @@ def Not(*types: Tuple[Type]) -> Type:
     class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
     return __Not(class_name, (), {'__types__': _flattypes})
 
+@cache
 def Values(typ: Type, *values: Tuple[Any_]) -> Type:
     """
     Build the 'valued-type':
@@ -207,6 +214,7 @@ def Values(typ: Type, *values: Tuple[Any_]) -> Type:
         '__allowed_values__': values_set
     })
 
+@cache
 def Single(x: Any_) -> Type:
     """
     Build the 'singleton-type':
@@ -225,6 +233,7 @@ def Single(x: Any_) -> Type:
 
     return __Single(class_name, (t,), {'__the_value__': x})
 
+@cache
 def Len(typ: Type, size: int) -> Type:
     """
     Build a 'sized-type'.

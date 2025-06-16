@@ -1,4 +1,5 @@
-from typed.mods.helper import (
+from functools import lru_cache as cache
+from typed.mods.helper.helper import (
     _flat,
     _hinted_domain,
     _hinted_codomain
@@ -13,6 +14,7 @@ from typed.mods.types.func import (
     BoolFuncType
 )
 
+@cache
 def HintedDomainFunc(*domain_types):
     """
     Build the 'hinted-domain function type' of types:
@@ -48,6 +50,7 @@ def HintedDomainFunc(*domain_types):
     class_name = "HintedDomainFunc[" + (", ".join(t.__name__ for t in _flattypes)) + "]"
     return __HintedDomainFunc(class_name, (HintedDomFuncType,), {'__types__': _flattypes})
 
+@cache
 def HintedCodFunc(cod=None):
     """
     Build the 'hinted-codomain function type' of types:
@@ -74,6 +77,7 @@ def HintedCodFunc(cod=None):
     class_name = f"HintedCodFunc[cod={cod.__name__}]"
     return __HintedCodFunc(class_name, (HintedCodFuncType,), {'__codomain__': cod})
 
+@cache
 def HintedFunc(*domain_types, cod=None):
     """
     Build the 'hinted function type' of types:
@@ -112,6 +116,7 @@ def HintedFunc(*domain_types, cod=None):
     class_name = "HintedFunc[" + (", ".join(t.__name__ for t in _flattypes)) + f"]; cod={cod.__name__}"
     return __HintedFunc(class_name, (HintedFuncType,), {'__types__': _flattypes, '__codondomain__': cod})
 
+@cache
 def TypedDomFunc(*domain_types):
     """
     Build the 'typed-domain function type' of types:
@@ -146,7 +151,7 @@ def TypedDomFunc(*domain_types):
     class_name = f"TypedDomFunc([{', '.join(t.__name__ for t in _flattypes)}])"
     return __TypedDomFunc(class_name, (TypedDomFuncType,), {'__types__': _flattypes})
 
-
+@cache
 def TypedCodFunc(cod):
     """
     Build the 'typed-codomain function type' of types:
@@ -172,7 +177,7 @@ def TypedCodFunc(cod):
     class_name = f"TypedCodFunc[cod={cod.__name__}]"
     return __TypedCodFunc(class_name, (TypedCodFuncType,), {'__codomain__': cod})
 
-
+@cache
 def TypedFunc(*domain_types, cod=None):
     if cod is None:
         raise TypeError("Codomain type must be specified.")
