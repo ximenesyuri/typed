@@ -271,3 +271,14 @@ def Len(typ: Type, size: int) -> Type:
 
     class_name = f"Len({getattr(typ, '__name__', str(typ))}, {size})"
     return __Len(class_name, (typ,), {'__len__': size})
+
+@cache
+def Maybe(*types: Tuple[Type]) -> Type:
+    """
+    Build a 'maybe-type'.
+        > An object of `Maybe(X, Y, ..)`
+        > is `None` or an object of `X`, `Y`, ...
+    """
+    from typed.mods.factories.base import Union
+    return Union(*types, type(None))
+
