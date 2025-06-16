@@ -2,7 +2,7 @@ import inspect
 from typing import get_type_hints
 from functools import wraps
 from types import FunctionType, LambdaType
-from typed.mods.helper import (
+from typed.mods.helper.helper import (
     _is_domain_hinted,
     _is_codomain_hinted,
     _hinted_domain,
