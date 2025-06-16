@@ -2,7 +2,7 @@ from typed.main import typed
 from typed.mods.factories.base     import Prod, Union, Null
 from typed.mods.factories.generics import Filter, Regex, Range, Len
 from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict, Path
-from typed.mods.helper_examples    import (
+from typed.mods.helper.examples    import (
     _is_json_table,
     _is_json_flat,
     _is_natural,
