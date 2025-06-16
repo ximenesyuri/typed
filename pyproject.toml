@@ -1,6 +1,6 @@
 [project]
 name = "typed"
-version = "0.0.0"
+version = "v.0.1.18"
 description = "A typed approach to Python"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -1,6 +1,6 @@
 import re
 from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable
-from typed.mods.helper import _flat, _is_null_of_type, _get_null_object, _get_type_display_name
+from typed.mods.helper.helper import _flat, _is_null_of_type, _get_null_object, _get_type_display_name
 from typed.mods.types.func import TypedFuncType
 
 def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
