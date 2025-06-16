@@ -1,6 +1,5 @@
 from functools import wraps
-from typed.mods.helper import _variable_checker
-from typed.mods.helper import _nill
+from typed.mods.helper.helper import _variable_checker, _nill
 from typed.mods.types.base          import *
 from typed.mods.types.func          import *
 from typed.mods.types.attr          import *

@@ -1,4 +1,6 @@
-from typed.mods.helper_foundations import _equivalence
+from typed.main import typed
+from typed.mods.helper.foundations import _equivalence, __CAT
+from typed.mods.types.base import Type, Bool
 
 class SET:
     """
@@ -22,5 +24,12 @@ class SET:
     def __hash__(self):
         return hash((SET, id(self.typ)))
 
-def equiv(X, Y):
+SET.__display__ = "SET"
+
+CAT = __CAT("CAT", (), {})
+CAT.__display__ = "CAT"
+
+@typed
+def equiv(X: Type, Y: Type) -> Bool:
     return SET(X) == SET(Y)
+
