@@ -61,7 +61,7 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
         else:
             real_filters.append(f)
 
-    class __Filder(type(X)):
+    class __Filter(type(X)):
         def __instancecheck__(cls, instance):
             return all(f(instance) for f in real_filters)
 
