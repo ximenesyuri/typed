@@ -97,6 +97,7 @@ class __Tuple(type(tuple)):
         return all(any(isinstance(x, t) for t in cls.__types__) for x in instance)
 
     def __subclasscheck__(cls, subclass):
+        from typed.mods.types.base import Any
         if subclass is cls or subclass is Any or issubclass(subclass, tuple):
             return True
         if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__'):
@@ -111,6 +112,7 @@ class __List(type(list)):
         return all(any(isinstance(x, t) for t in cls.__types__) for x in instance)
 
     def __subclasscheck__(cls, subclass):
+        from typed.mods.types.base import Any
         if subclass is cls or subclass is Any or issubclass(subclass, list):
             return True
         if hasattr(subclass, '__bases__') and list in subclass.__bases__ and hasattr(subclass, '__types__'):
@@ -125,6 +127,7 @@ class __Set(type(set)):
         return all(any(isinstance(x, t) for t in cls.__types__) for x in instance)
 
     def __subclasscheck__(cls, subclass):
+        from typed.mods.types.base import Any
         if subclass is cls or subclass is Any or issubclass(subclass, set):
             return True
 
@@ -167,6 +170,7 @@ class __Dict(type(dict)):
         return True
 
     def __subclasscheck__(cls, subclass):
+        from typed.mods.types.base import Any
         if subclass is cls or subclass is Any or issubclass(subclass, dict):
             return True
         if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
