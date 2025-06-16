@@ -199,8 +199,8 @@ def _nill() -> type(None):
 def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
     from typed.mods.types.func import TypedFuncType
-    from typed.mods.helper_meta import __Pattern
-           
+    from typed.mods.helper.meta import __Pattern
+
     Pattern = __Pattern("Pattern", (str,), {})
 
     return {
