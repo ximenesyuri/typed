@@ -12,7 +12,7 @@ So, with `typed` you have a framework ensuring type safety by:
 3. checking the type hints at runtime.
 
 > `typed` includes a lot ready to use classes from different contexts.
-
+    
 You can also use `typed` to create and validate data models similar to [pydantic](https://github.com/pydantic/pydantic). 
 
 # Install
@@ -192,6 +192,50 @@ instance = Instance(
 instance = Model1(json1)
 ```
 
-# See Also
+# Primitive Types
 
-For more details, see [ximenesyuri.com/dev/typed](https://ximenesyuri.com/dev/typed).
+The following  is the list of the primitive `typed` types, from which, using `type factories`, one can build other derived types.
+
+```
+primitive Python types
+------------------------
+type        definition 
+--------------------------------------------- 
+Int         int
+Str         str
+Bool        bool
+Float       float
+Nill        type(None)
+```
+
+```
+additional typed types
+--------------------------
+type         definition 
+---------------------------------------------
+Any          isinstance(x, Any) is True everywhere
+Path         Union(Regex(...), Null(Str))
+Pattern      isinstance(x, Patter) is True if x is r"..."
+Json         Union(Dict(Any), List(Any), Set(Any))
+```
+
+```
+function types
+---------------------------
+type           definition
+---------------------------------------------
+PlainFuncType  ...
+HintedFuncType
+TypedFuncType
+```
+
+# Factories
+
+
+# Derived Types
+
+```
+typed.examples
+```
+
+# Use Cases
