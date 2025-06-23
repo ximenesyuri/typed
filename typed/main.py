@@ -44,3 +44,7 @@ def factory(arg):
 
 # the null typed function
 nill = typed(_nill)
+
+# instance and subtype checking
+subtype = issubclass
+belongs = isinstance
