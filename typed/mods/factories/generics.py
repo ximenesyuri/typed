@@ -29,13 +29,13 @@ def Inter(*types: Tuple[Type]) -> Type:
     if any(t.__module__ == 'builtins' and t is not object for t in unique_types):
         raise TypeError("Cannot create an intersection type with specific built-in types due to potential layout conflicts.")
 
-    class __Inter(type):
+    class _Inter(type):
         def __instancecheck__(cls, instance):
             return all(isinstance(instance, t) for t in cls.__types__)
 
     class_name = f"Inter({', '.join(t.__name__ for t in unique_types)})"
 
-    return __Inter(class_name, (object,), {'__types__': unique_types})
+    return _Inter(class_name, (object,), {'__types__': unique_types})
 
 @cache
 def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
@@ -61,11 +61,11 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
         else:
             real_filters.append(f)
 
-    class __Filter(type(X)):
+    class _Filter(type(X)):
         def __instancecheck__(cls, instance):
             return all(f(instance) for f in real_filters)
 
-    return __Filter(f"Filter({X.__name__})", (X,), {})
+    return _Filter(f"Filter({X.__name__})", (X,), {})
 
 @cache
 def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
@@ -95,13 +95,13 @@ def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
     else:
        class_name += ")"
 
-    class __Compl(type):
+    class _Compl(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, cls.__base_type__):
                 return False
             return not any(isinstance(instance, subtype) for subtype in cls.__excluded_subtypes__)
 
-    return __Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
+    return _Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
 
 @cache
 def Regex(regex_string: str) -> Type[str]:
@@ -110,12 +110,12 @@ def Regex(regex_string: str) -> Type[str]:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
-    from typed.mods.helper.meta import __Pattern
-    Pattern = __Pattern("Pattern", (str,), {})
+    from typed.mods.helper.helper import _Pattern
+    Pattern = _Pattern("Pattern", (str,), {})
     if not isinstance(regex_string, Pattern):
         raise TypeError(f"'{regex_string}' is not a valid pattern.")
 
-    class __Regex(type):
+    class _Regex(type):
         def __new__(cls, name, bases, dct, regex_pattern):
             dct['_regex_pattern'] = re.compile(regex_pattern)
             dct['_regex_string'] = regex_pattern
@@ -128,7 +128,7 @@ def Regex(regex_string: str) -> Type[str]:
             return issubclass(subclass, str)
 
     class_name = f"Regex({regex_string})"
-    return __Regex(class_name, (str,), {}, regex_pattern=regex_string)
+    return _Regex(class_name, (str,), {}, regex_pattern=regex_string)
 
 @cache
 def Range(x: int, y: int) -> Type[int]:
@@ -142,7 +142,7 @@ def Range(x: int, y: int) -> Type[int]:
     if not isinstance(y, int):
         raise TypeError("y must be an integer.")
 
-    class __Range(type):
+    class _Range(type):
         def __new__(cls, name, bases, dct, lower_bound, upper_bound):
             dct['_lower_bound'] = lower_bound
             dct['_upper_bound'] = upper_bound
@@ -154,7 +154,7 @@ def Range(x: int, y: int) -> Type[int]:
         def __subclasscheck__(cls, subclass: Type) -> bool:
             return issubclass(subclass, int)
     class_name = f"Range({x}, {y})"
-    return __Range(class_name, (int,), {}, lower_bound=x, upper_bound=y)
+    return _Range(class_name, (int,), {}, lower_bound=x, upper_bound=y)
 
 @cache
 def Not(*types: Tuple[Type]) -> Type:
@@ -172,7 +172,7 @@ def Not(*types: Tuple[Type]) -> Type:
     if Any in _flattypes:
         return Nill
 
-    class __Not(type):
+    class _Not(type):
         def __instancecheck__(cls, instance):
             return not any(isinstance(instance, typ) for typ in cls.__types__)
 
@@ -180,7 +180,7 @@ def Not(*types: Tuple[Type]) -> Type:
             return not any(issubclass(subclass, typ) for typ in cls.__types__)
 
     class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
-    return __Not(class_name, (), {'__types__': _flattypes})
+    return _Not(class_name, (), {'__types__': _flattypes})
 
 @cache
 def Values(typ: Type, *values: Tuple[Any_]) -> Type:
@@ -194,7 +194,7 @@ def Values(typ: Type, *values: Tuple[Any_]) -> Type:
     values_set = set(values)
     class_name = "Values({} : {})".format(getattr(typ, '__name__', repr(typ)),
                                           ", ".join(repr(v) for v in values))
-    class __Values(type):
+    class _Values(type):
         def __instancecheck__(cls, instance):
             for value in values:
                 if not type(value) is typ:
@@ -209,7 +209,7 @@ def Values(typ: Type, *values: Tuple[Any_]) -> Type:
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, cls.__base_type__)
 
-    return __Values(class_name, (typ,), {
+    return _Values(class_name, (typ,), {
         '__base_type__': typ,
         '__allowed_values__': values_set
     })
@@ -224,14 +224,14 @@ def Single(x: Any_) -> Type:
     t = type(x)
     class_name = f"Single({repr(x)})"
 
-    class __Single(type):
+    class _Single(type):
         def __instancecheck__(cls, instance):
             return type(instance) is t and instance == cls.__the_value__
 
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, t)
 
-    return __Single(class_name, (t,), {'__the_value__': x})
+    return _Single(class_name, (t,), {'__the_value__': x})
 
 @cache
 def Len(typ: Type, size: int) -> Type:
@@ -263,14 +263,14 @@ def Len(typ: Type, size: int) -> Type:
     if not isinstance(typ, type) or not isinstance(typ, Sized):
         raise TypeError(f"Len: type {typ!r} is not Sized.")
 
-    class __Len(type(typ)):
+    class _Len(type(typ)):
         def __instancecheck__(cls, instance):
             return isinstance(instance, typ) and len(instance) == cls.__len__
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, typ)
 
     class_name = f"Len({getattr(typ, '__name__', str(typ))}, {size})"
-    return __Len(class_name, (typ,), {'__len__': size})
+    return _Len(class_name, (typ,), {'__len__': size})
 
 @cache
 def Maybe(*types: Tuple[Type]) -> Type:

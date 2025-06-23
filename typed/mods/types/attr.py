@@ -6,7 +6,7 @@ def Attr(attributes):
 
     type_name = f'Attr{"_and_".join(attr.strip("_").capitalize() for attr in attributes)}'
 
-    class __Attr(type):
+    class _Attr(type):
         def __init__(cls, name, bases, dct, attributes=None):
             super().__init__(name, bases, dct)
             if attributes:
@@ -18,10 +18,10 @@ def Attr(attributes):
                 return all(hasattr(instance, attr) for attr in required_attributes)
             return True
 
-    class Attr__(metaclass=__Attr):
+    class Attr_(metaclass=_Attr):
         pass
 
-    return type(type_name, (Attr__,), {'_required_attributes': tuple(attributes)})
+    return type(type_name, (Attr_,), {'_required_attributes': tuple(attributes)})
 
 Callable      = Attr('__call__')
 Iterable      = Attr('__iter__')

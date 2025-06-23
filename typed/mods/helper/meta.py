@@ -1,6 +1,6 @@
 import re
 
-class __Union(type):
+class _Union(type):
     def __instancecheck__(cls, instance):
         for t in cls.__types__:
             if isinstance(t, type):
@@ -36,7 +36,7 @@ class __Union(type):
                         return True
         return False
 
-class __Prod(type):
+class _Prod(type):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, tuple):
             return False
@@ -59,7 +59,7 @@ class __Prod(type):
             return all(issubclass(st, ct) for st, ct in zip(subclass.__types__, cls.__types__))
         return False
 
-class __Uprod(type):
+class _UProd(type):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, tuple):
             return False
@@ -90,7 +90,7 @@ class __Uprod(type):
             return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
         return False
 
-class __Tuple(type(tuple)):
+class _Tuple(type(tuple)):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, tuple):
             return False
@@ -105,7 +105,7 @@ class __Tuple(type(tuple)):
             return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
         return False
 
-class __List(type(list)):
+class _List(type(list)):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, list):
             return False
@@ -120,7 +120,7 @@ class __List(type(list)):
             return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
         return False
 
-class __Set(type(set)):
+class _Set(type(set)):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, set):
             return False
@@ -137,7 +137,7 @@ class __Set(type(set)):
 
         return False
 
-class __Dict(type(dict)):
+class _Dict(type(dict)):
     def __new__(cls, name, bases, dct, types, key_type):
         dct['__types__'] = types
         dct['__key_type__'] = key_type
@@ -184,13 +184,13 @@ class __Dict(type(dict)):
             )
         return False
 
-class __Any(type):
+class _Any(type):
     def __instancecheck__(cls, instance):
         return True
     def __subclasscheck__(cls, subclass):
         return True
 
-class __Pattern(type):
+class _Pattern(type):
     def __instancecheck__(cls, x):
         if not isinstance(x, str):
             return False

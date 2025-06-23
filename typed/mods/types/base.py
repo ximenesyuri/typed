@@ -1,8 +1,8 @@
 from typed.mods.factories.base import Union, Dict, Set, List, Null
 from typed.mods.factories.generics import Regex
-from typed.mods.helper.meta import (
-    __Any,
-    __Pattern,
+from typed.mods.helper.helper import (
+    _Any,
+    _Pattern,
 )
 
 Int   = int
@@ -12,9 +12,9 @@ Float = float
 Type  = type
 Nill  = type(None)
 
-Any     = __Any("Any", (), {})
+Any     = _Any("Any", (), {})
 Json    = Union(Dict(Any), Set(Any), List(Any))
-Pattern = __Pattern("Pattern", (Str,), {})
+Pattern = _Pattern("Pattern", (Str,), {})
 Path    = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$"), Null(Str))
 
 Any.__display__     = "Any"

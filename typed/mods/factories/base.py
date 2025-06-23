@@ -69,7 +69,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
     _flattypes, _ = _flat(*args)
 
     if not _flattypes:
-        class __EmptyUnion(type):
+        class _EmptyUnion(type):
             def __instancecheck__(cls, instance):
                 return False
             def __subclasscheck__(cls, subclass):
@@ -77,9 +77,9 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
                 if subclass is cls or subclass is Any:
                     return True
                 return False
-        return __EmptyUnion("Union()", (), {})
+        return _EmptyUnion("Union()", (), {})
 
-    class __Union(type):
+    class _Union(type):
         def __instancecheck__(cls, instance):
             for t in cls.__types__:
                 if isinstance(t, type):
@@ -116,7 +116,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
             return False
 
     class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
-    return __Union(class_name, (), {'__types__': _flattypes})
+    return _Union(class_name, (), {'__types__': _flattypes})
 
 def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
     """
@@ -158,7 +158,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
     else:
         _flattypes, is_flexible = _flat(*args)
 
-    class __Prod(type):
+    class _Prod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
@@ -188,7 +188,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
             return tuple.__new__(cls, args)
 
     class_name = f"Prod({', '.join(t.__name__ for t in _flattypes)})"
-    return __Prod(class_name, (tuple,), {'__types__': _flattypes, '__new__': prod_new})
+    return _Prod(class_name, (tuple,), {'__types__': _flattypes, '__new__': prod_new})
 
 def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
     """
@@ -224,7 +224,7 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
         return TypedFuncType(uprod_mapper)
     _flattypes, is_flexible = _flat(*args)
 
-    class __Uprod(type):
+    class _Uprod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
@@ -255,7 +255,7 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
             return False
     class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
-    return __Uprod(class_name, (tuple,), {'__types__': _flattypes})
+    return _Uprod(class_name, (tuple,), {'__types__': _flattypes})
 
 def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
     """
@@ -305,7 +305,7 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
 
     ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': _flattypes})
 
-    class __Tuple(type(tuple)):
+    class _Tuple(type(tuple)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
@@ -325,7 +325,7 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
         class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "Tuple()"
-    return __Tuple(class_name, (tuple,), {'__types__': _flattypes})
+    return _Tuple(class_name, (tuple,), {'__types__': _flattypes})
 
 def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
     """
@@ -362,7 +362,7 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
 
     ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': _flattypes})
 
-    class __List(type(list)):
+    class _List(type(list)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, list):
                 return False
@@ -381,7 +381,7 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
         class_name = f"List({', '.join(t.__name__ for t in _flattypes)}, ...)"
     else:
         class_name = "List()"
-    return __List(class_name, (list,), {'__types__': _flattypes})
+    return _List(class_name, (list,), {'__types__': _flattypes})
 
 def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
     """
@@ -419,7 +419,7 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
 
     ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': _flattypes})
 
-    class __Set(type(set)):
+    class _Set(type(set)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, set):
                 return False
@@ -443,7 +443,7 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
     else:
         class_name = "Set()"
 
-    return __Set(class_name, (set,), {'__types__': _flattypes})
+    return _Set(class_name, (set,), {'__types__': _flattypes})
 
 def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, TypedFuncType]:
     """
@@ -514,7 +514,7 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
     else:
         key_type = None
 
-    class __Dict(type(dict)):
+    class _Dict(type(dict)):
         __types__ = _flattypes
         __key_type__ = key_type
 
@@ -546,7 +546,7 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
     typename = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
     if key_type is not None:
         typename = f"Dict({', '.join(t.__name__ for t in _flattypes)}, keys={key_type.__name__})"
-    return __Dict(typename, (dict,), {'__types__': _flattypes, '__key_type__': key_type})
+    return _Dict(typename, (dict,), {'__types__': _flattypes, '__key_type__': key_type})
 
 def Null(typ: Union_[Type, Callable]) -> Type:
     """
@@ -555,7 +555,7 @@ def Null(typ: Union_[Type, Callable]) -> Type:
     """
     from typed.mods.types.base import Any
     if typ is Any:
-        class _NullAnyMeta(type):
+        class _NullAny(type):
             def __instancecheck__(cls, instance):
                 for t in (str, int, float, bool, type(None), list, tuple, set, dict):
                     if _is_null_of_type(instance, t):
@@ -577,15 +577,15 @@ def Null(typ: Union_[Type, Callable]) -> Type:
                 return False
             def __repr__(cls):
                 return "Null[Any]"
-        return _NullAnyMeta("Null[Any]", (object,), {})
+        return _NullAny("Null[Any]", (object,), {})
 
     null_obj = _get_null_object(typ)
 
-    class _NullMeta(type):
+    class _Null(type):
         null = null_obj
         def __instancecheck__(cls, instance):
             return instance == null_obj
         def __repr__(cls):
             return f"<Null[{getattr(typ, '__name__', str(typ))}]>"
     class_name = f"Null[{getattr(typ, '__name__', str(typ))}]"
-    return _NullMeta(class_name, (), {})
+    return _Null(class_name, (), {})
