@@ -74,7 +74,6 @@ File       = Filter(Path, typed(_is_file))
 Dir        = Filter(Path, typed(_is_dir))
 Symlink    = Filter(Path, typed(_is_symlink))
 Mount      = Filter(Path, typed(_is_mount))
-Extension  = Filter(Path, typed(_has_extension))
 RclonePath = Union(Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$'), Null(Str))
 
 Exists.__display__     = "Exists"
