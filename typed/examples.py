@@ -81,7 +81,6 @@ File.__display__       = "File"
 Dir.__display__        = "Dir"
 Symlink.__display__    = "Symlink"
 Mount.__display__      = "Mount"
-Extension.__display__  = "Extension"
 RclonePath.__display__ = "RclonePath"
 
 # Network
