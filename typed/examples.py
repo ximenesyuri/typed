@@ -16,7 +16,8 @@ from typed.mods.helper.examples    import (
     _is_file,
     _is_dir,
     _is_symlink,
-    _is_mount
+    _is_mount,
+    _has_extension
 )
 
 # Numeric
@@ -74,6 +75,7 @@ File       = Filter(Path, typed(_is_file))
 Dir        = Filter(Path, typed(_is_dir))
 Symlink    = Filter(Path, typed(_is_symlink))
 Mount      = Filter(Path, typed(_is_mount))
+Extension  = Filter(Path, typed(_has_extension))
 RclonePath = Union(Regex(r'^([^/:\r\n*?\"<>|\\]+:/??|(?:[^/:\r\n*?\"<>|\\]+:)?(?:/?(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?))$'), Null(Str))
 
 Exists.__display__     = "Exists"
@@ -81,6 +83,7 @@ File.__display__       = "File"
 Dir.__display__        = "Dir"
 Symlink.__display__    = "Symlink"
 Mount.__display__      = "Mount"
+Extension.__display__  = "Extension"
 RclonePath.__display__ = "RclonePath"
 
 # Network
