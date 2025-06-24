@@ -424,7 +424,7 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
             if not isinstance(instance, set):
                 return False
             from typed.mods.types.base import Any
-            if Any in args:
+            if Any is args:
                 return True
             return all(isinstance(x, ElementUnion) for x in instance)
 

@@ -241,6 +241,8 @@ def _builtin_nulls():
     }
 
 def _get_null_object(typ):
+    if typ in _builtin_nulls():
+        return _builtin_nulls()[typ]
     if hasattr(typ, '__bases__'):
         bases = typ.__bases__
         if list in bases:
@@ -276,9 +278,6 @@ def _get_null_object(typ):
                     return {None: vnull}
             else:
                 return {}
-
-    if typ in _builtin_nulls():
-        return _builtin_nulls()[typ]
     return None
 
 def _is_null_of_type(x, typ):

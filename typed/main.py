@@ -1,5 +1,5 @@
 from functools import wraps, lru_cache
-from typed.mods.helper.helper import _variable_checker, _nill
+from typed.mods.helper.helper import _variable_checker, _nill, _get_null_object
 from typed.mods.types.base          import *
 from typed.mods.types.func          import *
 from typed.mods.types.attr          import *
@@ -44,6 +44,9 @@ def factory(arg):
 
 # the null typed function
 nill = typed(_nill)
+
+# the null values
+null = _get_null_object
 
 # instance and subtype checking
 subtype = issubclass
