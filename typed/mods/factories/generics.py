@@ -63,6 +63,8 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
 
     class _Filter(type(X)):
         def __instancecheck__(cls, instance):
+            if not isinstance(instance, X):
+                return False
             return all(f(instance) for f in real_filters)
 
     return _Filter(f"Filter({X.__name__})", (X,), {})
