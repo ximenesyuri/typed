@@ -423,6 +423,9 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
         def __instancecheck__(cls, instance):
             if not isinstance(instance, set):
                 return False
+            from typed.mods.types.base import Any
+            if Any in args:
+                return True
             return all(isinstance(x, ElementUnion) for x in instance)
 
         def __subclasscheck__(cls, subclass: Type) -> bool:
