@@ -16,8 +16,7 @@ from typed.mods.helper.examples    import (
     _is_file,
     _is_dir,
     _is_symlink,
-    _is_mount,
-    _has_extension
+    _is_mount
 )
 
 # Numeric

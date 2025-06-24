@@ -104,10 +104,3 @@ def _is_mount(path: Path) -> Bool:
     Checks if a path is a a mount point.
     """
     return os.path.ismount(path)
-
-def _has_extension(path: Path, ext: Str) -> Bool:
-    """
-    Checks if a path has a given extension.
-    """
-    parts = path.split('.')
-    return parts[-1] == ext
