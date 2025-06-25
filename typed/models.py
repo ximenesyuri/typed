@@ -36,7 +36,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
         combined_kwargs = {}
         for extended_model in extended_models:
             if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
-                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model).__name__}")
+                raise TypeError(f"Element in __extends__ must be a Model or Exact type, got {type(extended_model).__name__}")
 
             extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
             extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
@@ -240,16 +240,16 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
     })
 
 
-def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
+def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
     Build an 'exact model' with support for optional arguments.
-        > 'x' is an object of 'ExactModel(arg1=Type1, arg2=Type2 = default_value, ...)' iff:
+        > 'x' is an object of 'Exact(arg1=Type1, arg2=Type2 = default_value, ...)' iff:
             1. isinstance(x, Json) is True
             2. The set of keys in x is exactly the set of required argument keys.
             3. x.get(arg1) is of type Type1 (for required args)
             4. x.get(arg2) is of type Type2 (for optional args present in x)
 
-    Concatenation of ExactModels is supported.
+    Concatenation of Exacts is supported.
     """
     extended_models = []
     if __extends__ is not None:
@@ -261,7 +261,7 @@ def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type
         combined_kwargs = {}
         for extended_model in extended_models:
             if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
-                raise TypeError(f"Element in __extends__ must be a Model or ExactModel type, got {type(extended_model)}")
+                raise TypeError(f"Element in __extends__ must be a Model or Exact type, got {type(extended_model)}")
 
             extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
             extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
@@ -287,7 +287,7 @@ def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type
         return dict
 
     if not all(isinstance(key, str) for key in kwargs.keys()):
-        raise TypeError("All arguments to ExactModel must be strings representing attribute names.")
+        raise TypeError("All arguments to Exact must be strings representing attribute names.")
 
     processed_attributes_and_types = []
     required_attribute_keys = set()
@@ -301,11 +301,11 @@ def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type
             processed_attributes_and_types.append((key, value))
             required_attribute_keys.add(key)
         else:
-            raise TypeError(f"All argument values to ExactModel must be types or OptionalArg instances. Invalid type for '{key}': {type(value)}")
+            raise TypeError(f"All argument values to Exact must be types or OptionalArg instances. Invalid type for '{key}': {type(value)}")
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
-    class __ExactModel(type(Json)):
+    class __Exact(type(Json)):
         def __new__(cls, name, bases, dct):
             new_class = super().__new__(cls, name, bases, dct)
             setattr(new_class, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
@@ -449,9 +449,9 @@ def ExactModel(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type
             return Instance(entity, cls)
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
-    class_name = f"ExactModel({args_str})"
+    class_name = f"Exact({args_str})"
 
-    return __ExactModel(class_name, (dict,), {
+    return __Exact(class_name, (dict,), {
         '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
@@ -463,8 +463,8 @@ AnyModel = Model()
 def Instance(entity: dict, model: Type) -> Any:
     model_metaclass = type(model)
 
-    if not isinstance(model, type) or (model_metaclass.__name__ != "__Model" and model_metaclass.__name__ != "__ExactModel"):
-        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model or ExactModel types. Received type: {type(model).__name__}.")
+    if not isinstance(model, type) or (model_metaclass.__name__ != "__Model" and model_metaclass.__name__ != "__Exact"):
+        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model or Exact types. Received type: {type(model).__name__}.")
 
     if not isinstance(entity, dict):
         raise TypeError(f"'{repr(entity)}': not of Json type. Received type: {type(entity).__name__}.")
