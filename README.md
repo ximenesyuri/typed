@@ -14,7 +14,7 @@
 
 # About
 
-`typed` is lightweight runtime type checking solution for Python. Zero dependencies. No need of prebuild steps, static analysis, IDE plugins, and so on.
+`typed` is a Python framework providing type safety and allowing universal constructions.
 
 # Overview
 
