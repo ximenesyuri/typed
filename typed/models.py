@@ -464,65 +464,50 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
     })
 
 def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -> Type[Json]:
-    conditions = _ensure_iterable_conditions(__conditionals__)
-    kwargs_clean = {k: v for k, v in kwargs.items() if k != '__conditionals__'}
-
-    UnderlyingModel = Model(__extends__, **kwargs_clean)
-
-    for cond in conditions:
+    UnderlyingModel = __extends__ if __extends__ and not kwargs else Model(__extends__, **kwargs)
+    conds = __conditionals__ if isinstance(__conditionals__, (list, tuple)) else [__conditionals__]
+    for cond in conds:
         domain = getattr(cond, 'domain', None)
         if domain is None:
             raise AttributeError(f"Conditional function {cond} must have a .domain attribute set to the underlying Model")
-        if domain is not UnderlyingModel and not issubclass(UnderlyingModel, domain):
+        if not issubclass(UnderlyingModel, domain):
             raise TypeError(f"Condition {cond} has domain {domain}, expected {UnderlyingModel}")
 
     class _Conditional(type(UnderlyingModel)):
-        def __new__(metacls, name, bases, dct):
-            new_cls = super().__new__(metacls, name, bases, dct)
-            new_cls._underlying_model = UnderlyingModel
-            new_cls._conditionals = conditions
-            return new_cls
-
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, cls._underlying_model):
+            if not isinstance(instance, UnderlyingModel):
                 return False
-            for cond in cls._conditionals:
-                if getattr(cond, 'domain', None) is not cls._underlying_model:
+            for cond in conds:
+                if not issubclass(UnderlyingModel, cond.domain):
                     return False
-            return all(cond(instance) for cond in cls._conditionals)
+            return all(cond(instance) for cond in conds)
 
         def __subclasscheck__(cls, subclass):
-            return issubclass(subclass, cls._underlying_model)
+            return issubclass(subclass, UnderlyingModel)
 
         def __call__(cls, entity):
-            x = Instance(entity, cls._underlying_model)
+            x = Instance(entity, UnderlyingModel)
             from typed.mods.types.func import BooleanFuncType
-            for fn in cls._conditionals:
-                if not isinstance(fn, BooleanFuncType):
-                    if not fn.domain is cls._underlying_model:
+            for cond in conds:
+                if not isinstance(cond, BooleanFuncType):
+                    if not issubclass(UnderlyingModel, cond.domain):
                         raise TypeError(
-                            f" ==> '{fn.__name__}': has wrong domain type.\n"
-                            f"     [received_type]: '{_get_type_display_name(fn.domain)}'\n"
-                            f"     [expected_type]: '{_get_type_display_name(cls._underlying_model)}'"
+                            f" ==> '{cond.__name__}': has wrong domain type.\n"
+                            f"     [received_type]: '{_get_type_display_name(cond.domain)}'\n"
+                            f"     [expected_type]: '{_get_type_display_name(UnderlyingModel)}'"
                         )
                     raise TypeError(
-                        f" ==> '{fn.__name__}': is not a Boolean typed function."
+                        f" ==> '{cond.__name__}': is not a Boolean typed function."
                     )
-                if not fn(x):
+                if not cond(x):
                     raise TypeError(
                         f" Boolean check failed"
-                        f" ==> {fn.__name__}: expected True, received False"
+                        f" ==> {cond.__name__}: expected True, received False"
                     )
             return x
-    conds_str = ', '.join(getattr(f, '__name__', repr(f)) for f in conditions)
-    args_str = ", ".join(
-        f"{key}: {getattr(val, '__name__', str(val))}" for key, val in kwargs_clean.items()
-    )
-    class_name = f"Conditional([{conds_str}], {args_str})"
-    CondModel = _Conditional(class_name, (UnderlyingModel,), {})
+    conds_str = ', '.join(getattr(cond, '__name__', repr(cond)) for cond in conds)
+    CondModel = _Conditional('Conditional', (UnderlyingModel,), {})
 
-    CondModel._underlying_model = UnderlyingModel
-    CondModel._conditionals = conditions
     return CondModel
 
 def Instance(entity: dict, model: Type[Json]) -> Json:
