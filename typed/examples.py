@@ -16,7 +16,8 @@ from typed.mods.helper.examples    import (
     _is_file,
     _is_dir,
     _is_symlink,
-    _is_mount
+    _is_mount,
+    _is_markdown
 )
 
 # Numeric
@@ -62,11 +63,13 @@ HEX.__display__ = "HEX"
 HSL.__display__ = "HSL"
 
 # Text
-Char  = Len(Str, 1)
-Email = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+Char     = Len(Str, 1)
+Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+Markdown = Filter(Str, typed(_is_markdown))
 
-Char.__display    = "Char"
-Email.__display__ = "Email"
+Char.__display       = "Char"
+Email.__display__    = "Email"
+Markdown.__display__ = "Markdown"
 
 # Path
 Exists     = Filter(Path, typed(_exists))

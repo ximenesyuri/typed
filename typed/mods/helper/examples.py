@@ -1,5 +1,5 @@
 import os
-from typed.mods.types.base import Int, Float, Any, Json, Bool, Path
+from typed.mods.types.base import Int, Str, Float, Any, Json, Bool, Path
 from typed.mods.factories.base import Union
 
 def _is_natural(x: Int) -> Bool:
@@ -74,7 +74,6 @@ def _is_json_flat(data: Json) -> Bool:
             return False
     return True
 
-
 def _exists(path: Path) -> Bool:
     """
     Checks if a path exists.
@@ -104,3 +103,46 @@ def _is_mount(path: Path) -> Bool:
     Checks if a path is a a mount point.
     """
     return os.path.ismount(path)
+
+def _install(lib, venv=None):
+    from importlib.util import find_spec
+    from pathlib import Path as _Path
+    import os
+    import subprocess
+    if find_spec(lib) is not None:
+        return
+
+    if venv is None:
+        current = _Path.cwd()
+        found = False
+        for parent in [current] + list(current.parents):
+            possible = parent / '.venv'
+            if possible.exists() and (possible / 'bin' / 'python').exists():
+                venv = str(possible)
+                found = True
+                break
+        if not found:
+            return 'Error: No virtual environment found (.venv not located in parent directories)'
+
+    if os.name == 'nt':
+        pip_executable = os.path.join(venv, 'Scripts', 'pip.exe')
+    else:
+        pip_executable = os.path.join(venv, 'bin', 'pip')
+
+    if not os.path.isfile(pip_executable):
+        return f"Error: pip not found in the virtual environment at '{venv}'."
+
+    try:
+        subprocess.check_call([pip_executable, 'install', lib, '-q'])
+        return f"'{lib}' has been installed in venv: {venv}"
+    except subprocess.CalledProcessError as e:
+        return f"Error installing '{lib}' in venv: {venv}. Detail: {str(e)}"
+
+def _is_markdown(content: Str) -> Bool:
+    _install('markdown')
+    from markdown import markdown
+    try:
+        html = markdown(content)
+        return True
+    except Exception as e:
+        return False
