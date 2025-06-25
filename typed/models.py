@@ -1,19 +1,25 @@
-from typing import Type, List
-from typed.mods.types.base import Json, Any
-from typed.mods.helper.models import _OptionalWrapper
+from typing import Union, Type, List, Any
+from typed.mods.types.base import Json
 from typed.mods.helper.helper import _get_type_display_name
+from typed.mods.helper.models import (
+    _Optional,
+    _MODEL,
+    _EXACT,
+    _CONDITIONAL,
+    _ensure_iterable_conditions
+)
 
 def Optional(typ: Type, default_value: Any):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
         raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
     if not isinstance(default_value, typ):
         raise TypeError(
-            f"Error while defining optional type:"
+            f"Error while defining optional type:\n"
             f" ==> '{default_value}': has wrong type\n" +
             f"     [received_type]: '{_get_type_display_name(type(default_value))}'\n" +
             f"     [expected_type]: '{_get_type_display_name(typ)}'"
         )
-    return _OptionalWrapper(typ, default_value)
+    return _Optional(typ, default_value)
 
 def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
@@ -69,7 +75,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
     optional_attributes_and_defaults = {}
 
     for key, value in kwargs.items():
-        if isinstance(value, _OptionalWrapper):
+        if isinstance(value, _Optional):
             processed_attributes_and_types.append((key, value.type))
             optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
@@ -80,7 +86,7 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
-    class __Model(type(Json)):
+    class _Model(type(Json)):
         def __new__(cls, name, bases, dct):
             new_class = super().__new__(cls, name, bases, dct)
             setattr(new_class, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
@@ -231,9 +237,9 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
         def __call__(cls, entity: Any):
             return Instance(entity, cls)
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
-    return __Model(class_name, (dict,), {
+    return _Model(class_name, (dict,), {
         '_initial_attributes_and_types': attributes_and_types,
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults
@@ -276,7 +282,6 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                     raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
                 combined_kwargs[key] = value_wrapper # Optional attributes with default
 
-
         for key, value in kwargs.items():
             if key in combined_kwargs:
                 raise TypeError(f"Attribute '{key}' defined in both extended models and the new model definition.")
@@ -294,7 +299,7 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
     optional_attributes_and_defaults = {}
 
     for key, value in kwargs.items():
-        if isinstance(value, _OptionalWrapper):
+        if isinstance(value, _Optional):
             processed_attributes_and_types.append((key, value.type))
             optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
@@ -305,7 +310,7 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
-    class __Exact(type(Json)):
+    class _Exact(type(Json)):
         def __new__(cls, name, bases, dct):
             new_class = super().__new__(cls, name, bases, dct)
             setattr(new_class, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
@@ -448,23 +453,87 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
         def __call__(cls, entity: Any):
             return Instance(entity, cls)
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _OptionalWrapper) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
 
-    return __Exact(class_name, (dict,), {
+    return _Exact(class_name, (dict,), {
         '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
         '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
     })
 
-AnyModel = Model()
+def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -> Type[Json]:
+    conditions = _ensure_iterable_conditions(__conditionals__)
+    kwargs_clean = {k: v for k, v in kwargs.items() if k != '__conditionals__'}
 
-def Instance(entity: dict, model: Type) -> Any:
+    UnderlyingModel = Model(__extends__, **kwargs_clean)
+
+    for cond in conditions:
+        domain = getattr(cond, 'domain', None)
+        if domain is None:
+            raise AttributeError(f"Conditional function {cond} must have a .domain attribute set to the underlying Model")
+        if domain is not UnderlyingModel and not issubclass(UnderlyingModel, domain):
+            raise TypeError(f"Condition {cond} has domain {domain}, expected {UnderlyingModel}")
+
+    class _Conditional(type(UnderlyingModel)):
+        def __new__(metacls, name, bases, dct):
+            new_cls = super().__new__(metacls, name, bases, dct)
+            new_cls._underlying_model = UnderlyingModel
+            new_cls._conditionals = conditions
+            return new_cls
+
+        def __instancecheck__(cls, instance):
+            if not isinstance(instance, cls._underlying_model):
+                return False
+            for cond in cls._conditionals:
+                if getattr(cond, 'domain', None) is not cls._underlying_model:
+                    return False
+            return all(cond(instance) for cond in cls._conditionals)
+
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, cls._underlying_model)
+
+        def __call__(cls, entity):
+            x = Instance(entity, cls._underlying_model)
+            from typed.mods.types.func import BooleanFuncType
+            for fn in cls._conditionals:
+                if not isinstance(fn, BooleanFuncType):
+                    if not fn.domain is cls._underlying_model:
+                        raise TypeError(
+                            f" ==> '{fn.__name__}': has wrong domain type.\n"
+                            f"     [received_type]: '{_get_type_display_name(fn.domain)}'\n"
+                            f"     [expected_type]: '{_get_type_display_name(cls._underlying_model)}'"
+                        )
+                    raise TypeError(
+                        f" ==> '{fn.__name__}': is not a Boolean typed function."
+                    )
+                if not fn(x):
+                    raise TypeError(
+                        f" Boolean check failed"
+                        f" ==> {fn.__name__}: expected True, received False"
+                    )
+            return x
+    conds_str = ', '.join(getattr(f, '__name__', repr(f)) for f in conditions)
+    args_str = ", ".join(
+        f"{key}: {getattr(val, '__name__', str(val))}" for key, val in kwargs_clean.items()
+    )
+    class_name = f"Conditional([{conds_str}], {args_str})"
+    CondModel = _Conditional(class_name, (UnderlyingModel,), {})
+
+    CondModel._underlying_model = UnderlyingModel
+    CondModel._conditionals = conditions
+    return CondModel
+
+def Instance(entity: dict, model: Type[Json]) -> Json:
     model_metaclass = type(model)
 
-    if not isinstance(model, type) or (model_metaclass.__name__ != "__Model" and model_metaclass.__name__ != "__Exact"):
-        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model or Exact types. Received type: {type(model).__name__}.")
+    if not isinstance(model, type) or (
+            model_metaclass.__name__ != "_Model" and
+            model_metaclass.__name__ != "_Exact" and
+            model_metaclass.__name__ != "_Conditional"
+        ):
+        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model, Exact or Conditional. Received type: {type(model).__name__}.")
 
     if not isinstance(entity, dict):
         raise TypeError(f"'{repr(entity)}': not of Json type. Received type: {type(entity).__name__}.")
@@ -515,3 +584,33 @@ def Instance(entity: dict, model: Type) -> Any:
         )
 
     return entity
+
+MODEL = _MODEL('MODEL', (type, ), {})
+EXACT = _EXACT('EXACT', (type, ), {})
+CONDITIONAL = _CONDITIONAL('EXACT', (type, ), {})
+
+def Forget(model: Type[Json], entries: list) -> Type[Json]:
+    if not isinstance(model, MODEL):
+        raise TypeError(f"forget expects a Model-type. Got: {model}")
+
+    required_keys = set(getattr(model, '_required_attribute_keys', set()))
+    optional_keys = set(getattr(model, '_optional_attributes_and_defaults', {}).keys())
+    all_keys = required_keys | optional_keys
+
+    missing = [e for e in entries if e not in all_keys]
+    if missing:
+        raise ValueError(f"Entries not in model: {missing}")
+
+    required_types = dict(getattr(model, '_required_attributes_and_types', ()))
+    optional_types = getattr(model, '_optional_attributes_and_defaults', {})
+
+    new_kwargs = {}
+
+    for k in required_keys:
+        if k not in entries:
+            new_kwargs[k] = required_types[k]
+    for k in optional_keys:
+        if k not in entries:
+            new_kwargs[k] = optional_types[k]
+
+    return Model(**new_kwargs)

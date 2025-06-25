@@ -218,6 +218,7 @@ def _nill() -> type(None):
 def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
     from typed.mods.types.func import TypedFuncType
+    from typed.models import Model, MODEL, Exact, EXACT
 
     Pattern = _Pattern("Pattern", (str,), {})
 
@@ -237,7 +238,9 @@ def _builtin_nulls():
         bool: False,
         type(None): None,
         TypedFuncType: TypedFuncType(_nill),
-        Pattern: r''
+        Pattern: r'',
+        MODEL: Model(),
+        EXACT: Exact()
     }
 
 def _get_null_object(typ):
