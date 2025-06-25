@@ -1,3 +1,17 @@
+```
+  /$$                                         /$$
+  | $$                                        | $$
+ /$$$$$$   /$$   /$$  /$$$$$$   /$$$$$$   /$$$$$$$
+|_  $$_/  | $$  | $$ /$$__  $$ /$$__  $$ /$$__  $$
+  | $$    | $$  | $$| $$  \ $$| $$$$$$$$| $$  | $$
+  | $$ /$$| $$  | $$| $$  | $$| $$_____/| $$  | $$
+  |  $$$$/|  $$$$$$$| $$$$$$$/|  $$$$$$$|  $$$$$$$
+   \___/   \____  $$| $$____/  \_______/ \_______/
+           /$$  | $$| $$                          
+          |  $$$$$$/| $$                          
+           \______/ |__/
+```
+
 # About
 
 `typed` is lightweight runtime type checking solution for Python. Zero dependencies. No need of prebuild steps, static analysis, IDE plugins, and so on.
