@@ -68,9 +68,9 @@ def _is_json_flat(data: Json) -> Bool:
     if not isinstance(data, dict):
         return False
 
-    primitive_types = (str, int, float, bool, type(None))
-    for value in data.values():
-        if not isinstance(value, primitive_types):
+    from typed.examples import JsonEntry
+    for key in data.keys():
+        if not isinstance(key, JsonEntry):
             return False
     return True
 
