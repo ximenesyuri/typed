@@ -599,3 +599,24 @@ def Forget(model: Type[Json], entries: list) -> Type[Json]:
             new_kwargs[k] = optional_types[k]
 
     return Model(**new_kwargs)
+
+def forget(model_entity: Json, entries: List[str]) -> Json:
+    """
+    1. check if SomeModel is of type MODEL
+    2. receive the entity model_entity of type SomeModel
+    3. remove of them the given "entries"
+    4. return the obtained entity
+    """
+
+    model_type = type(model_entity)
+    if not isinstance(model_type, MODEL):
+        raise TypeError(f"Input entity's type '{model_type}' is not a MODEL type.")
+
+    new_entity = model_entity.copy()
+
+    for entry in entries:
+        if entry in new_entity:
+            del new_entity[entry]
+        else:
+            print(f"Warning: Attempted to forget non-existent entry '{entry}' from entity.")
+    return new_entity
