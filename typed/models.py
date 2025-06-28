@@ -487,9 +487,9 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
 
         def __call__(cls, entity):
             x = Instance(entity, UnderlyingModel)
-            from typed.mods.types.func import BooleanFuncType
+            from typed.mods.types.func import BoolFuncType
             for cond in conds:
-                if not isinstance(cond, BooleanFuncType):
+                if not isinstance(cond, BoolFuncType):
                     if not issubclass(UnderlyingModel, cond.domain):
                         raise TypeError(
                             f" ==> '{cond.__name__}': has wrong domain type.\n"
