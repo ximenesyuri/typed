@@ -61,7 +61,7 @@ If at runtime the type of `x` does not matches `Int` (respectively the type of `
 
 # Models
 
-You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, as you did with `BaseModel` in [pydantic](https://github.com/pydantic/pydantic):
+You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, as you can do with `BaseModel` in [pydantic](https://github.com/pydantic/pydantic):
 
 ```python
 from typed        import Int, Str, List
@@ -91,12 +91,12 @@ def some_function(some_json: Model1) -> Model1:
     ...
     return some_json
 
-some_function(json1) # raise descriptive TypeError
+some_function(json1) # a raise descriptive TypeError
 ```
 
 # Validation
 
-You can validade a model entity before calling it in a typed function using the `Instance` factory:
+You can validade a model entity before calling it in a typed function using the `Instance` checker:
 
 ```python
 from typed        import typed, Int, Str, List
@@ -119,6 +119,32 @@ model1_instance = Instance(
     entity=json1
 )
 ```
+
+> Such a validation is better than using just `isinstance(entity, model)` because it parses the `entity` and provides specific errors, while `isinstance` just return a boolean value.
+
+Another way to validate an instance is to call it directly as an argument for some `model`:
+```python
+model1_instance = Model1({
+    'arg1': 'foo',
+    'arg2': 'bar',
+    'arg3': [1, 'foobar']
+})
+```
+
+You can also use a `kwargs` approach:
+
+```python
+model1_instance = Model1({
+    arg1='foo',
+    arg2='bar',
+    arg3=[1, 'foobar']
+})
+```
+
+> Notice that you can also use the above approaches to **create** valid instances and not only to validate **already existing** instances.
+
+
+# Exact Models
 
 In [pydantic](https://github.com/pydantic/pydantic), a model created from `BaseModel` do a strict validation: a json data is considered an instance of the model iff it exactly matches the non-optional entries.  In `typed` , the `Model` factory creates subtypes of `Json`, so that a typical type checking will only evaluate if a json data **contains** the data defined in the model obtained from `Model`. So, for example, the following will not raise a `TypeError`:
 
@@ -145,7 +171,7 @@ model1_instance = Instance(
 )
 ```
 
-For an exact evaluation, as occurs while using `BaseModel`, you could use the `ExactModel` factory from `typed.models`. It also provides a `Optional` directive, as in [pydantic](https://github.com/pydantic/pydantic):
+For an exact evaluation, as occurs while using `BaseModel`, you could use the `Exact` factory from `typed.models`. It also provides a `Optional` directive, as in [pydantic](https://github.com/pydantic/pydantic):
 
 ```python
 from typed        import typed, Int, Str, List
@@ -191,19 +217,6 @@ model2_instance = Instance(
     model=Model2,
     entity=json1
 )
-```
-
-As an alternative to the use of `Instance`, you can just call the model or exact model with the json entity you want to validate.
-
-```python
-# using Instance
-instance = Instance(
-    entity=json1,
-    model=Model1
-)
-
-# calling the model directly
-instance = Model1(json1)
 ```
 
 # Primitive Types
