@@ -234,8 +234,14 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                             return False
             return True
 
-        def __call__(cls, entity: Any):
-            return Instance(entity, cls)
+        def __call__(cls, entity: Any = None, **kwargs):
+            if entity is not None and kwargs:
+                raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
+            if entity is None:
+                entity_dict = kwargs
+            else:
+                entity_dict = entity
+            return Instance(entity_dict, cls)
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
@@ -450,8 +456,15 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
             return True
 
-        def __call__(cls, entity: Any):
-            return Instance(entity, cls)
+        def __call__(cls, entity: Any = None, **kwargs):
+            if entity is not None and kwargs:
+                raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
+            if entity is None:
+                entity_dict = kwargs
+            else:
+                entity_dict = entity
+
+            return Instance(entity_dict, cls)
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
@@ -485,9 +498,16 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, UnderlyingModel)
 
-        def __call__(cls, entity):
-            x = Instance(entity, UnderlyingModel)
-            from typed.mods.types.func import BoolFuncType
+        def __call__(cls, entity: Any = None, **kwargs):
+            if entity is not None and kwargs:
+                raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
+            if entity is None:
+                entity_dict = kwargs
+            else:
+                entity_dict = entity
+
+            x = Instance(entity_dict, UnderlyingModel)
+            from typed.mods.types.func import BoolFuncType # Import here to avoid circular dependency if func.py also imports models.py
             for cond in conds:
                 if not isinstance(cond, BoolFuncType):
                     if not issubclass(UnderlyingModel, cond.domain):
@@ -506,17 +526,20 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
                     )
             return x
     conds_str = ', '.join(getattr(cond, '__name__', repr(cond)) for cond in conds)
-    CondModel = _Conditional('Conditional', (UnderlyingModel,), {})
+    class_name = f"Conditional({conds_str})"
+    CondModel = _Conditional(class_name, (UnderlyingModel,), {})
 
     return CondModel
 
 def Instance(entity: dict, model: Type[Json]) -> Json:
+    """
+    Checks if an entity (dictionary) is an instance of a given model.
+    If it is, the entity is returned. Otherwise, a TypeError is raised with details.
+    """
     model_metaclass = type(model)
 
     if not isinstance(model, type) or (
-            model_metaclass.__name__ != "_Model" and
-            model_metaclass.__name__ != "_Exact" and
-            model_metaclass.__name__ != "_Conditional"
+            model_metaclass.__name__ not in ("_Model", "_Exact", "_Conditional")
         ):
         raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model, Exact or Conditional. Received type: {type(model).__name__}.")
 
@@ -527,9 +550,8 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
         return entity
 
     model_name = getattr(model, '__name__', str(model))
-    model_repr = f"'{model_name}'"
 
-    required_attributes_and_types = getattr(model, '_required_attributes_and_types', ())
+    required_attributes_and_types_raw = getattr(model, '_required_attributes_and_types', ())
     required_attribute_keys = getattr(model, '_required_attribute_keys', set())
     optional_attributes_and_defaults = getattr(model, '_optional_attributes_and_defaults', {})
 
@@ -537,42 +559,48 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
 
     for k in required_attribute_keys:
         if k not in entity:
-            errors.append(f"\t ==> '{k}': missing.")
+            errors.append(f"\t ==> '{k}': missing required attribute.")
 
-    for k, expected_type in required_attributes_and_types:
-        if k in entity:
-            actual_value = entity[k]
-        elif k in optional_attributes_and_defaults:
-            continue
-        else:
-            continue
-        type_is_correct = False
-        if isinstance(actual_value, expected_type):
-            type_is_correct = True
-        else:
-            checker = getattr(expected_type, '__instancecheck__', None)
-            if callable(checker):
-                if checker(actual_value):
-                    type_is_correct = True
+    all_defined_attributes = {k: v for k, v in required_attributes_and_types_raw}
+    for k, wrapper in optional_attributes_and_defaults.items():
+        all_defined_attributes[k] = wrapper.type
 
-        if not type_is_correct:
-            errors.append(
-                f" ==> '{k}': has a wrong type.\n" +
-                f"     [received_type]: '{_get_type_display_name(type(actual_value))}'\n" +
-                f"     [expected_type]: '{_get_type_display_name(expected_type)}'"
-            )
+    for attr_name, expected_type in all_defined_attributes.items():
+        if attr_name in entity:
+            actual_value = entity[attr_name]
+            type_is_correct = False
+            if isinstance(actual_value, expected_type):
+                type_is_correct = True
+            else:
+                checker = getattr(expected_type, '__instancecheck__', None)
+                if callable(checker):
+                    if checker(actual_value):
+                        type_is_correct = True
+
+            if not type_is_correct:
+                errors.append(
+                    f"\t ==> '{attr_name}': has a wrong type.\n" +
+                    f"\t     [received_type]: '{_get_type_display_name(type(actual_value))}'\n" +
+                    f"\t     [expected_type]: '{_get_type_display_name(expected_type)}'"
+                )
+    if model_metaclass.__name__ == "_Exact":
+        all_expected_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
+        extra_keys = set(entity.keys()) - all_expected_keys
+        if extra_keys:
+            errors.append(f"\t ==> Extra attributes found: {', '.join(sorted(extra_keys))}.")
 
     if errors:
         raise TypeError(
-            f"not an instance of model '{_get_type_display_name(model)}':\n"
-            + "".join(errors)
+            f"'{repr(entity)}' is not an instance of model '{_get_type_display_name(model)}':\n"
+            + "\n".join(errors)
         )
-
     return entity
+
 
 MODEL = _MODEL('MODEL', (type, ), {})
 EXACT = _EXACT('EXACT', (type, ), {})
-CONDITIONAL = _CONDITIONAL('EXACT', (type, ), {})
+CONDITIONAL = _CONDITIONAL('CONDITIONAL', (type, ), {})
+
 
 def Forget(model: Type[Json], entries: list) -> Type[Json]:
     if not isinstance(model, MODEL):
@@ -594,8 +622,10 @@ def Forget(model: Type[Json], entries: list) -> Type[Json]:
     for k in required_keys:
         if k not in entries:
             new_kwargs[k] = required_types[k]
+
     for k in optional_keys:
         if k not in entries:
             new_kwargs[k] = optional_types[k]
-
     return Model(**new_kwargs)
+
+
