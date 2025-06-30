@@ -34,11 +34,11 @@ def factory(arg):
                 f" ==> '{arg.__name__}' codomain is not a type\n"
                 f"     [received_type]: '{typed_arg.codomain.__name__}'"
             )
-        return lru_cache(maxsize=None)(typed(arg))
+        wrapped_func = lru_cache(maxsize=None)(typed(arg))
         return wraps(arg)(wrapped_func)
     raise TypeError(
         "Factory decorator can only be applied to callable objects:\n"
-        f" ==> '{arg}': is not callable\n"
+        f" ==> '{arg.__name__}': is not callable\n"
         f"     [received_type] '{type(arg).__name__}'"
     )
 
