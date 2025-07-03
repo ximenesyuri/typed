@@ -1,5 +1,8 @@
 from typed.main import typed
 from typed.mods.factories.base     import Prod, Union, Null
+from typed.mods.factories.func     import TypedFunc
+from typed.mods.types.func         import TypedFuncType
+from typed.mods.types.attr         import Callable
 from typed.mods.factories.generics import Filter, Regex, Range, Len
 from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict, Path
 from typed.mods.helper.examples    import (
@@ -94,3 +97,10 @@ HttpUrl  = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$'
 Hostname.__display__ = "Hostname"
 IPv4.__display__     = "IPv4"
 HttpUrl.__display__  = "HttpUrl"
+
+# Function
+Decorator      = TypedFunc(Callable, cod=Callable)
+TypedDecorator = TypedFunc(TypesFuncType, cod=TypedFuncType)
+
+Decorator.__diplay__       = "Decorator"
+TypedDecorator.__display__ = "TypedDecorator"
