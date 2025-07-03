@@ -112,8 +112,7 @@ def Regex(regex_string: str) -> Type[str]:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
-    from typed.mods.helper.helper import _Pattern
-    Pattern = _Pattern("Pattern", (str,), {})
+    from typed.mods.types.base import Pattern
     if not isinstance(regex_string, Pattern):
         raise TypeError(f"'{regex_string}' is not a valid pattern.")
 
@@ -298,3 +297,4 @@ def Sub(*types: Tuple[Type]) -> Type:
 
     class_name = f"Sub({', '.join(t.__name__ for t in types)})"
     return _Sub(class_name, (), {})
+

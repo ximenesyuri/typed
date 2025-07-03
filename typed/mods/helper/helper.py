@@ -192,35 +192,14 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             f"\n    [failed_typed]:  '{_get_type_display_name(expected_codomain)}'"
         )
 
-class _Any(type):
-    def __instancecheck__(cls, instance):
-        return True
-    def __subclasscheck__(cls, subclass):
-        return True
-
-class _Pattern(type):
-    def __instancecheck__(cls, x):
-        if not isinstance(x, str):
-            return False
-        try:
-            re.compile(x)
-            return True
-        except re.error:
-            return False
-    def __subclasscheck__(cls, sub):
-        return issubclass(sub, str)
-    def __repr__(cls):
-        return "Pattern(str): a string valid as Python regex"
-
 def _nill() -> type(None):
         pass
 
 def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
     from typed.mods.types.func import TypedFuncType
+    from typed.mods.types.base import Pattern
     from typed.models import Model, MODEL, Exact, EXACT
-
-    Pattern = _Pattern("Pattern", (str,), {})
 
     return {
         Dict: {},
