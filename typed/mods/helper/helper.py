@@ -8,18 +8,18 @@ def _flat(*types):
     flat_list = []
     is_flexible = True
     def _flatten(item):
-       if isinstance(item, type):
+        if isinstance(item, type):
            flat_list.append(item)
-       elif isinstance(item, (list, tuple)):
+        elif isinstance(item, (list, tuple)):
             for sub_item in item:
                 _flatten(sub_item)
-       else:
+        else:
             raise TypeError(f"Unsupported type in _flat: {type(item)}")
     for typ in types:
        _flatten(typ)
     if not all(isinstance(t, type) for t in flat_list):
         raise TypeError("All arguments must be types.")
-    return (tuple(flat_list), is_flexible)
+    return (tuple(flat_list), True)
 
 def _runtime_domain(func):
     def wrapper(*args, **kwargs):

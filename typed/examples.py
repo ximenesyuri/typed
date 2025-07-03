@@ -100,7 +100,7 @@ HttpUrl.__display__  = "HttpUrl"
 
 # Function
 Decorator      = TypedFunc(Callable, cod=Callable)
-TypedDecorator = TypedFunc(TypesFuncType, cod=TypedFuncType)
+TypedDecorator = TypedFunc(TypedFuncType, cod=TypedFuncType)
 
 Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"

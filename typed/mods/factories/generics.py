@@ -285,12 +285,16 @@ def Maybe(*types: Tuple[Type]) -> Type:
     return Union(*types, type(None))
 
 @cache
-def Extension(ext: str) -> Type:
-    from typed.mods.types.base import Path
-    class _Extension(type(Path)):
+def Sub(*types: Tuple[Type]) -> Type:
+    """
+    Build the type of subtypes of a given types.
+        > An object of `Type(X, Y, ...)`
+        > is a type T such that issubclass(T, K) is True
+        > for some K in (X, Y, ...)
+    """
+    class _Sub(type):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, Path):
-                return False
-            parts = instance.split('.')
-            return parts[-1] == ext
-    return _Extension(f'Extension({ext})', (Path,), {})
+            return isinstance(instance, type) and any(issubclass(instance, typ) for typ in types)
+
+    class_name = f"Sub({', '.join(t.__name__ for t in types)})"
+    return _Sub(class_name, (), {})
