@@ -1,6 +1,6 @@
 from typed.mods.factories.base import Union, Dict, Set, List, Null
 from typed.mods.factories.generics import Regex
-from typed.mods.factories.func import TypedCodFunc
+from typed.mods.factories.func import TypedFunc
 from typed.mods.types.meta import (
     _Any,
     _Pattern,
@@ -24,7 +24,7 @@ Pattern = _Pattern("Pattern", (Str,), {})
 Path    = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$"), Null(Str))
 META    = _META("Meta", (TYPE,), {})
 
-BoolFuncType = TypedCodFunc(Bool)
+BoolFuncType = TypedFunc(Any, cod=Bool)
 
 Any.__display__     = "Any"
 Json.__display__    = "Json"
