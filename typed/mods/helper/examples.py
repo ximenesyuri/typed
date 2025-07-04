@@ -1,6 +1,7 @@
 import re
 import os
 import subprocess
+import inspect
 from importlib.util import find_spec
 from pathlib import Path as _Path
 from typed.mods.types.func import Function

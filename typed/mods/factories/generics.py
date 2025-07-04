@@ -70,7 +70,7 @@ def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
 
     return _Filter(f"Filter({X.__name__})", (X,), {})
 
-@cache   
+@cache
 def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
     """
     Build the 'complement subtype' of a type by given subtypes:
@@ -261,9 +261,9 @@ def Len(typ: Type, size: int) -> Type:
         from typed.mods.types.base import Null
         return Null(typ)
 
-    from typed.mods.types.attr import Sized
-    if not isinstance(typ, type) or not isinstance(typ, Sized):
-        raise TypeError(f"Len: type {typ!r} is not Sized.")
+    from typed.mods.types.attr import SIZED
+    if not isinstance(typ, type) or not isinstance(typ, SIZED):
+        raise TypeError(f"Len: type {typ!r} is not sized.")
 
     class _Len(type(typ)):
         def __instancecheck__(cls, instance):
