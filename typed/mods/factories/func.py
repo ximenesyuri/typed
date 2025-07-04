@@ -1,21 +1,41 @@
 from functools import lru_cache as cache
+from typing import Tuple as Tuple_, Type
 from typed.mods.helper.helper import (
     _flat,
     _hinted_domain,
-    _hinted_codomain
+    _hinted_codomain,
+    _get_num_args
 )
 from typed.mods.types.func import (
+    FuncType,
     HintedDomFuncType,
     HintedCodFuncType,
     HintedFuncType,
     TypedDomFuncType,
     TypedCodFuncType,
-    TypedFuncType,
-    BoolFuncType
+    TypedFuncType
 )
 
 @cache
-def HintedDomainFunc(*domain_types):
+def Func(arg_number: int) -> Type:
+    """
+    Build the 'function type' of functions with
+    a given number of argumens:
+        > the objects of 'Func(N)' is the functions
+        > with exactly 'N>=0' arguments.
+        > For 'N<0' then any function is in 'Func(N)'
+    """
+    class _Func(type):
+        def __instancecheck__(cls, instance):
+            if not isinstance(instance, FuncType):
+                return False
+            if arg_number >= 0:
+                return _get_num_args(instance) == arg_number
+            return True
+    return _Func(f'Func({arg_number})', (FuncType,), {'__display__': f'Func({arg_number})'})
+
+@cache
+def HintedDomainFunc(*domain_types: Tuple_[Type]) -> Type:
     """
     Build the 'hinted-domain function type' of types:
         > the objects of 'HintedDomainFunc(X, Y, ...)'
@@ -51,7 +71,7 @@ def HintedDomainFunc(*domain_types):
     return _HintedDomainFunc(class_name, (HintedDomFuncType,), {'__types__': _flattypes})
 
 @cache
-def HintedCodFunc(cod=None):
+def HintedCodFunc(cod: Type) -> Type:
     """
     Build the 'hinted-codomain function type' of types:
         > the objects of hc__HintedFunc_type_(R) are
@@ -78,7 +98,7 @@ def HintedCodFunc(cod=None):
     return _HintedCodFunc(class_name, (HintedCodFuncType,), {'__codomain__': cod})
 
 @cache
-def HintedFunc(*domain_types, cod=None):
+def HintedFunc(*domain_types: Tuple_[Types], cod: Type) -> Type:
     """
     Build the 'hinted function type' of types:
         > the objects of hfunc_type(X, Y, ..., cod=R)
@@ -89,8 +109,6 @@ def HintedFunc(*domain_types, cod=None):
         > whose argument type hints belong to 'Union(X, Y, ...)'
         > and whose return type hint belongs to 'Union(R, S, ...)'
     """
-    if cod is None:
-        raise TypeError("Codomain type must be specified.")
     _flattypes, is_flexible = _flat(*domain_types)
     class _HintedFunc(type):
         def __instancecheck__(cls, instance):
@@ -117,7 +135,7 @@ def HintedFunc(*domain_types, cod=None):
     return _HintedFunc(class_name, (HintedFuncType,), {'__types__': _flattypes, '__codondomain__': cod})
 
 @cache
-def TypedDomFunc(*domain_types):
+def TypedDomFunc(*domain_types: Tuple_[Types]) -> Type:
     """
     Build the 'typed-domain function type' of types:
         > the objects of 'TypedDomFunc(X, Y, ...)'
@@ -152,10 +170,10 @@ def TypedDomFunc(*domain_types):
     return _TypedDomFunc(class_name, (TypedDomFuncType,), {'__types__': _flattypes})
 
 @cache
-def TypedCodFunc(cod):
+def TypedCodFunc(cod: Type) -> Type:
     """
     Build the 'typed-codomain function type' of types:
-        > the objects of tc__HintedFunc_type_(R) are
+        > the objects of TypedCodFunc(R) are
         > objects 'f(x, y, ... ) -> R' of TypedCodFuncType
     Flexible case:
         > objects of 'TypedCodFunc([R, S, ...])'
@@ -178,9 +196,12 @@ def TypedCodFunc(cod):
     return _TypedCodFunc(class_name, (TypedCodFuncType,), {'__codomain__': cod})
 
 @cache
-def TypedFunc(*domain_types, cod=None):
-    if cod is None:
-        raise TypeError("Codomain type must be specified.")
+def TypedFunc(*domain_types: Tuple_[Type], cod: Type) -> Type:
+    """
+    Build the type of 'typed functions' with given types:
+        > the objects of 'TypedFunc(X, Y, ..., cod=K)' are
+        > typed functions f(x: X, y: Y, ...) -> K
+    """
     _flattypes, is_flexible = _flat(*domain_types)
 
     class _TypedFunc(type):
@@ -213,39 +234,6 @@ def TypedFunc(*domain_types, cod=None):
     class_name = f"TypedFunc([{', '.join(t.__name__ for t in _flattypes)}], cod={cod.__name__})"
     return _TypedFunc(class_name, (TypedFuncType,), {'__types__': _flattypes, '__codmondomain__': cod})
 
-def BoolFunc(*domain_types):
-    """
-    Build the type of 'boolean functions' on a given type:
-        > the objects of 'bfunc_(X, Y, ...)'  are
-        > typed functions f(x: X, y: Y, ...) -> bool
-    """
-    _flattypes, is_flexible = _flat(*domain_types)
-
-    class _BoolFunc(type):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, BoolFuncType):
-                return False
-            domain_hints = set(_hinted_domain(instance.func))
-            return_hint = _hinted_codomain(instance.func)
-            from typed.mods.types.base import Any
-            if len(_flattypes) == 1 and _flattypes[0] is Any:
-                return True
-            if is_flexible:
-                if not set(_flattypes).issubset(domain_hints):
-                    return False
-            else:
-                if domain_hints != set(_flattypes):
-                    return False
-            if return_hint != bool:
-                return False
-            return True
-
-        def check(self, instance):
-            if not callable(instance):
-                return False
-            domain_hints = set(_hinted_domain(instance))
-            return_hint = _hinted_codomain(instance)
-            return domain_hints == set(self.__types__) and return_hint == bool
-
-    class_name = f"BoolFunc([{', '.join(t.__name__ for t in _flattypes)}])"
-    return _BoolFunc(class_name, (BoolFuncType,), {'__types__': _flattypes})
+@cache
+def BoolFunc(*types: Tuple_[Type]) -> Type:
+    return TypedFunc(*types, cod=bool)
