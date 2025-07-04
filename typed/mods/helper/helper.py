@@ -299,11 +299,8 @@ def _variable_checker(typ):
 
 def _get_num_args(func):
     """
-    Returns the number of arguments (parameters) a function expects.
-    This handles regular arguments, keyword-only arguments, and
-    positional-only arguments.
-
-    Returns -1 if the function contains *args or **kwargs.
+    1. Returns the number of fixed arguments of a function.
+    2. Returns -1 if the function contains *args or **kwargs.
     """
     signature = inspect.signature(func)
     num_args = 0
@@ -311,5 +308,33 @@ def _get_num_args(func):
         if param.kind == param.VAR_POSITIONAL or param.kind == param.VAR_KEYWORD:
             return -1
         else:
+            num_args += 1
+    return num_args
+
+def _get_num_kwargs(func):
+    """
+    1. Returns the number of keyword arguments of a function.
+    2. Returns -1 if the function contains *args or **kwargs.
+    """
+    sig = inspect.signature(func)
+    count = 0
+    for param in sig.parameters.values():
+        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            continue
+        if param.default is not param.empty:
+            count += 1
+    return count
+
+def _get_num_pos_args(func):
+    """
+    Returns the number of required positional arguments (no default).
+    Returns -1 if the function contains *args or **kwargs.
+    """
+    signature = inspect.signature(func)
+    num_args = 0
+    for param in signature.parameters.values():
+        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            return -1
+        if param.kind in (param.POSITIONAL_ONLY, param.POSITIONAL_OR_KEYWORD) and param.default is param.empty:
             num_args += 1
     return num_args
