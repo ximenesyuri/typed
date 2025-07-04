@@ -1,12 +1,12 @@
-def Attr(attributes):
+def ATTR(attributes):
     if isinstance(attributes, str):
         attributes = (attributes,)
     elif not isinstance(attributes, list):
         raise TypeError("attributes must be a string or a list of strings")
 
-    type_name = f'Attr{"_and_".join(attr.strip("_").capitalize() for attr in attributes)}'
+    type_name = f'ATTR{"_and_".join(attr.strip("_").capitalize() for attr in attributes)}'
 
-    class _Attr(type):
+    class _ATTR(type):
         def __init__(cls, name, bases, dct, attributes=None):
             super().__init__(name, bases, dct)
             if attributes:
@@ -18,31 +18,31 @@ def Attr(attributes):
                 return all(hasattr(instance, attr) for attr in required_attributes)
             return True
 
-    class Attr_(metaclass=_Attr):
+    class ATTR_(metaclass=_ATTR):
         pass
 
-    return type(type_name, (Attr_,), {'_required_attributes': tuple(attributes)})
+    return type(type_name, (ATTR_,), {'_required_attributes': tuple(attributes)})
 
-Callable      = Attr('__call__')
-Iterable      = Attr('__iter__')
-Iterator      = Attr('__next__')
-Sized         = Attr('__len__')
-Container     = Attr('__contains__')
-Hashable      = Attr('__hash__')
-Awaitable     = Attr('__await__')
-AsyncIterable = Attr('__aiter__')
-AsyncIterator = Attr('__anext__')
-Context       = Attr(['__enter__', '__exit__'])
-AsyncContext  = Attr(['__aenter__', '__aexit__'])
+CALLABLE       = ATTR('__call__')
+ITERABLE       = ATTR('__iter__')
+ITERATOR       = ATTR('__next__')
+SIZED          = ATTR('__len__')
+CONTAINER      = ATTR('__contains__')
+HASHABLE       = ATTR('__hash__')
+AWAITABLE      = ATTR('__await__')
+ASYNC_ITERABLE = ATTR('__aiter__')
+ASYNC_ITERATOR = ATTR('__anext__')
+CONTEXT        = ATTR(['__enter__', '__exit__'])
+ASYNC_CONTEXT  = ATTR(['__aenter__', '__aexit__'])
 
-Callable.__display__      = "Callable"
-Iterable.__display__      = "Iterable"
-Iterator.__display__      = "Iterator"
-Sized.__display__         = "Sized"
-Container.__display__     = "Contains"
-Hashable.__display__      = "Hashable"
-Awaitable.__display__     = "Awaitable"
-AsyncIterable.__display__ = "AsyncIterable"
-AsyncIterator.__display__ = "AsyncIterator"
-Context.__display__       = "ContextManager"
-AsyncContext.__display__  = "AsyncContextManager"
+CALLABLE.__display__       = "CALLABLE"
+ITERABLE.__display__       = "ITERABLE"
+ITERATOR.__display__       = "ITERATOR"
+SIZED.__display__          = "SIZED"
+CONTAINER.__display__      = "CONTAINER"
+HASHABLE.__display__       = "HASHABLE"
+AWAITABLE.__display__      = "AWAITABLE"
+ASYNC_ITERABLE.__display__ = "ASYNC_ITERABLE"
+ASYNC_ITERATOR.__display__ = "ASYNC_ITERATOR"
+CONTEXT.__display__        = "CONTEXT"
+ASYNC_CONTEXT.__display__  = "ASYNC_CONTEXT"
