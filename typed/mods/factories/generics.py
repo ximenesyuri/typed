@@ -284,7 +284,7 @@ def Maybe(*types: Tuple[Type]) -> Type:
     return Union(*types, type(None))
 
 @cache
-def Sub(*types: Tuple[Type]) -> Type:
+def SUB(*types: Tuple[Type]) -> Type:
     """
     Build the type of subtypes of a given types.
         > An object of `Type(X, Y, ...)`

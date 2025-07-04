@@ -47,7 +47,7 @@ def HintedDomainFunc(*domain_types):
             domain_hints = set(_hinted_domain(instance))
             return set(domain_hints) == set(self.__types__)
 
-    class_name = "HintedDomainFunc[" + (", ".join(t.__name__ for t in _flattypes)) + "]"
+    class_name = "HintedDomainFunc(" + (", ".join(t.__name__ for t in _flattypes)) + ")"
     return _HintedDomainFunc(class_name, (HintedDomFuncType,), {'__types__': _flattypes})
 
 @cache
@@ -74,7 +74,7 @@ def HintedCodFunc(cod=None):
             return_hint = _hinted_codomain(instance)
             return return_hint == self.__codomain__
 
-    class_name = f"HintedCodFunc[cod={cod.__name__}]"
+    class_name = f"HintedCodFunc(cod={cod.__name__})"
     return _HintedCodFunc(class_name, (HintedCodFuncType,), {'__codomain__': cod})
 
 @cache

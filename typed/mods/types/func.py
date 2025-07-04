@@ -1,6 +1,6 @@
 import inspect
-from typing import get_type_hints
 from functools import wraps
+from typing import get_type_hints
 from typed.mods.helper.helper import (
     _is_domain_hinted,
     _is_codomain_hinted,
@@ -11,21 +11,44 @@ from typed.mods.helper.helper import (
     _check_domain,
     _check_codomain
 )
+from typed.mods.types.meta import (
+    _Callable,
+    _Builtin,
+    _Lambda,
+    _Method,
+    _Function
+)
 
 # -----------------------------
-#       Plain FuncType
+#     Basic Function Types
 # -----------------------------
-class PlainFuncType:
+Callable = _Callable('Callable', (), {})
+Builtin  = _Builtin('Builtin', (Callable,), {})
+Lambda   = _Lambda('Lambda', (Callable,), {})
+Method   = _Method('Method', (Callable,), {})
+Function = _Function('Function', (Callable,), {})
+FuncType = Function
+
+Callable.__display__ = "Callable"
+Builtin.__display__  = "Builtin"
+Lambda.__display__   = "Lambda"
+Method.__display__   = "Method"
+Function.__display__ = "Function"
+
+# -----------------------------
+#     Composable FuncType
+# -----------------------------
+class CompFuncType(Function):
     def __init__(self, func):
         if not inspect.isfunction(func):
-            raise TypeError(f"'{func}' is not callable.")
+            raise TypeError(f"'{func}' is not a function.")
         self.func = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
-    def __mul__(self, other: 'PlainFuncType') -> 'PlainFuncType':
+    def __mul__(self, other):
         if not isinstance(other, PlainFuncType):
             raise TypeError(f"'{other}' is not a valid plain function type.")
 
@@ -39,7 +62,7 @@ class PlainFuncType:
             else:
                 return self.func()
 
-        composed_plain_func = PlainFuncType(composed_func)
+        composed_plain_func = CompFuncType(composed_func)
         composed_plain_func.__name__ = f"({self.__name__} * {other.__name__})"
         return composed_plain_func
 
@@ -52,7 +75,7 @@ class PlainFuncType:
 # -------------------------
 #     Hinted FuncType
 # -------------------------
-class HintedDomFuncType(PlainFuncType):
+class HintedDomFuncType(CompFuncType):
     def __init__(self, func):
         if inspect.isfunction(func):
             if inspect.signature(func).parameters:
@@ -64,6 +87,10 @@ class HintedDomFuncType(PlainFuncType):
     def domain(self):
         return self._hinted_domain
 
+    @property
+    def dom(self):
+        return self.domain
+
     def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"<HintedDomFuncType: {self.__name__}({domain_str})>"
@@ -72,7 +99,7 @@ class HintedDomFuncType(PlainFuncType):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})"
 
-class HintedCodFuncType(PlainFuncType):
+class HintedCodFuncType(CompFuncType):
     def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
@@ -81,6 +108,10 @@ class HintedCodFuncType(PlainFuncType):
     @property
     def codomain(self):
         return self._hinted_codomain
+
+    @property
+    def cod(self):
+        return self.codomain
 
     def __repr__(self):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
@@ -102,8 +133,16 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
         return self._hinted_domain
 
     @property
+    def dom(self):
+        return self.domain
+
+    @property
     def codomain(self):
         return self._hinted_codomain
+
+    @property
+    def cod(self):
+        return self.codomain
 
     def __mul__(self, other):
         if not isinstance(other, HintedFuncType):
@@ -147,6 +186,10 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
 
             @property
             def domain(self): return self._domain
+            @property
+            def dom(self): return self.domain
+            @property
+            def codomain(self): return self._codomain
             @property
             def codomain(self): return self._codomain
             @property
@@ -218,7 +261,7 @@ class TypedCodFuncType(HintedCodFuncType):
 
 class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
     def __init__(self, func):
-        PlainFuncType.__init__(self, func)
+        CompFuncType.__init__(self, func)
         HintedDomFuncType.__init__(self, func)
         HintedCodFuncType.__init__(self, func)
         try:
@@ -279,9 +322,6 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
                     f"does not match input of '{self.__name__}' ({expected_input_type_for_f})."
                 )
 
-        import inspect
-        from functools import wraps
-
         other_sig = inspect.signature(other.func)
         annots = {}
         for ((name, param), domain_type) in zip(other_sig.parameters.items(), other.domain):
@@ -296,15 +336,23 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         composed_runtime_checked_func.__annotations__ = annots
         composed_runtime_checked_func.__name__ = f"({self.__name__} * {other.__name__})"
 
-        return TypedFuncType(composed_runtime_checked_func) 
+        return TypedFuncType(composed_runtime_checked_func)
 
     @property
     def domain(self):
         return self._hinted_domain
 
     @property
+    def dom(self):
+        return self.domain
+
+    @property
     def codomain(self):
         return self._hinted_codomain
+
+    @property
+    def cod(self):
+        return self.codomain
 
     def __repr__(self):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
@@ -335,7 +383,7 @@ class BoolFuncType(TypedFuncType):
 #       Displays
 # ---------------------------
 
-PlainFuncType.__display__     = "PlainFuncType"
+CompFuncType.__display__      = "CompFuncType"
 HintedDomFuncType.__display__ = "HintedDomFuncType"
 HintedCodFuncType.__display__ = "HintedCodFuncType"
 HintedFuncType.__display__    = "HintedFuncType"
