@@ -1,7 +1,7 @@
 from typed.main import typed
 from typed.mods.factories.base     import Prod, Union, Null
 from typed.mods.factories.func     import TypedFunc
-from typed.mods.types.func         import TypedFuncType
+from typed.mods.types.func         import TypedFuncType, Function
 from typed.mods.types.attr         import Callable
 from typed.mods.factories.generics import Filter, Regex, Range, Len
 from typed.mods.types.base         import Int, Float, Json, Str, Any, Dict, Path
@@ -20,7 +20,10 @@ from typed.mods.helper.examples    import (
     _is_dir,
     _is_symlink,
     _is_mount,
-    _is_markdown
+    _is_markdown,
+    _is_pure_markdown,
+    _has_var_arg,
+    _has_var_kwarg
 )
 
 # Numeric
@@ -69,10 +72,12 @@ HSL.__display__ = "HSL"
 Char     = Len(Str, 1)
 Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 Markdown = Filter(Str, typed(_is_markdown))
+PureMarkdown = Filter(Str, typed(_is_pure_markdown))
 
 Char.__display       = "Char"
 Email.__display__    = "Email"
 Markdown.__display__ = "Markdown"
+PureMarkdown.__display__ = "PureMarkdown"
 
 # Path
 Exists     = Filter(Path, typed(_exists))
@@ -101,6 +106,10 @@ HttpUrl.__display__  = "HttpUrl"
 # Function
 Decorator      = TypedFunc(Callable, cod=Callable)
 TypedDecorator = TypedFunc(TypedFuncType, cod=TypedFuncType)
+VarFunction    = Filter(Function, typed(_has_var_arg))
+VarKwFunction  = Filter(Function, typed(_has_var_kwarg))
 
 Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"
+VarFunction.__display__    = "VarFunction"
+VarKwFunction.__display__  = "VarKwFunction"

@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache as cache
-from typing import Tuple, Type, Any as Any_
-from typed.mods.types.func import BoolFuncType
+from typing import Tuple as Tuple_, Type, Any as Any_
+from types import FunctionType
 from typed.mods.helper.helper import (
     _flat,
     _hinted_domain,
@@ -9,7 +9,7 @@ from typed.mods.helper.helper import (
 )
 
 @cache
-def Inter(*types: Tuple[Type]) -> Type:
+def Inter(*types: Tuple_[Type]) -> Type:
     """
     Build the 'intersection' of types:
         > an object 'p' of the Inter(X, Y, ...)
@@ -38,9 +38,10 @@ def Inter(*types: Tuple[Type]) -> Type:
     return _Inter(class_name, (object,), {'__types__': unique_types})
 
 @cache
-def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
+def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
     real_filters = []
     from typed.mods.types.base import Any
+    from typed.mods.types.base import BoolFuncType
     for f in funcs:
         if not isinstance(f, BoolFuncType):
             raise TypeError(f"The function '{f.__name__}' is not of type BoolFuncType.")
@@ -69,8 +70,8 @@ def Filter(X: Type, *funcs: Tuple[BoolFuncType]) -> Type:
 
     return _Filter(f"Filter({X.__name__})", (X,), {})
 
-@cache
-def Compl(X: Type, *subtypes: Tuple[Type]) -> Type:
+@cache   
+def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
     """
     Build the 'complement subtype' of a type by given subtypes:
         > an object 'x' of Compl(X, *subtypes)
@@ -158,9 +159,9 @@ def Range(x: int, y: int) -> Type[int]:
     return _Range(class_name, (int,), {}, lower_bound=x, upper_bound=y)
 
 @cache
-def Not(*types: Tuple[Type]) -> Type:
+def Not(*types: Tuple_[Type]) -> Type:
     """
-    Build the 'not'-type:
+    Build the 'not-type':
         > an object x of Not(X, Y, ...)
         > is NOT an instance of any X, Y, ...
     """
@@ -184,7 +185,7 @@ def Not(*types: Tuple[Type]) -> Type:
     return _Not(class_name, (), {'__types__': _flattypes})
 
 @cache
-def Values(typ: Type, *values: Tuple[Any_]) -> Type:
+def Values(typ: Type, *values: Tuple_[Any_]) -> Type:
     """
     Build the 'valued-type':
         > 'x' is an object of 'Values(typ, *values)' iff:
@@ -274,7 +275,7 @@ def Len(typ: Type, size: int) -> Type:
     return _Len(class_name, (typ,), {'__len__': size})
 
 @cache
-def Maybe(*types: Tuple[Type]) -> Type:
+def Maybe(*types: Tuple_[Type]) -> Type:
     """
     Build a 'maybe-type'.
         > An object of `Maybe(X, Y, ..)`
@@ -284,17 +285,17 @@ def Maybe(*types: Tuple[Type]) -> Type:
     return Union(*types, type(None))
 
 @cache
-def SUB(*types: Tuple[Type]) -> Type:
+def SUBTYPES(*types: Tuple_[Type]) -> Type:
     """
     Build the type of subtypes of a given types.
-        > An object of `Type(X, Y, ...)`
+        > An object of `SUBTYPE(X, Y, ...)`
         > is a type T such that issubclass(T, K) is True
         > for some K in (X, Y, ...)
     """
-    class _Sub(type):
+    class _Subtypes(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, type) and any(issubclass(instance, typ) for typ in types)
 
     class_name = f"Sub({', '.join(t.__name__ for t in types)})"
-    return _Sub(class_name, (), {})
+    return _Subtypes(class_name, (), {})
 

@@ -1,11 +1,17 @@
+import re
 import os
+import subprocess
+from importlib.util import find_spec
+from pathlib import Path as _Path
+from typed.mods.types.func import Function
 from typed.mods.types.base import Int, Str, Float, Any, Json, Bool, Path
 from typed.mods.factories.base import Union
 
 def _is_natural(x: Int) -> Bool:
     """
     Checks if an integer is a natural number.
-    (Assuming Bourbaki convention)
+        > Assuming Bourbaki convention, so that
+        > _is_natural(0) is True
     """
     return x >= 0
 
@@ -105,10 +111,11 @@ def _is_mount(path: Path) -> Bool:
     return os.path.ismount(path)
 
 def _install(lib, venv=None):
-    from importlib.util import find_spec
-    from pathlib import Path as _Path
-    import os
-    import subprocess
+    """
+    1. Find a .venv in some parent directory.
+    2. Install a lib in runtime in the .venv if it is not
+       already installed
+    """
     if find_spec(lib) is not None:
         return
 
@@ -138,11 +145,58 @@ def _install(lib, venv=None):
     except subprocess.CalledProcessError as e:
         return f"Error installing '{lib}' in venv: {venv}. Detail: {str(e)}"
 
-def _is_markdown(content: Str) -> Bool:
+def _is_pure_markdown(content: Str) -> Bool:
+    """
+    Checks if a string is a pure markdown string, without a frontmatter.
+    """
     _install('markdown')
     from markdown import markdown
     try:
         html = markdown(content)
         return True
     except Exception as e:
-        return False
+        return RuntimeError(f"Markdown could not be compiled: content={content}, error={e}")
+
+def _is_markdown(content: Str) -> Bool:
+    """
+    Checks if a string is a markdown string, allowing and validating frontmatter.
+    """
+    _install('markdown')
+    _install('pyyaml')
+    from markdown import markdown
+    import yaml
+
+    frontmatter_pattern = re.compile(r'^\s*---\s*\n(?P<frontmatter>.*?)\n---\s*\n(?P<markdown_content>.*)', re.DOTALL)
+
+    frontmatter_text = None
+    markdown_body = content.strip()
+
+    match = frontmatter_pattern.match(content)
+    if match:
+        frontmatter_text = match.group('frontmatter')
+        markdown_body = match.group('markdown_content').strip()
+
+        if frontmatter_text is not None:
+            try:
+                yaml.safe_load(frontmatter_text)
+            except Exception as e:
+                raise RuntimeError(f"Frontmatter could not be compiled: frontmatter={frontmatter_text}, error={e}")
+
+    try:
+        return markdown(markdown_body)
+    except Exception as e:
+        raise RuntimeError(f"Markdown body could not be compiled: content={markdown_body}, error={e}")
+
+def _has_var_arg(func: Function) -> Bool:
+    signature = inspect.signature(func)
+    for param in signature.parameters.values():
+        if param.kind == param.VAR_POSITIONAL:
+            return True
+    return False
+
+def _has_var_kwarg(func: Function) -> Bool:
+    signature = inspect.signature(func)
+    for param in signature.parameters.values():
+        if param.kind == param.VAR_KEYWORD:
+            return True
+    return False

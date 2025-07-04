@@ -364,21 +364,6 @@ class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__}({domain_str})! -> {codomain_str}!"
 
-class BoolFuncType(TypedFuncType):
-    def __init__(self, func):
-        super().__init__(func)
-
-        if self.codomain is not bool:
-            raise TypeError(f"'{self.__name__}' does not have 'bool' as its return type hint.")
-
-    def __repr__(self):
-        domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
-        return f"<BoolFuncType: {self.__name__}({domain_str}) -> bool runtime-checked>"
-
-    def __str__(self):
-        domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
-        return f"{self.__name__}({domain_str})! -> bool!"
-
 # ---------------------------
 #       Displays
 # ---------------------------
@@ -390,4 +375,3 @@ HintedFuncType.__display__    = "HintedFuncType"
 TypedDomFuncType.__display__  = "TypedDomFuncType"
 TypedCodFuncType.__display__  = "TypedCodFuncType"
 TypedFuncType.__display__     = "TypedFuncType"
-BoolFuncType.__display__      = "BoolFuncType"

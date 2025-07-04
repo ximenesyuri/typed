@@ -296,3 +296,20 @@ def _variable_checker(typ):
             )
         return x
     return wrapper
+
+def _get_num_args(func):
+    """
+    Returns the number of arguments (parameters) a function expects.
+    This handles regular arguments, keyword-only arguments, and
+    positional-only arguments.
+
+    Returns -1 if the function contains *args or **kwargs.
+    """
+    signature = inspect.signature(func)
+    num_args = 0
+    for param in signature.parameters.values():
+        if param.kind == param.VAR_POSITIONAL or param.kind == param.VAR_KEYWORD:
+            return -1
+        else:
+            num_args += 1
+    return num_args
