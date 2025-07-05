@@ -76,11 +76,10 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
     for key, value in kwargs.items():
         if isinstance(value, _Optional):
-            processed_attributes_and_types.append((key, value.type))
             optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
             processed_attributes_and_types.append((key, value))
-            required_attribute_keys.add(key)
+            required_attribute_keys.add(key) 
         else:
             raise TypeError(f"All argument values to Model must be types or OptionalArg instances. Invalid type for '{key}': {type(value).__name__}")
 
