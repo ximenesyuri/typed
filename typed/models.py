@@ -506,7 +506,7 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
                 entity_dict = entity
 
             x = Instance(entity_dict, UnderlyingModel)
-            from typed.mods.types.func import BoolFuncType # Import here to avoid circular dependency if func.py also imports models.py
+            from typed.mods.types.base import BoolFuncType
             for cond in conds:
                 if not isinstance(cond, BoolFuncType):
                     if not issubclass(UnderlyingModel, cond.domain):
