@@ -215,6 +215,7 @@ def Values(typ: Type, *values: Tuple_[Any_]) -> Type:
         '__base_type__': typ,
         '__allowed_values__': values_set
     })
+Enum = Values
 
 @cache
 def Single(x: Any_) -> Type:
@@ -234,6 +235,7 @@ def Single(x: Any_) -> Type:
             return issubclass(subclass, t)
 
     return _Single(class_name, (t,), {'__the_value__': x})
+Singleton = Single
 
 @cache
 def Len(typ: Type, size: int) -> Type:
