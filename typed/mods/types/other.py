@@ -74,7 +74,7 @@ _ALLOWED_CHARS = r"(\s|[^%])*"
 
 DateFormat = Regex(f"^{_ALLOWED_CHARS}({_DATE_DIRECTIVES}{_ALLOWED_CHARS})+$")
 TimeFormat = Regex(f"^{_ALLOWED_CHARS}({_TIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
-DatetimeFormat = Regex(f"^{_ALLOWED_CHARS}({_ANY_DIRECTIVES}{_ALLOWED_CHARS})+$")
+DatetimeFormat = Regex(f"^{_ALLOWED_CHARS}({_DATETIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
 
 DateFormat.__display__ = "DateFormat"
 TimeFormat.__display__ = "TimeFormat"
