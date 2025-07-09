@@ -1,5 +1,5 @@
 from typed.mods.types.func import TypedFuncType
-from typed.mods.types.base import BoolFuncType
+from typed.mods.types.base import BoolFuncType, TYPE
 from functools import wraps, lru_cache
 
 def typed(arg):
@@ -23,7 +23,7 @@ def factory(arg):
     """Decorator that creates a factory with cache"""
     if callable(arg):
         typed_arg = typed(arg)
-        if not issubclass(typed_arg.codomain, Type):
+        if not issubclass(typed_arg.codomain, TYPE):
             raise TypeError(
                 "Factories should create types:\n"
                 f" ==> '{arg.__name__}' codomain is not a type\n"
