@@ -1,5 +1,7 @@
-from typed.mods.types.base         import Int, Float, Str, Json, Any
+from typed.mods.types.base         import Int, Float, Str, Json, Any, Path
+from typed.mods.types.func         import Function, TypedFuncType
 from typed.mods.factories.base     import Union, Prod, Dict
+from typed.mods.factories.func     import TypedFunc
 from typed.mods.factories.generics import Filter, Regex, Range, Len
 from typed.mods.decorators         import typed
 from typed.mods.helper.types       import (
@@ -65,6 +67,39 @@ HSL.__display__ = "HSL"
 # Text
 Char     = Len(Str, 1)
 Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+# Path
+Exists     = Filter(Path, typed(_exists))
+File       = Filter(Path, typed(_is_file))
+Dir        = Filter(Path, typed(_is_dir))
+Symlink    = Filter(Path, typed(_is_symlink))
+Mount      = Filter(Path, typed(_is_mount))
+
+Exists.__display__     = "Exists"
+File.__display__       = "File"
+Dir.__display__        = "Dir"
+Symlink.__display__    = "Symlink"
+Mount.__display__      = "Mount"
+
+# Network
+Hostname = Regex(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
+IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+HttpUrl  = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
+
+Hostname.__display__ = "Hostname"
+IPv4.__display__     = "IPv4"
+HttpUrl.__display__  = "HttpUrl"
+
+# Function
+Decorator      = TypedFunc(Function, cod=Function)
+TypedDecorator = TypedFunc(TypedFuncType, cod=TypedFuncType)
+VarFunction    = Filter(Function, typed(_has_var_arg))
+VarKwFunction  = Filter(Function, typed(_has_var_kwarg))
+
+Decorator.__diplay__       = "Decorator"
+TypedDecorator.__display__ = "TypedDecorator"
+VarFunction.__display__    = "VarFunction"
+VarKwFunction.__display__  = "VarKwFunction"
 
 # Date
 _DATE_DIRECTIVES = r"(%[YmdjUwWaAbBcxXzZ])"
