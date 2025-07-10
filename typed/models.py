@@ -5,8 +5,7 @@ from typed.mods.helper.models import (
     _Optional,
     _MODEL,
     _EXACT,
-    _CONDITIONAL,
-    _ensure_iterable_conditions
+    _CONDITIONAL
 )
 
 def Optional(typ: Type, default_value: Any):
@@ -79,27 +78,92 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             optional_attributes_and_defaults[key] = value
         elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
             processed_attributes_and_types.append((key, value))
-            required_attribute_keys.add(key) 
+            required_attribute_keys.add(key)
         else:
             raise TypeError(f"All argument values to Model must be types or OptionalArg instances. Invalid type for '{key}': {type(value).__name__}")
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
+    class ModelInstance(dict):
+        _defined_required_attributes: dict = {}
+        _defined_optional_attributes: dict = {}
+        _defined_keys: set = set()
+
+        def __init__(self, **data):
+            super().__init__()
+            for key, wrapper in self.__class__._defined_optional_attributes.items():
+                self[key] = wrapper.default_value
+
+            for key, value in data.items():
+                self.__setattr__(key, value)
+
+            for req_key in self.__class__._defined_required_attributes.keys():
+                if req_key not in self:
+                    pass
+
+        def __getattr__(self, name: str):
+            if name in self._defined_keys:
+                if name in self:
+                    return self[name]
+                elif name in self._defined_optional_attributes:
+                    return self._defined_optional_attributes[name].default_value
+            try:
+                return object.__getattribute__(self, name) # Try to get from actual instance attributes (like _defined_keys)
+            except AttributeError:
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+
+        def __setattr__(self, name: str, value: Any):
+            if name in self._defined_required_attributes:
+                expected_type = self._defined_required_attributes[name]
+                if not (isinstance(value, expected_type) or
+                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
+                    raise TypeError(
+                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
+                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                    )
+                self[name] = value
+            elif name in self._defined_optional_attributes:
+                expected_type = self._defined_optional_attributes[name].type
+                if not (isinstance(value, expected_type) or
+                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
+                    raise TypeError(
+                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
+                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                    )
+                self[name] = value
+            else:
+                object.__setattr__(self, name, value)
+
+        def __delattr__(self, name: str):
+            if name in self._defined_required_attributes:
+                raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
+            elif name in self._defined_optional_attributes:
+                if name in self:
+                    del self[name]
+                else:
+                    raise AttributeError(f"'{name}' not found in '{self.__class__.__name__}' object.")
+            else:
+                object.__delattr__(self, name)
+
+
     class _Model(type(Json)):
         def __new__(cls, name, bases, dct):
-            new_class = super().__new__(cls, name, bases, dct)
-            setattr(new_class, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
-            setattr(new_class, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
-            setattr(new_class, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
-            return new_class
+            new_type = super().__new__(cls, name, bases, dct) # Create the actual type (which inherits ModelInstance)
+            setattr(new_type, '_defined_required_attributes', dict(dct.get('_initial_attributes_and_types', ())))
+            setattr(new_type, '_defined_optional_attributes', dct.get('_initial_optional_attributes_and_defaults', {}))
+            setattr(new_type, '_defined_keys',
+                    set(dict(dct.get('_initial_attributes_and_types', ())).keys()) |
+                    set(dct.get('_initial_optional_attributes_and_defaults', {}).keys()))
+            setattr(new_type, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
+            setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
+            setattr(new_type, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
+            return new_type
 
         def __init__(cls, name, bases, dct):
-            if '_initial_attributes_and_types' in dct:
-                del dct['_initial_attributes_and_types']
-            if '_initial_required_attribute_keys' in dct:
-                del dct['_initial_required_attribute_keys']
-            if '_initial_optional_attributes_and_defaults' in dct:
-                del dct['_initial_optional_attributes_and_defaults']
+            for key in ['_initial_attributes_and_types', '_initial_required_attribute_keys', '_initial_optional_attributes_and_defaults']:
+                if key in dct:
+                    del dct[key]
             super().__init__(name, bases, dct)
 
         def __instancecheck__(cls, instance: Any) -> bool:
@@ -110,22 +174,20 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
             optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
 
-            if not required_attribute_keys.issubset(instance.keys()):
-                return False
-
-            for attr_name, expected_type in required_attributes_and_types_dict.items():
-                if attr_name in instance:
-                    attr_value = instance[attr_name]
-                    type_is_correct = False
-                    if isinstance(attr_value, expected_type):
-                        type_is_correct = True
-                    else:
-                        checker = getattr(expected_type, '__instancecheck__', None)
-                        if callable(checker):
-                            if checker(attr_value):
-                                type_is_correct = True
-                    if not type_is_correct:
-                        return False
+            for req_key, expected_type in required_attributes_and_types_dict.items():
+                if req_key not in instance:
+                    return False
+                attr_value = instance[req_key]
+                type_is_correct = False
+                if isinstance(attr_value, expected_type):
+                    type_is_correct = True
+                else:
+                    checker = getattr(expected_type, '__instancecheck__', None)
+                    if callable(checker):
+                        if checker(attr_value):
+                            type_is_correct = True
+                if not type_is_correct:
+                    return False
 
             for attr_name, wrapper in optional_attributes_and_defaults.items():
                 if attr_name in instance:
@@ -144,10 +206,12 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             return True
 
         def __subclasscheck__(cls, subclass: Type) -> bool:
-            if not issubclass(subclass, Json):
+            if not hasattr(subclass, '_required_attributes_and_types') or \
+               not hasattr(subclass, '_required_attribute_keys') or \
+               not hasattr(subclass, '_optional_attributes_and_defaults'):
                 return False
 
-            if not hasattr(subclass, '_required_attributes_and_types') or not hasattr(subclass, '_required_attribute_keys') or not hasattr(subclass, '_optional_attributes_and_defaults'):
+            if not isinstance(subclass, type):
                 return False
 
             cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
@@ -165,94 +229,61 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                 return False
 
             for attr_name, parent_type in cls_required_attrs.items():
-                if attr_name not in subclass_required_attrs:
-                    return False
-
-                subclass_type = subclass_required_attrs[attr_name]
-
-                if isinstance(parent_type, type) and isinstance(subclass_type, type):
-                    if not issubclass(subclass_type, parent_type):
+                if attr_name in subclass_required_attrs:
+                    subclass_type = subclass_required_attrs[attr_name]
+                    if not (isinstance(subclass_type, type) and issubclass(subclass_type, parent_type)) and \
+                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
                         return False
-                elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
-                    if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
-                    if not issubclass(subclass_type, parent_type):
-                        return False
-                elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                      if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                else:
+                elif attr_name in subclass_optional_attrs_defaults:
                     return False
 
             for attr_name, parent_wrapper in cls_optional_attrs_defaults.items():
-                if attr_name not in subclass_optional_attrs_defaults:
-                    if attr_name not in subclass_required_attrs:
-                        return False
-                    parent_type = parent_wrapper.type
+                parent_type = parent_wrapper.type
+                if attr_name in subclass_required_attrs:
                     subclass_type = subclass_required_attrs[attr_name]
-
-                    if isinstance(parent_type, type) and isinstance(subclass_type, type):
-                        if not issubclass(subclass_type, parent_type):
-                            return False
-                    elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
-                        if not parent_type.__subclasscheck__(subclass_type):
-                            return False
-                    elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
-                        if not issubclass(subclass_type, parent_type):
-                            return False
-                    elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                        if not parent_type.__subclasscheck__(subclass_type):
-                            return False
-                    else:
+                    if not (isinstance(subclass_type, type) and issubclass(subclass_type, parent_type)) and \
+                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
                         return False
-
-                else:
-                    parent_type = parent_wrapper.type
+                elif attr_name in subclass_optional_attrs_defaults:
                     subclass_wrapper = subclass_optional_attrs_defaults[attr_name]
                     subclass_type = subclass_wrapper.type
                     subclass_default_value = subclass_wrapper.default_value
 
-                    if isinstance(parent_type, type) and isinstance(subclass_type, type):
-                        if not issubclass(subclass_type, parent_type):
-                            return False
-                    elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
-                        if not parent_type.__subclasscheck__(subclass_type):
-                            return False
-                    elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
-                        if not issubclass(subclass_type, parent_type):
-                            return False
-                    elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                        if not parent_type.__subclasscheck__(subclass_type):
-                            return False
-                    else:
+                    if not (isinstance(subclass_type, type) and issubclass(subclass_type, parent_type)) and \
+                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
                         return False
+                    if not (isinstance(subclass_default_value, parent_type) or
+                            (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value))):
+                        return False
+                else:
+                    return False
 
-                    if not isinstance(subclass_default_value, parent_type):
-                        if not (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value)):
-                            return False
             return True
 
         def __call__(cls, entity: Any = None, **kwargs):
             if entity is not None and kwargs:
                 raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
+
             if entity is None:
                 entity_dict = kwargs
             else:
                 entity_dict = entity
-            Instance(entity_dict, cls)
-            obj = dict.__new__(cls)
-            dict.update(obj, entity_dict)
+
+            if not cls.__instancecheck__(entity_dict):
+                Instance(entity_dict, cls)
+
+            obj = cls.__new__(cls)
+            obj.__init__(**entity_dict)
             return obj
+
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
-    return _Model(class_name, (dict,), {
+    return _Model(class_name, (ModelInstance,), {
         '_initial_attributes_and_types': attributes_and_types,
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults
     })
-
 
 def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> Type[Json]:
     """
@@ -317,24 +348,85 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
     attributes_and_types = tuple(processed_attributes_and_types)
 
+    class ExactInstance(dict):
+        _defined_required_attributes: dict = {}
+        _defined_optional_attributes: dict = {}
+        _defined_keys: set = set()
+        _all_possible_keys: set = set()
+
+        def __init__(self, **data):
+            super().__init__()
+            for key, wrapper in self.__class__._defined_optional_attributes.items():
+                self[key] = wrapper.default_value
+
+            for key, value in data.items():
+                self.__setattr__(key, value)
+
+        def __getattr__(self, name: str):
+            if name in self._defined_keys:
+                if name in self:
+                    return self[name]
+                elif name in self._defined_optional_attributes:
+                    return self._defined_optional_attributes[name].default_value
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+        def __setattr__(self, name: str, value: Any):
+            if name in self._defined_required_attributes:
+                expected_type = self._defined_required_attributes[name]
+                if not (isinstance(value, expected_type) or
+                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
+                    raise TypeError(
+                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
+                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                    )
+                self[name] = value
+            elif name in self._defined_optional_attributes:
+                expected_type = self._defined_optional_attributes[name].type
+                if not (isinstance(value, expected_type) or
+                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
+                    raise TypeError(
+                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
+                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                    )
+                self[name] = value
+            else:
+                object.__setattr__(self, name, value)
+
+        def __delattr__(self, name: str):
+            if name in self._defined_required_attributes:
+                raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
+            elif name in self._defined_optional_attributes:
+                if name in self:
+                    del self[name]
+                else:
+                    raise AttributeError(f"'{name}' not found in '{self.__class__.__name__}' object.")
+            else:
+                object.__delattr__(self, name)
+
+
     class _Exact(type(Json)):
         def __new__(cls, name, bases, dct):
-            new_class = super().__new__(cls, name, bases, dct)
-            setattr(new_class, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
-            setattr(new_class, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
-            setattr(new_class, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
-            setattr(new_class, '_all_possible_keys', dct.get('_initial_all_possible_keys', set()))
-            return new_class
+            new_type = super().__new__(cls, name, bases, dct)
+            setattr(new_type, '_defined_required_attributes', dict(dct.get('_initial_attributes_and_types', ())))
+            setattr(new_type, '_defined_optional_attributes', dct.get('_initial_optional_attributes_and_defaults', {}))
+            setattr(new_type, '_defined_keys',
+                    set(dict(dct.get('_initial_attributes_and_types', ())).keys()) |
+                    set(dct.get('_initial_optional_attributes_and_defaults', {}).keys()))
+            setattr(new_type, '_all_possible_keys', dct.get('_initial_all_possible_keys', set()))
+
+            setattr(new_type, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
+            setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
+            setattr(new_type, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
+
+            return new_type
 
         def __init__(cls, name, bases, dct):
-            if '_initial_attributes_and_types' in dct:
-                del dct['_initial_attributes_and_types']
-            if '_initial_required_attribute_keys' in dct:
-                del dct['_initial_required_attribute_keys']
-            if '_initial_optional_attributes_and_defaults' in dct:
-                del dct['_initial_optional_attributes_and_defaults']
-            if '_initial_all_possible_keys' in dct:
-                del dct['_initial_all_possible_keys']
+            for key in ['_initial_attributes_and_types', '_initial_required_attribute_keys', '_initial_optional_attributes_and_defaults', '_initial_all_possible_keys']:
+                if key in dct:
+                    del dct[key]
             super().__init__(name, bases, dct)
 
         def __instancecheck__(cls, instance: Any) -> bool:
@@ -382,11 +474,10 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                     return False
             return True
 
-        def __subclasscheck__(cls, subclass: Type) -> bool:
-            if not issubclass(subclass, Json):
-                return False
-
+        def __subclasscheck__(cls, subclass):
             if not hasattr(subclass, '_required_attributes_and_types') or not hasattr(subclass, '_required_attribute_keys') or not hasattr(subclass, '_optional_attributes_and_defaults'):
+                return False
+            if not isinstance(subclass, type):
                 return False
 
             cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
@@ -414,24 +505,13 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                 subclass_type = subclass_wrapper.type
                 subclass_default_value = subclass_wrapper.default_value
 
-                if isinstance(parent_type, type) and isinstance(subclass_type, type):
-                    if not issubclass(subclass_type, parent_type):
-                        return False
-                elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
-                    if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
-                    if not issubclass(subclass_type, parent_type):
-                        return False
-                elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                    if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                else:
+                if not (isinstance(subclass_type, type) and issubclass(subclass_type, parent_type)) and \
+                   not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
                     return False
 
-                if not isinstance(subclass_default_value, parent_type):
-                    if not (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value)):
-                        return False
+                if not (isinstance(subclass_default_value, parent_type) or
+                        (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value))):
+                    return False
 
             for attr_name in cls_required_keys:
                 parent_type = cls_required_attrs[attr_name]
@@ -440,21 +520,79 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
 
                 subclass_type = subclass_required_attrs[attr_name]
 
-                if isinstance(parent_type, type) and isinstance(subclass_type, type):
-                    if not issubclass(subclass_type, parent_type):
-                        return False
-                elif hasattr(parent_type, '__subclasscheck__') and isinstance(subclass_type, type):
-                    if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                elif isinstance(parent_type, type) and hasattr(subclass_type, '__subclasscheck__'):
-                    if not issubclass(subclass_type, parent_type):
-                        return False
-                elif hasattr(parent_type, '__subclasscheck__') and hasattr(subclass_type, '__subclasscheck__'):
-                    if not parent_type.__subclasscheck__(subclass_type):
-                        return False
-                else:
+                if not (isinstance(subclass_type, type) and issubclass(subclass_type, parent_type)) and \
+                   not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
                     return False
 
+            return True
+
+        def __call__(cls, entity: Any = None, **kwargs):
+            if entity is not None and kwargs:
+                raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
+
+            if entity is None:
+                entity_dict = kwargs
+            else:
+                entity_dict = entity
+
+            if not cls.__instancecheck__(entity_dict):
+                Instance(entity_dict, cls)
+
+            obj = cls.__new__(cls)
+            obj.__init__(**entity_dict)
+            return obj
+
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    class_name = f"Exact({args_str})"
+
+    return _Exact(class_name, (ExactInstance,), {
+        '_initial_attributes_and_types': attributes_and_types,
+        '_initial_required_attribute_keys': required_attribute_keys,
+        '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+        '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
+    })
+
+def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -> Type[Json]:
+    UnderlyingModel = __extends__ if __extends__ and not kwargs else Model(__extends__, **kwargs)
+
+    conds = __conditionals__ if isinstance(__conditionals__, (list, tuple)) else [__conditionals__]
+    for cond in conds:
+        domain = getattr(cond, 'domain', None)
+        if domain is None:
+            raise AttributeError(f"Conditional function {cond} must have a .domain attribute set to the underlying Model")
+        if not issubclass(UnderlyingModel, domain):
+            raise TypeError(f"Condition {cond} has domain {domain}, expected {UnderlyingModel}")
+
+    class ConditionalInstance(UnderlyingModel):
+        def __init__(self, **data):
+            super().__init__(**data)
+
+    class _Conditional(type(UnderlyingModel)):
+        def __new__(cls, name, bases, dct):
+            new_type = super().__new__(cls, name, (ConditionalInstance,), dct)
+            return new_type
+
+        def __init__(cls, name, bases, dct):
+            super().__init__(name, bases, dct)
+
+        def __instancecheck__(cls, instance):
+            if not isinstance(instance, dict):
+                return False
+
+            if not isinstance(instance, UnderlyingModel):
+                return False
+
+            from typed.mods.types.base import BoolFuncType
+            for cond in conds:
+                if not isinstance(cond, BoolFuncType):
+                    raise TypeError(f"Condition '{cond.__name__}' is not a Boolean typed function.")
+                if not cond(instance):
+                    return False
+            return True
+
+        def __subclasscheck__(cls, subclass):
+            if not issubclass(subclass, UnderlyingModel):
+                return False
             return True
 
         def __call__(cls, entity: Any = None, **kwargs):
@@ -465,51 +603,8 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             else:
                 entity_dict = entity
 
-            obj = dict.__new__(cls)
-            dict.update(obj, entity_dict)
-            return obj
+            Instance(entity_dict, UnderlyingModel)
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
-    class_name = f"Exact({args_str})"
-
-    return _Exact(class_name, (dict,), {
-        '_initial_attributes_and_types': attributes_and_types,
-        '_initial_required_attribute_keys': required_attribute_keys,
-        '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-        '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
-    })
-
-def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -> Type[Json]:
-    UnderlyingModel = __extends__ if __extends__ and not kwargs else Model(__extends__, **kwargs)
-    conds = __conditionals__ if isinstance(__conditionals__, (list, tuple)) else [__conditionals__]
-    for cond in conds:
-        domain = getattr(cond, 'domain', None)
-        if domain is None:
-            raise AttributeError(f"Conditional function {cond} must have a .domain attribute set to the underlying Model")
-        if not issubclass(UnderlyingModel, domain):
-            raise TypeError(f"Condition {cond} has domain {domain}, expected {UnderlyingModel}")
-
-    class _Conditional(type(UnderlyingModel)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, UnderlyingModel):
-                return False
-            for cond in conds:
-                if not issubclass(UnderlyingModel, cond.domain):
-                    return False
-            return all(cond(instance) for cond in conds)
-
-        def __subclasscheck__(cls, subclass):
-            return issubclass(subclass, UnderlyingModel)
-
-        def __call__(cls, entity: Any = None, **kwargs):
-            if entity is not None and kwargs:
-                raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
-            if entity is None:
-                entity_dict = kwargs
-            else:
-                entity_dict = entity
-
-            x = Instance(entity_dict, UnderlyingModel)
             from typed.mods.types.base import BoolFuncType
             for cond in conds:
                 if not isinstance(cond, BoolFuncType):
@@ -522,18 +617,20 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
                     raise TypeError(
                         f" ==> '{cond.__name__}': is not a Boolean typed function."
                     )
-                if not cond(x):
+                if not cond(entity_dict):
                     raise TypeError(
                         f" Boolean check failed"
-                        f" ==> {cond.__name__}: expected True, received False"
+                        f" ==> {cond.__name__}: expected True, received False for {entity_dict}"
                     )
-            obj = dict.__new__(cls)
-            dict.update(obj, entity_dict)
+
+            obj = cls.__new__(cls)
+            obj.__init__(**entity_dict)
+
             return obj
+
     conds_str = ', '.join(getattr(cond, '__name__', repr(cond)) for cond in conds)
     class_name = f"Conditional({conds_str})"
-    CondModel = _Conditional(class_name, (UnderlyingModel,), {})
-
+    CondModel = type.__new__(_Conditional, class_name, (UnderlyingModel,), {})
     return CondModel
 
 def Instance(entity: dict, model: Type[Json]) -> Json:
@@ -543,20 +640,19 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
     """
     model_metaclass = type(model)
 
-    if not isinstance(model, type) or (
-            model_metaclass.__name__ not in ("_Model", "_Exact", "_Conditional")
-        ):
-        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model, Exact or Conditional. Received type: {type(model).__name__}.")
+
+    if not isinstance(model, (type(_MODEL), type(_EXACT), type(_CONDITIONAL))):
+        raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model, Exact or Conditional type. Received type: {type(model).__name__}.")
 
     if not isinstance(entity, dict):
-        raise TypeError(f"'{repr(entity)}': not of Json type. Received type: {type(entity).__name__}.")
+        raise TypeError(f"'{repr(entity)}': not of Json type (expected dict-like). Received type: {type(entity).__name__}.")
 
     if isinstance(entity, model):
         return entity
 
     model_name = getattr(model, '__name__', str(model))
 
-    required_attributes_and_types_raw = getattr(model, '_required_attributes_and_types', ())
+    required_attributes_and_types_raw = dict(getattr(model, '_required_attributes_and_types', ()))
     required_attribute_keys = getattr(model, '_required_attribute_keys', set())
     optional_attributes_and_defaults = getattr(model, '_optional_attributes_and_defaults', {})
 
@@ -566,11 +662,11 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
         if k not in entity:
             errors.append(f"\t ==> '{k}': missing required attribute.")
 
-    all_defined_attributes = {k: v for k, v in required_attributes_and_types_raw}
+    all_defined_attributes_for_check = required_attributes_and_types_raw.copy()
     for k, wrapper in optional_attributes_and_defaults.items():
-        all_defined_attributes[k] = wrapper.type
+        all_defined_attributes_for_check[k] = wrapper.type
 
-    for attr_name, expected_type in all_defined_attributes.items():
+    for attr_name, expected_type in all_defined_attributes_for_check.items():
         if attr_name in entity:
             actual_value = entity[attr_name]
             type_is_correct = False
@@ -594,6 +690,12 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
         if extra_keys:
             errors.append(f"\t ==> Extra attributes found: {', '.join(sorted(extra_keys))}.")
 
+    if model_metaclass.__name__ == "_Conditional":
+        conds = getattr(model, '__conditionals_list', [])
+        if not conds and hasattr(model, '__bases__') and model.__bases__ and issubclass(model.__bases__[0], Json):
+            pass
+
+
     if errors:
         raise TypeError(
             f"'{repr(entity)}' is not an instance of model '{_get_type_display_name(model)}':\n"
@@ -608,7 +710,7 @@ CONDITIONAL = _CONDITIONAL('CONDITIONAL', (type, ), {})
 
 
 def Forget(model: Type[Json], entries: list) -> Type[Json]:
-    if not isinstance(model, MODEL):
+    if not isinstance(model, type(_MODEL)): # Check against the metaclass type
         raise TypeError(f"forget expects a Model-type. Got: {model}")
 
     required_keys = set(getattr(model, '_required_attribute_keys', set()))
