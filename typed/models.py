@@ -240,7 +240,10 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
                 entity_dict = kwargs
             else:
                 entity_dict = entity
-            return Instance(entity_dict, cls)
+            Instance(entity_dict, cls)
+            obj = dict.__new__(cls)
+            dict.update(obj, entity_dict)
+            return obj
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
@@ -285,8 +288,7 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             for key, value_wrapper in extended_optional_attributes_and_defaults.items():
                 if key in combined_kwargs:
                     raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
-                combined_kwargs[key] = value_wrapper # Optional attributes with default
-
+                combined_kwargs[key] = value_wrapper
         for key, value in kwargs.items():
             if key in combined_kwargs:
                 raise TypeError(f"Attribute '{key}' defined in both extended models and the new model definition.")
@@ -463,13 +465,15 @@ def Exact(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             else:
                 entity_dict = entity
 
-            return Instance(entity_dict, cls)
+            obj = dict.__new__(cls)
+            dict.update(obj, entity_dict)
+            return obj
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
 
     return _Exact(class_name, (dict,), {
-        '_initial_attributes_and_types': attributes_and_types, # Still store the original tuple for subclasscheck
+        '_initial_attributes_and_types': attributes_and_types,
         '_initial_required_attribute_keys': required_attribute_keys,
         '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
         '_initial_all_possible_keys': required_attribute_keys | set(optional_attributes_and_defaults.keys())
@@ -523,7 +527,9 @@ def Conditional(__conditionals__: List[str], __extends__=None, **kwargs: Type) -
                         f" Boolean check failed"
                         f" ==> {cond.__name__}: expected True, received False"
                     )
-            return x
+            obj = dict.__new__(cls)
+            dict.update(obj, entity_dict)
+            return obj
     conds_str = ', '.join(getattr(cond, '__name__', repr(cond)) for cond in conds)
     class_name = f"Conditional({conds_str})"
     CondModel = _Conditional(class_name, (UnderlyingModel,), {})

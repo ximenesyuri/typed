@@ -223,7 +223,7 @@ def _builtin_nulls():
     }
 
 def _get_null_object(typ):
-    from typed.models import MODEL, EXACT, CONDITIONAL
+    from typed.models import MODEL, EXACT, CONDITIONAL, Instance # Import Instance here
     if any(isinstance(typ, kind) for kind in (MODEL, EXACT, CONDITIONAL)):
         required = dict(getattr(typ, '_required_attributes_and_types', ()))
         optional = getattr(typ, '_optional_attributes_and_defaults', {})
@@ -235,7 +235,7 @@ def _get_null_object(typ):
                 result[key] = wrapper.default_value
             else:
                 result[key] = _get_null_object(wrapper.type)
-        return result
+        return typ(result)
 
     if typ in _builtin_nulls():
         return _builtin_nulls()[typ]
