@@ -89,17 +89,31 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
         _defined_optional_attributes: dict = {}
         _defined_keys: set = set()
 
-        def __init__(self, **data):
-            super().__init__()
+        def __init__(self, *args, **data):
+            # We explicitly handle data from kwargs.
+            # *args could be passed if someone does MyModel({"x":1}), which we discourage.
+            # Our __call__ method ensures data comes through kwargs.
+            super().__init__() # Initialize the underlying dictionary
+
+            # Set default values for optional attributes first
             for key, wrapper in self.__class__._defined_optional_attributes.items():
-                self[key] = wrapper.default_value
+                # Directly assign to dict, not via __setattr__, to avoid recursion during init
+                super().__setitem__(key, wrapper.default_value)
 
+            # Now, update with provided data. This will overwrite defaults.
+            # Use the validated incoming data.
+            # We rely on the _Model.__call__ method to have already validated these types.
+            # So, we can directly set them into the dictionary using super().__setitem__.
+            # If we used self.__setattr__ here, it would re-run type checks during init,
+            # which is fine, but needs to be careful not to trigger recursion.
             for key, value in data.items():
-                self.__setattr__(key, value)
+                self.__setattr__(key, value) # Use __setattr__ to ensure validation and dict update
 
+            # Check for missing required attributes (although `Instance` should cover this)
             for req_key in self.__class__._defined_required_attributes.keys():
                 if req_key not in self:
-                    pass
+                    # This implies a severe error if Instance passed.
+                    raise TypeError(f"Missing required attribute '{req_key}' during {self.__class__.__name__} initialization.") 
 
         def __getattr__(self, name: str):
             if name in self._defined_keys:
@@ -264,17 +278,32 @@ def Model(__extends__: Type[Json] | List[Type[Json]] = None, **kwargs: Type) -> 
             if entity is not None and kwargs:
                 raise TypeError("Cannot provide both 'entity' (dictionary) and keyword arguments simultaneously.")
 
+            # Prepare data to initialize the ModelInstance
             if entity is None:
                 entity_dict = kwargs
             else:
-                entity_dict = entity
+                # If entity is a dict, we need to convert it to kwargs for __init__
+                # This ensures consistent handling.
+                if not isinstance(entity, dict):
+                    raise TypeError(f"Expected a dictionary or keyword arguments, got {type(entity)}")
+                entity_dict = entity.copy() # Use a copy to avoid modifying the original
 
+            # Validate the entity_dict against the model definition before creating an instance
             if not cls.__instancecheck__(entity_dict):
-                Instance(entity_dict, cls)
+                # When __instancecheck__ returns False, it doesn't provide errors.
+                # We need to call Instance function separately which provides detailed error messages.
+                Instance(entity_dict, cls) # This will raise TypeError with details if not valid
 
-            obj = cls.__new__(cls)
-            obj.__init__(**entity_dict)
-            return obj
+            # Create an instance of the specific ModelInstance subclass (cls)
+            # The ModelInstance.__init__ will handle populating the dictionary
+            # and setting attributes, including defaults for optional ones.
+            # Pass **entity_dict directly to __init__
+            obj = cls.__new__(cls, **entity_dict) # Pass kwargs to __new__ if it handles them
+            # However, typical __new__ for simple classes accepts args, kwargs and forwards them to object.__new__
+            # For dict subclasses, __new__ usually takes an optional single dict or kwargs.
+            # Let's keep __new__ simple and pass to __init__
+            obj.__init__(**entity_dict) # Call __init__ with validated data
+            return obj 
 
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
@@ -735,4 +764,40 @@ def Forget(model: Type[Json], entries: list) -> Type[Json]:
             new_kwargs[k] = optional_types[k]
     return Model(**new_kwargs)
 
+def model(_cls=None, *, extends=None):
+    def wrap(cls):
+        annotations = cls.__annotations__
+        kwargs = {name: type_hint for name, type_hint in annotations.items()}
+        return_model = Model(__extends__=extends, **kwargs)
+        return_model.__name__ = cls.__name__
+        return_model.__qualname__ = cls.__qualname__
+        return_model.__module__ = cls.__module__
+        return_model.__doc__ = cls.__doc__
+        return return_model
+    if _cls is None: return wrap
+    else: return wrap(_cls)
 
+def exact(_cls=None, *, extends=None):
+    def wrap(cls):
+        annotations = cls.__annotations__
+        kwargs = {name: type_hint for name, type_hint in annotations.items()}
+        exact_model = Exact(__extends__=extends, **kwargs)
+        exact_model.__name__ = cls.__name__
+        exact_model.__qualname__ = cls.__qualname__
+        exact_model.__module__ = cls.__module__
+        exact_model.__doc__ = cls.__doc__
+        return exact_model
+    if _cls is None: return wrap
+    else: return wrap(_cls)
+
+def conditional(*, conditions, extends=None):
+    def wrap(cls):
+        annotations = cls.__annotations__
+        kwargs = {name: type_hint for name, type_hint in annotations.items()}
+        cond_model = Conditional(__conditionals__=conditions, __extends__=extends, **kwargs)
+        cond_model.__name__ = cls.__name__
+        cond_model.__qualname__ = cls.__qualname__
+        cond_model.__module__ = cls.__module__
+        cond_model.__doc__ = cls.__doc__
+        return cond_model
+    return wrap

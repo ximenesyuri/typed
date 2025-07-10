@@ -36,3 +36,4 @@ def factory(arg):
         f" ==> '{arg.__name__}': is not callable\n"
         f"     [received_type] '{type(arg).__name__}'"
     )
+
