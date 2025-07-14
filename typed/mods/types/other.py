@@ -1,10 +1,11 @@
-from typed.mods.types.base         import Int, Float, Str, Json, Any, Path
-from typed.mods.types.func         import Function, TypedFuncType
-from typed.mods.factories.base     import Union, Prod, Dict
-from typed.mods.factories.func     import TypedFunc
-from typed.mods.factories.generics import Filter, Regex, Range, Len
-from typed.mods.decorators         import typed
-from typed.mods.helper.types       import (
+from typed.mods.types.base          import Int, Float, Str, Json, Any, Path
+from typed.mods.types.func          import Function, TypedFuncType
+from typed.mods.factories.base      import Union, Prod, Dict
+from typed.mods.factories.func      import TypedFunc
+from typed.mods.factories.generics  import Filter, Regex, Range, Len
+from typed.mods.factories.specifics import Url
+from typed.mods.decorators          import typed
+from typed.mods.helper.types        import (
     _is_json_table,
     _is_json_flat,
     _is_natural,
@@ -28,8 +29,8 @@ Num    = Union(Int, Float)
 Nat    = Filter(Int, typed(_is_natural))
 Odd    = Filter(Int, typed(_is_odd))
 Even   = Filter(Int, typed(_is_even))
-PosInt = Filter(Int, typed(_is_positive_int))
-NegInt = Filter(Int, typed(_is_negative_int))
+Pos    = Filter(Int, typed(_is_positive_int))
+Neg    = Filter(Int, typed(_is_negative_int))
 PosNum = Filter(Num, typed(_is_positive_num))
 NegNum = Filter(Num, typed(_is_negative_num))
 
@@ -37,19 +38,19 @@ Num.__display__    = "Num"
 Nat.__display__    = "Nat"
 Odd.__display__    = "Odd"
 Even.__display__   = "Even"
-PosInt.__display__ = "PosInt"
-NegInt.__display__ = "NegInt"
+Pos.__display__    = "Pos"
+Neg.__display__    = "Neg"
 PosNum.__display__ = "PosNum"
 NegNum.__display__ = "NegNum"
 
 # Json
-JsonTable = Filter(Json, typed(_is_json_table))
-JsonFlat  = Filter(Dict(Str, Any), typed(_is_json_flat))
-JsonEntry = Regex(r'^[a-zA-Z0-9_.]+$')
+Table = Filter(Json, typed(_is_json_table))
+Flat  = Filter(Dict(Str, Any), typed(_is_json_flat))
+Entry = Regex(r'^[a-zA-Z0-9_.]+$')
 
-JsonTable.__display__ = "JsonTable"
-JsonFlat.__display__  = "JsonFlat"
-JsonEntry.__display__ = "JsonEntry"
+Table.__display__ = "Table"
+Flat.__display__  = "Flat"
+Entry.__display__ = "Entry"
 
 # System
 Env = Regex(r"^[A-Z0-9_]+$")
@@ -77,12 +78,14 @@ File       = Filter(Path, typed(_is_file))
 Dir        = Filter(Path, typed(_is_dir))
 Symlink    = Filter(Path, typed(_is_symlink))
 Mount      = Filter(Path, typed(_is_mount))
+PathUrl    = Union(Path, Url("http", "https"))
 
-Exists.__display__     = "Exists"
-File.__display__       = "File"
-Dir.__display__        = "Dir"
-Symlink.__display__    = "Symlink"
-Mount.__display__      = "Mount"
+Exists.__display__  = "Exists"
+File.__display__    = "File"
+Dir.__display__     = "Dir"
+Symlink.__display__ = "Symlink"
+Mount.__display__   = "Mount"
+PathUrl.__display__ = "PathUrl"
 
 # Network
 Hostname = Regex(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
@@ -94,13 +97,13 @@ IPv4.__display__     = "IPv4"
 # Function
 Decorator      = TypedFunc(Function, cod=Function)
 TypedDecorator = TypedFunc(TypedFuncType, cod=TypedFuncType)
-VarFunction    = Filter(Function, typed(_has_var_arg))
-VarKwFunction  = Filter(Function, typed(_has_var_kwarg))
+VariableFunc   = Filter(Function, typed(_has_var_arg))
+KeywordFunc    = Filter(Function, typed(_has_var_kwarg))
 
 Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"
-VarFunction.__display__    = "VarFunction"
-VarKwFunction.__display__  = "VarKwFunction"
+VariableFunc.__display__   = "VariableFunc"
+KeywordFunc.__display__    = "KeywordFunc"
 
 # IDs
 UUID = Regex(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
