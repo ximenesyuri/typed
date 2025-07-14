@@ -51,8 +51,8 @@ In `typed` we have three kinds of entities:
 In the following we briefly describe how they are defined, used and how they interact one each other.
 
 ### Types
-
-In `typed`, a `type` is just a class named in CamelCase notation. There are a lot of `primitive types`, which are the building blocks for new `types`. Some of them are Python `builtin`s.
+ 
+In `typed`, a `type` is just a class named in `CamelCase`. There are a lot of `primitive types`, which are the building blocks for new `types`. Some of them are Python `builtin`s.
 
 ```
 type        python builtin
@@ -61,7 +61,6 @@ Int         int
 Float       float
 Str         str
 Bool        bool
-Type        type
 Nill        type(None)
 ```
 
@@ -76,7 +75,8 @@ Path         the type of paths
 ...
 ```
 
-Although any CamelCase class is acceptable as a `type`, in `typed` the `types` are typically subject to the following conditions: 
+
+Although any `CamelCase` class is acceptable as a `type`, in `typed` the `types` are typically subject to the following conditions: 
 1. they are constructed as the concretization of a `metaclass`
 2. they are a subclass of some already defined `type`
 3. they have a explicit `__instancecheck__` method
@@ -97,9 +97,13 @@ class _SomeType(type(existing_type)):
 SomeType = _SomeType('SomeType', (existing_type,) {})
 ```
 
+> A special kind of `type` is the so-called `metatype`. They are "types of types", being named in `UPPERCASE` notation. The main example of `metatype` is `TYPE` which is the `type` of all types. Thus, a `metatype` is any  type `t` such that `issubclass(t, TYPE)` is `True`. Equivalently, it is a type `t` such that if `isinstance(x, t)` is `True` for some `x`, then `isinstance(x, TYPE)` is `True` as well.    
+> The metatypes form itself a metatype `META`.
+ 
+
 ### Factories
 
-In `typed`, a `factory` is a CamelCase named function that returns a `type`. It can receive `types` as arguments or anything else. In the case where it receive only `types` as arguments, a `factory` is viewed as a `type operation`. Another way of thinking about a `factory` is a [dependent type](https://en.wikipedia.org/wiki/Dependent_type).
+In `typed`, a `factory` is a `CamelCase` named function that returns a `type`. It can receive `types` as arguments or anything else. In the case where it receive only `types` as arguments, a `factory` is viewed as a `type operation`. Another way of thinking about a `factory` is a [dependent type](https://en.wikipedia.org/wiki/Dependent_type).
 
 There a lot of predefined `factories` from `typed`. Some of them are listed below.
 
@@ -114,18 +118,35 @@ Dict          dict of elements of given types
 ...
 ```
 
-> 1. As you can see, there is a factory to each annotation in the library `typing`. In this sense, you can also think of a factory as a way to implement the type annotations from `typing`. In this way,  *typed can be viewed as a library in which type hints really works*.
-> 2. The `factories` of `typed` that corresponds to type annotations in `typing ` are the "type operations". So, `typed` do much more than just implementing type annotations. Indeed, other example of factories are the so-called `models`, as will be discussed in the sequence.
-> 3. For the list and definition of all factories, see [here]().
+Similarly, a `metafactory` is a `factory` which returns a `metatype`. Some examples are the following:
 
-Since `types` have a predefined form, `factories` (which are functions returning `types`) follows a pattern as well:
+```
+metafactory       description               
+------------------------------------------------------------
+SUB              metatype of all subtypes of given types                    
+NOT              metatype of all types which are not the given types
+...
+```
+ 
+> For the list and definition of all predefined factories, see [here]().
+
+Besides the provided factories, you can create your own. In this case, you should use the decorator `@factory` to ensure type safety in the proper factory definition:
 
 ```python
-def SomeFactory(*args: Tuple(Any)) -> Type:
+from typed import factory, TYPE,
+
+@factory
+def 
+```
+
+Since `types` have a predefined form, `factories` (which are functions returning `types`) also have a predefined form:
+
+```python
+def SomeFactory(*args):
     ...
     # 1. do something
     ...
-    # 2. constructs a metaclass involving the '*args' 
+    # 2. constructs a metaclass involving the '*args'
     class _SomeType(type(...)):
         ...
         def __instancecheck__(cls, instance):
@@ -136,6 +157,9 @@ def SomeFactory(*args: Tuple(Any)) -> Type:
     ...
     return _SomeType('SomeType', (...,), {...})
 ```
+
+> 1. As you can see, there is a factory to each annotation in the library `typing`. In this sense, you can also think of a `factory` as a way to implement the type annotations from `typing`. In this way,  *typed can be viewed as a library in which type hints really works*.
+> 2. The `factories` of `typed` that corresponds to type annotations in `typing ` are the "type operations". So, `typed` do much more than just implementing type annotations. Indeed, besides type operations, `typed` provides another example of factories: the so-called `models`, as will be discussed in the sequence.
 
 ### Typed Functions
 
@@ -157,38 +181,45 @@ If at runtime the type of `x` does not matches `Int` (respectively the type of `
 
 ### Models
 
-You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, as you can do with `BaseModel` in [pydantic](https://github.com/pydantic/pydantic):
+You can create `type models` which are subclasses of the base `Json` class and can be used to quickly validate data, much as you can do with `BaseModel` in [pydantic](https://github.com/pydantic/pydantic), but following the `typed` philosophy:
 
 ```python
 from typed        import Int, Str, List
 from typed.models import Model
 
-Model1 = Model(
-    arg1=Str,
-    arg2=Int,
-    arg3=List(Int, Str)
+SomeModel = Model(
+    x=Str,
+    y=Int,
+    z=List(Int, Str)
 )
 
-json1 = {
-    'arg1': 'foo',
-    'arg2': 'bar',
-    'arg3': [1, 'foobar']
+json = {
+    'x': 'foo',
+    'y': 'bar',
+    'z': [1, 'foobar']
 }
 ```
 
-With the above, `isinstance(json1, Model1)` returns `False`, since `arg2` is expected to be an integer. As a consequence, if you use that in a `typed function`, this will raise a `TypeError`:
+With the above, `isinstance(json, SomeModel)` returns `False`, since `y` is expected to be an integer. As a consequence, if you use that in a `typed function`, this will raise a `TypeError`, as follows:
 
 ```python
-from typed import typed
-from some.where import Model1
+from typed import typed, SomeType
+from some.where import SomeModel
 
 @typed
-def some_function(some_json: Model1) -> Model1:
+def some_function(some_json: SomeModel) -> SomeType:
     ...
-    return some_json
 
-some_function(json1) # a raise descriptive TypeError
+json = {
+    'x': 'foo',
+    'y': 'bar',
+    'z': [1, 'foobar']
+}
+
+some_function(json) # a raise descriptive TypeError
 ```
+
+
 
 ### Validation
 

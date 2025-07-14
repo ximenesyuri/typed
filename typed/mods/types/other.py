@@ -68,6 +68,9 @@ HSL.__display__ = "HSL"
 Char     = Len(Str, 1)
 Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
+Char.__display__  = "Char"
+Email.__display__ = "Email"
+
 # Path
 Exists     = Filter(Path, typed(_exists))
 File       = Filter(Path, typed(_is_file))
@@ -84,11 +87,9 @@ Mount.__display__      = "Mount"
 # Network
 Hostname = Regex(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
 IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
-HttpUrl  = Regex(r'^https?://(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:[/?].*)?$')
 
 Hostname.__display__ = "Hostname"
 IPv4.__display__     = "IPv4"
-HttpUrl.__display__  = "HttpUrl"
 
 # Function
 Decorator      = TypedFunc(Function, cod=Function)
@@ -100,20 +101,6 @@ Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"
 VarFunction.__display__    = "VarFunction"
 VarKwFunction.__display__  = "VarKwFunction"
-
-# Date
-_DATE_DIRECTIVES = r"(%[YmdjUwWaAbBcxXzZ])"
-_TIME_DIRECTIVES = r"(%[HMSfIZp])"
-_DATETIME_DIRECTIVES = r"(%[YmdHMSfIMjUwWaAbBcxXzZpI])"
-_ALLOWED_CHARS = r"(\s|[^%])*"
-
-DateFormat = Regex(f"^{_ALLOWED_CHARS}({_DATE_DIRECTIVES}{_ALLOWED_CHARS})+$")
-TimeFormat = Regex(f"^{_ALLOWED_CHARS}({_TIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
-DatetimeFormat = Regex(f"^{_ALLOWED_CHARS}({_DATETIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
-
-DateFormat.__display__ = "DateFormat"
-TimeFormat.__display__ = "TimeFormat"
-DatetimeFormat.__display__ = "DatetimeFormat"
 
 # IDs
 UUID = Regex(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")

@@ -669,7 +669,6 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
     """
     model_metaclass = type(model)
 
-
     if not isinstance(model, (type(_MODEL), type(_EXACT), type(_CONDITIONAL))):
         raise TypeError(f"'{getattr(model, '__name__', str(model))}' not of Model, Exact or Conditional type. Received type: {type(model).__name__}.")
 
@@ -718,13 +717,10 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
         extra_keys = set(entity.keys()) - all_expected_keys
         if extra_keys:
             errors.append(f"\t ==> Extra attributes found: {', '.join(sorted(extra_keys))}.")
-
     if model_metaclass.__name__ == "_Conditional":
         conds = getattr(model, '__conditionals_list', [])
         if not conds and hasattr(model, '__bases__') and model.__bases__ and issubclass(model.__bases__[0], Json):
             pass
-
-
     if errors:
         raise TypeError(
             f"'{repr(entity)}' is not an instance of model '{_get_type_display_name(model)}':\n"
@@ -732,14 +728,12 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
         )
     return entity
 
-
 MODEL = _MODEL('MODEL', (type, ), {})
 EXACT = _EXACT('EXACT', (type, ), {})
 CONDITIONAL = _CONDITIONAL('CONDITIONAL', (type, ), {})
 
-
 def Forget(model: Type[Json], entries: list) -> Type[Json]:
-    if not isinstance(model, type(_MODEL)): # Check against the metaclass type
+    if not isinstance(model, type(_MODEL)):
         raise TypeError(f"forget expects a Model-type. Got: {model}")
 
     required_keys = set(getattr(model, '_required_attribute_keys', set()))

@@ -1,5 +1,5 @@
 from typed.mods.factories.base import Union, Dict, Set, List, Null
-from typed.mods.factories.generics import Regex
+from typed.mods.factories.generics import Regex, Enum
 from typed.mods.factories.func import TypedFunc
 from typed.mods.types.meta import (
     _Any,
@@ -18,11 +18,12 @@ Float = float
 TYPE  = type
 Nill  = type(None)
 
-Any     = _Any("Any", (), {})
-Json    = Union(Dict(Any), Set(Any), List(Any))
-Pattern = _Pattern("Pattern", (Str,), {})
-Path    = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$"), Null(Str))
-META    = _META("Meta", (TYPE,), {})
+Any      = _Any("Any", (), {})
+Json     = Union(Dict(Any), Set(Any), List(Any))
+Pattern  = _Pattern("Pattern", (Str,), {})
+Path     = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$"), Null(Str))
+Protocol = Enum(Str, "http", "https", "file", "ftp")
+META     = _META("Meta", (TYPE,), {})
 
 BoolFuncType = TypedFunc(Any, cod=Bool)
 
