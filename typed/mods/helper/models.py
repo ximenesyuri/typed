@@ -52,7 +52,10 @@ def _process_extends(__extends__):
     return extended_models
 
 def _merge_attrs(extended_models, new_kwargs):
-    """ Merges extended model attributes and new attributes """
+    """ Merges extended model attributes and new attributes.
+        If an attribute appears in multiple extended models, the first occurrence is used.
+        Attributes defined in new_kwargs always override those from extended models.
+    """
     combined_kwargs = {}
     for extended_model in extended_models:
         if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
@@ -62,19 +65,14 @@ def _merge_attrs(extended_models, new_kwargs):
         extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
 
         for key, value_type in extended_attributes_and_types.items():
-            if key in combined_kwargs:
-                raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
-            combined_kwargs[key] = value_type
+            if key not in combined_kwargs:
+                combined_kwargs[key] = value_type
 
         for key, value_wrapper in extended_optional_attributes_and_defaults.items():
-            if key in combined_kwargs:
-                raise TypeError(f"Attribute '{key}' defined in multiple extended models.")
-            combined_kwargs[key] = value_wrapper
+            if key not in combined_kwargs:
+                combined_kwargs[key] = value_wrapper
 
-    for key, value in new_kwargs.items():
-        if key in combined_kwargs:
-            raise TypeError(f"Attribute '{key}' defined in both extended models and the new model definition.")
-        combined_kwargs[key] = value
+    combined_kwargs.update(new_kwargs)
     return combined_kwargs
 
 def _collect_attributes(kwargs):
