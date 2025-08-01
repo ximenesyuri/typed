@@ -21,9 +21,18 @@ EXACT   = _EXACT('EXACT', (type, ), {'__display__': 'EXACT'})
 ORDERED = _ORDERED('ORDERED', (type, ), {'__display__': 'ORDERED'})
 RIGID   = _RIGID('RIGID', (type, ), {'__display__': 'RIGID'})
 
-def Optional(typ: Type, default_value: Any):
+def Optional(typ: Type, default_value: Any=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
         raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
+    if not default_value:
+        try:
+            from typed import null
+            return _Optional(typ, null(typ))
+        except Exception as e:
+            raise ValueError(
+                f"Error while defining optional value:\n"
+                f" ==> 'default_value' not provided and type '{_get_type_display_name(typ)}' has no null value."
+            )
     if not isinstance(default_value, typ):
         raise TypeError(
             f"Error while defining optional type:\n"
