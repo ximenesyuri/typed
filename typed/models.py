@@ -15,7 +15,7 @@ from typed.mods.helper.models import (
     _RIGID
 )
 
-MODEL_METATYPES = [type(_MODEL), type(_EXACT), type(_ORDERED), type(_RIGID), _ModelFactory]
+MODEL_METATYPES = (type(_MODEL), type(_EXACT), type(_ORDERED), type(_RIGID), _ModelFactory)
 MODEL   = _MODEL('MODEL', (type, ), {'__display__': 'MODEL'})
 EXACT   = _EXACT('EXACT', (type, ), {'__display__': 'EXACT'})
 ORDERED = _ORDERED('ORDERED', (type, ), {'__display__': 'ORDERED'})
