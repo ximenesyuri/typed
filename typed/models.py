@@ -29,10 +29,13 @@ def Optional(typ: Type, default_value: Any=None):
             from typed import null
             return _Optional(typ, null(typ))
         except Exception as e:
-            raise ValueError(
-                f"Error while defining optional value:\n"
-                f" ==> 'default_value' not provided and type '{_get_type_display_name(typ)}' has no null value."
-            )
+            try:
+                return _Optional(typ, typ())
+            except Exception as e:
+                raise ValueError(
+                    f"Error while defining optional value:\n"
+                    f" ==> 'default_value' not provided and type '{_get_type_display_name(typ)}' has no null value."
+                )
     if not isinstance(default_value, typ):
         raise TypeError(
             f"Error while defining optional type:\n"
