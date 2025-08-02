@@ -52,28 +52,22 @@ def _process_extends(__extends__):
     return extended_models
 
 def _merge_attrs(extended_models, new_kwargs):
-    """ Merges extended model attributes and new attributes.
-        If an attribute appears in multiple extended models, the first occurrence is used.
-        Attributes defined in new_kwargs always override those from extended models.
-    """
-    combined_kwargs = {}
-    for extended_model in extended_models:
-        if not hasattr(extended_model, '_required_attributes_and_types') or not hasattr(extended_model, '_optional_attributes_and_defaults'):
-            raise TypeError(f"Element in __extends__ must be a Model or Exact type, got {type(extended_model).__name__}")
+    combined = {}
 
-        extended_attributes_and_types = dict(getattr(extended_model, '_required_attributes_and_types', ()))
-        extended_optional_attributes_and_defaults = getattr(extended_model, '_optional_attributes_and_defaults', {})
+    for parent in extended_models:
+        parent_required = dict(getattr(parent, '_required_attributes_and_types', ()))
+        parent_optional = getattr(parent, '_optional_attributes_and_defaults', {})
 
-        for key, value_type in extended_attributes_and_types.items():
-            if key not in combined_kwargs:
-                combined_kwargs[key] = value_type
+        for k, opt in parent_optional.items():
+            if k not in combined:
+                combined[k] = opt
 
-        for key, value_wrapper in extended_optional_attributes_and_defaults.items():
-            if key not in combined_kwargs:
-                combined_kwargs[key] = value_wrapper
+        for k, typ in parent_required.items():
+            if k not in parent_optional and k not in combined:
+                combined[k] = typ
 
-    combined_kwargs.update(new_kwargs)
-    return combined_kwargs
+    combined.update(new_kwargs)
+    return combined
 
 def _collect_attributes(kwargs):
     processed_attributes_and_types = []
