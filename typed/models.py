@@ -24,7 +24,8 @@ RIGID   = _RIGID('RIGID', (type, ), {'__display__': 'RIGID'})
 def Optional(typ: Type, default_value: Any=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
         raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
-    if not default_value:
+    from typed.mods.types.base import Any
+    if default_value is None and typ is not Any:
         try:
             from typed import null
             return _Optional(typ, null(typ))
