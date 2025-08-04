@@ -11,16 +11,17 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
     Can be applied to typed functions:
         > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    from typed.mods.factories.generics import Inter
-    if args and all(isinstance(f, TypedFuncType) for f in args):
+    from typed.mods.types.func import TypedFuncType
+    from typed.mods.helper.helper import _flat, _get_type_display_name
+
+    if args and all((not isinstance(f, type)) and isinstance(f, TypedFuncType) for f in args):
         functors = args
         domains = [f.domain for f in functors]
         codomains = [f.codomain for f in functors]
-        dom_types = [d[0] for d in domains if len(d) == 1]
-        if len(dom_types) != len(functors):
-            raise TypeError("Each TypedFuncType in Union must have a singleton domain.")
+        dom_types = [d[0] if len(d) == 1 else d for d in domains]
+        if any(not (isinstance(f, TypedFuncType) and not isinstance(f, type)) for f in functors):
+            raise TypeError("All functor arguments to Union must be TypedFuncType instances (not types)")
 
-        dom_types = [d[0] if len(d) == 1 else Prod(*d) for d in domains]
         def union_dispatcher(x):
             matching = []
             for f, dom in zip(functors, dom_types):
@@ -32,11 +33,6 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
                     f"No available functor matches input {x!r}. Must be instance of one of {allowed}."
                 )
             first_f = matching[0]
-            from inspect import signature
-            sig = signature(first_f.func)
-            param_names = list(sig.parameters.keys())
-            arg_name = param_names[0] if param_names else "x"
-
             if len(first_f.domain) == 1:
                 first_val = first_f(x)
             else:
@@ -50,73 +46,48 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
                 if fv != first_val:
                     raise ValueError(
                         f"Ambiguous value for {[ff.__name__ for ff in matching]}:"
-                        f"\n ==> argument '{arg_name}' with input '{x!r}'"
+                        f"\n ==> argument '{x!r}'"
                         f"\n     [{matching[0].__name__} value]: '{first_val!r}'"
                         f"\n     [{f.__name__} value]: '{fv!r}'"
                     )
             return first_val
 
-        functor_domains = tuple(dom_types)
-        functor_codomain = Union(*codomains)
-        functor_typed_domain = Union(*dom_types)
         union_dispatcher.__name__ = "Union(" + ", ".join(f.__name__ for f in functors) + ")"
         union_dispatcher.__annotations__ = {
-            'x': functor_typed_domain,
-            'return': functor_codomain
+            "x": tuple(dom_types),
+            "return": tuple(codomains)
         }
         return TypedFuncType(union_dispatcher)
 
-    _flattypes, _ = _flat(*args)
-
-    if not _flattypes:
-        class _EmptyUnion(type):
+    elif args and all(isinstance(f, type) for f in args):
+        _flattypes, _ = _flat(*args)
+        if not _flattypes:
+            class _EmptyUnion(type):
+                def __instancecheck__(cls, instance): return False
+                def __subclasscheck__(cls, subclass):
+                    from typed.mods.types.base import Any
+                    if subclass is cls or subclass is Any: return True
+                    return False
+            return _EmptyUnion("Union()", (), {})
+        class _Union(type):
             def __instancecheck__(cls, instance):
-                return False
+                return any(isinstance(instance, t) for t in cls.__types__)
             def __subclasscheck__(cls, subclass):
                 from typed.mods.types.base import Any
-                if subclass is cls or subclass is Any:
+                if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
                     return True
-                return False
-        return _EmptyUnion("Union()", (), {})
+                if subclass is cls or subclass is Any or subclass in cls.__types__:
+                    return True
+                return any(issubclass(subclass, t) for t in cls.__types__)
+        class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
+        return _Union(class_name, (), {'__types__': _flattypes})
 
-    class _Union(type):
-        def __instancecheck__(cls, instance):
-            for t in cls.__types__:
-                if isinstance(t, type):
-                    if hasattr(t, '__instancecheck__'):
-                        result = t.__instancecheck__(instance)
-                        if result:
-                            return True
-                    else:
-                        result = isinstance(instance, t)
-                        if result:
-                            return True
-            return False
-
-        def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
-                return True
-
-            if subclass is cls:
-                return True
-            if subclass is Any:
-                return True
-            if subclass in cls.__types__:
-                return True
-
-            for t in cls.__types__:
-                if isinstance(t, type):
-                    if hasattr(t, '__subclasscheck__'):
-                        if t.__subclasscheck__(subclass):
-                            return True
-                    else:
-                        if issubclass(subclass, t):
-                            return True
-            return False
-
-    class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
-    return _Union(class_name, (), {'__types__': _flattypes})
+    else:
+        types_seen = [type(f) for f in args]
+        raise TypeError(
+            f"Union arguments must all be (1) TypedFuncType instances or (2) types (classes/constructed types), "
+            f"but received: {types_seen}"
+        )
 
 def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
     """
@@ -131,7 +102,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
         > 'Prod(f, g, ...): Prod(f.domain, g.domain, ...) -> Prod(f.codomain, g.codomain, ...)'
     """
 
-    if all((isinstance(f, TypedFuncType)) for f in args) and args:
+    if args and all((not isinstance(f, type)) and isinstance(f, TypedFuncType) for f in args):
         in_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         out_types = [f.codomain for f in args]
         domain_type = Prod(*in_types)

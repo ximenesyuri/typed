@@ -16,7 +16,14 @@ from typed.mods.types.meta import (
     _Builtin,
     _Lambda,
     _Method,
-    _Function
+    _Function,
+    _CompFuncType,
+    _HintedCodFuncType,
+    _HintedDomFuncType,
+    _HintedFuncType,
+    _TypedCodFuncType,
+    _TypedDomFuncType,
+    _TypedFuncType
 )
 
 # -----------------------------
@@ -38,10 +45,8 @@ Function.__display__ = "Function"
 # -----------------------------
 #     Composable FuncType
 # -----------------------------
-class CompFuncType(Function):
+class CompFuncType(Function, metaclass=_CompFuncType):
     def __init__(self, func):
-        if not inspect.isfunction(func):
-            raise TypeError(f"'{func}' is not a function.")
         self.func = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
 
@@ -75,13 +80,11 @@ class CompFuncType(Function):
 # -------------------------
 #     Hinted FuncType
 # -------------------------
-class HintedDomFuncType(CompFuncType):
+class HintedDomFuncType(CompFuncType, metaclass=_HintedDomFuncType):
     def __init__(self, func):
-        if inspect.isfunction(func):
-            if inspect.signature(func).parameters:
-                _is_domain_hinted(func)
-            super().__init__(func)
-            self._hinted_domain = _hinted_domain(self.func)
+        _is_domain_hinted(func)
+        super().__init__(func)
+        self._hinted_domain = _hinted_domain(self.func)
 
     @property
     def domain(self):
@@ -99,7 +102,7 @@ class HintedDomFuncType(CompFuncType):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})"
 
-class HintedCodFuncType(CompFuncType):
+class HintedCodFuncType(CompFuncType, metaclass=_HintedCodFuncType):
     def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
@@ -121,7 +124,7 @@ class HintedCodFuncType(CompFuncType):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__} -> {codomain_str}"
 
-class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
+class HintedFuncType(HintedDomFuncType, HintedCodFuncType, metaclass=_HintedFuncType):
     def __init__(self, func):
         _is_domain_hinted(func)
         _is_codomain_hinted(func)
@@ -202,7 +205,7 @@ class HintedFuncType(HintedDomFuncType, HintedCodFuncType):
 # ---------------------------
 #       Typed FuncType
 # ---------------------------
-class TypedDomFuncType(HintedDomFuncType):
+class TypedDomFuncType(HintedDomFuncType, metaclass=_TypedDomFuncType):
     def __init__(self, func):
         super().__init__(func)
 
@@ -231,7 +234,7 @@ class TypedDomFuncType(HintedDomFuncType):
         domain_str = ', '.join(getattr(t, '__name__', str(t)) for t in self.domain)
         return f"{self.__name__}({domain_str})!!"
 
-class TypedCodFuncType(HintedCodFuncType):
+class TypedCodFuncType(HintedCodFuncType, metaclass=_TypedCodFuncType):
     def __init__(self, func):
         super().__init__(func)
 
@@ -259,7 +262,7 @@ class TypedCodFuncType(HintedCodFuncType):
         codomain_str = getattr(self.codomain, '__name__', str(self.codomain))
         return f"{self.__name__} -> {codomain_str}!"
 
-class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType):
+class TypedFuncType(HintedFuncType, TypedDomFuncType, TypedCodFuncType, metaclass=_TypedFuncType):
     def __init__(self, func):
         CompFuncType.__init__(self, func)
         HintedDomFuncType.__init__(self, func)

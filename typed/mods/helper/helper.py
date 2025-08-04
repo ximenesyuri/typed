@@ -130,6 +130,9 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         expected_display_name = _get_type_display_name(expected_type)
         actual_display_name = _get_type_display_name(actual_type)
 
+        if expected_display_name == actual_display_name:
+            continue
+
         if not isinstance(actual_value, expected_type):
             mismatches.append(f"\n ==> '{name}' has value '{actual_value}'")
             mismatches.append(f"\n     [expected_type]: '{expected_display_name}'")
@@ -143,6 +146,8 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
         raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
+
+    return True
 
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
     expected_display_name = _get_type_display_name(expected_codomain)
@@ -191,6 +196,8 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             f"\n    [received_type]: '{actual_display_name}'"
             f"\n    [failed_typed]:  '{_get_type_display_name(expected_codomain)}'"
         )
+
+    return True
 
 def _nill() -> type(None):
         pass
