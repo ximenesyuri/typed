@@ -12,7 +12,8 @@ from typed.mods.helper.models import (
     _MODEL,
     _EXACT,
     _ORDERED,
-    _RIGID
+    _RIGID,
+    _optional
 )
 
 MODEL_METATYPES = (type(_MODEL), type(_EXACT), type(_ORDERED), type(_RIGID), _ModelFactory)
@@ -25,18 +26,8 @@ def Optional(typ: Type, default_value: Any=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
         raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
     from typed.mods.types.base import Any
-    if default_value is None and typ is not Any:
-        try:
-            from typed import null
-            return _Optional(typ, null(typ))
-        except Exception as e:
-            try:
-                return _Optional(typ, typ())
-            except Exception as e:
-                raise ValueError(
-                    f"Error while defining optional value:\n"
-                    f" ==> 'default_value' not provided and type '{_get_type_display_name(typ)}' has no null value."
-                )
+    if default_value is None:
+        return _Optional(typ, None)
     if not isinstance(default_value, typ):
         raise TypeError(
             f"Error while defining optional type:\n"
@@ -791,10 +782,21 @@ def Forget(model: Type[Json], entries: list) -> Type[Json]:
             new_kwargs[k] = optional_types[k]
     return Model(**new_kwargs)
 
-def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
+def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         annotations = cls.__annotations__
-        kwargs = {name: type_hint for name, type_hint in annotations.items()}
+        is_nullable = getattr(cls, '__nullable__', nullable)
+        kwargs = {}
+        for name, type_hint in annotations.items():
+            if hasattr(cls, name):
+                default = getattr(cls, name)
+            else:
+                default = None
+            from typed.mods.helper.models import _Optional
+            if isinstance(type_hint, _Optional):
+                kwargs[name] = type_hint
+            else:
+                kwargs[name] = type_hint if not isinstance(type_hint, type(Optional)) else _optional(type_hint, default, is_nullable)
         return_model = Model(
             __extends__=extends,
             __conditions__=conditions,
@@ -808,8 +810,10 @@ def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=Fals
         return_model.__module__ = cls.__module__
         return_model.__doc__ = cls.__doc__
         return return_model
-    if _cls is None: return wrap
-    else: return wrap(_cls)
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)
 
 def exact(_cls=None, *, extends=None, conditions=None):
     def wrap(cls):
@@ -849,3 +853,32 @@ def rigid(_cls=None, *, extends=None, conditions=None):
         return res
     if _cls is None: return wrap
     else: return wrap(_cls)
+
+def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
+    def wrap(cls):
+        annotations = cls.__annotations__
+        is_nullable = getattr(cls, '__nullable__', nullable)
+        kwargs = {}
+        for name, type_hint in annotations.items():
+            if hasattr(cls, name):
+                default = getattr(cls, name)
+            else:
+                default = None
+            kwargs[name] = _optional(type_hint, default, is_nullable)
+        return_model = Model(
+            __extends__=extends,
+            __conditions__=conditions,
+            __exact__=exact,
+            __ordered__=ordered,
+            __rigid__=rigid,
+            **kwargs
+        )
+        return_model.__name__ = cls.__name__
+        return_model.__qualname__ = cls.__qualname__
+        return_model.__module__ = cls.__module__
+        return_model.__doc__ = cls.__doc__
+        return return_model
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)

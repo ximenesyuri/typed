@@ -1,2 +1,1 @@
 from typed.main import *
-

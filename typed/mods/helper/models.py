@@ -1,3 +1,5 @@
+import sys
+
 class _Optional:
     def __init__(self, typ, default_value):
         self.type = typ
@@ -85,6 +87,27 @@ def _collect_attributes(kwargs):
                 f"All argument values must be types or OptionalArg instances. Invalid type for '{key}': {type(value)}"
             )
     return tuple(processed_attributes_and_types), required_attribute_keys, optional_attributes_and_defaults
+
+def _optional(type_hint, default, is_nullable):
+    from typed.mods.factories.generics import Maybe
+    from typed.mods.helper.models import _Optional
+    if isinstance(type_hint, _Optional):
+        return type_hint
+
+    from typed.models import Optional
+    if is_nullable:
+        if default is not None:
+            return Optional(type_hint, default)
+        try:
+            from typed import null
+            return Optional(type_hint, null(type_hint))
+        except Exception:
+            try:
+                return Optional(type_hint, type_hint())
+            except Exception:
+                return Optional(type_hint, None)
+    else:
+        return Optional(Maybe(type_hint), None)
 
 class _MODEL(type):
     def __instancecheck__(self, instance):
