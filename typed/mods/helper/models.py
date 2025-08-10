@@ -109,6 +109,24 @@ def _optional(type_hint, default, is_nullable):
     else:
         return Optional(Maybe(type_hint), None)
 
+def _attach_base_attrs(child_model, parent_models):
+    """
+    Give `child_model` two attributes:
+      - .extends      = tuple(parent_models)
+      - .extended_by  = tuple of models which extend this model
+    and also update each parent’s `.extended_by` to include child_model.
+    """
+    child_model.extends = tuple(parent_models)
+    child_model.extended_by = ()
+    for parent in parent_models:
+        try:
+            prev = getattr(parent, 'extended_by', ())
+            if not isinstance(prev, tuple):
+                prev = tuple(prev)
+            parent.extended_by = prev + (child_model,)
+        except Exception:
+            pass
+
 class _MODEL(type):
     def __instancecheck__(self, instance):
         t = type(instance)

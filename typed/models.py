@@ -6,6 +6,7 @@ from typed.mods.helper.models import (
     _ModelFactory,
     ModelFactory,
     _get_keys_in_defined_order,
+    _attach_base_attrs,
     _process_extends,
     _merge_attrs,
     _collect_attributes,
@@ -246,7 +247,8 @@ def Model(
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     ordered_keys = _get_keys_in_defined_order(attributes_and_types, optional_attributes_and_defaults)
     class_name = f"Model({args_str})"
-    return _Model(
+
+    new_model = _Model(
         class_name,
         (ModelInstance, ModelFactory),
         {
@@ -257,6 +259,8 @@ def Model(
             '_initial_ordered_keys': ordered_keys
         }
     )
+    _attach_base_attrs(new_model, extended_models)
+    return new_model
 
 def Exact(
     __extends__: Type[Json] | List[Type[Json]] = None,
@@ -465,9 +469,11 @@ def Exact(
             if not parent_conds.issubset(child_conds):
                 return False
             return True
+
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
-    return _Exact(
+
+    new_model = _Exact(
         class_name,
         (ExactInstance, ModelFactory),
         {
@@ -479,11 +485,15 @@ def Exact(
         }
     )
 
+    _attach_base_attrs(new_model, extended_models)
+    return new_model
+
 def Ordered(
     __extends__: Type[Json] | List[Type[Json]] = None,
     __conditions__=None,
     **kwargs: Type
 ) -> Type[Json]:
+
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
@@ -585,7 +595,8 @@ def Ordered(
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Ordered({args_str})"
-    return _Ordered(
+
+    new_model = _Ordered(
         class_name,
         (OrderedInstance, ModelFactory),
         {
@@ -594,11 +605,15 @@ def Ordered(
         }
     )
 
+    _attach_base_attrs(new_model, extended_models)
+    return new_model
+
 def Rigid(
     __extends__: Type[Json] | List[Type[Json]] = None,
     __conditions__=None,
     **kwargs: Type
 ) -> Type[Json]:
+
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
@@ -679,7 +694,8 @@ def Rigid(
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, _Optional) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
     class_name = f"Rigid({args_str})"
-    return _Rigid(
+
+    new_model = _Rigid(
         class_name,
         (RigidInstance, ModelFactory),
         {
@@ -688,6 +704,9 @@ def Rigid(
             '_initial_conditions': conditions,
         }
     )
+
+    _attach_base_attrs(new_model, extended_models)
+    return new_model
 
 def Instance(entity: dict, model: Type[Json]) -> Json:
     model_metaclass = type(model)
