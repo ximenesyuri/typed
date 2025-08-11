@@ -69,7 +69,7 @@ def Model(
     if __conditions__:
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
-    class ModelInstance(dict):
+    class ModelValidate(dict):
         _defined_required_attributes: dict = {}
         _defined_optional_attributes: dict = {}
         _defined_keys: set = set()
@@ -250,7 +250,7 @@ def Model(
 
     new_model = _Model(
         class_name,
-        (ModelInstance, ModelFactory),
+        (ModelValidate, ModelFactory),
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
@@ -284,7 +284,7 @@ def Exact(
     if __conditions__:
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
-    class ExactInstance(dict):
+    class ExactValidate(dict):
         _defined_required_attributes: dict = {}
         _defined_optional_attributes: dict = {}
         _defined_keys: set = set()
@@ -475,7 +475,7 @@ def Exact(
 
     new_model = _Exact(
         class_name,
-        (ExactInstance, ModelFactory),
+        (ExactValidate, ModelFactory),
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
@@ -508,7 +508,7 @@ def Ordered(
     if __conditions__:
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
-    class OrderedInstance(dict):
+    class OrderedValidate(dict):
         _ordered_keys: list = ordered_keys
         _defined_required_attributes = dict(attributes_and_types)
         _defined_optional_attributes = optional_attributes_and_defaults
@@ -599,7 +599,7 @@ def Ordered(
 
     new_model = _Ordered(
         class_name,
-        (OrderedInstance, ModelFactory),
+        (OrderedValidate, ModelFactory),
         {
             '_initial_ordered_keys': ordered_keys,
             '_initial_conditions': conditions,
@@ -630,7 +630,7 @@ def Rigid(
     if __conditions__:
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
-    class RigidInstance(dict):
+    class RigidValidate(dict):
         _ordered_keys: list = ordered_keys
         _required_attribute_keys = required_attribute_keys
         _defined_required_attributes = dict(attributes_and_types)
@@ -699,7 +699,7 @@ def Rigid(
 
     new_model = _Rigid(
         class_name,
-        (RigidInstance, ModelFactory),
+        (RigidValidate, ModelFactory),
         {
             '_initial_required_attribute_keys': required_attribute_keys,
             '_initial_ordered_keys': ordered_keys,
@@ -711,7 +711,7 @@ def Rigid(
     new_model.is_rigid = True
     return new_model
 
-def Instance(entity: dict, model: Type[Json]) -> Json:
+def Validate(entity: dict, model: Type[Json]) -> Json:
     model_metaclass = type(model)
 
     if not isinstance(model, MODEL_METATYPES):
