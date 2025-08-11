@@ -109,15 +109,48 @@ def _optional(type_hint, default, is_nullable):
     else:
         return Optional(Maybe(type_hint), None)
 
-def _attach_base_attrs(child_model, parent_models):
-    """
-    Give `child_model` two attributes:
-      - .extends      = tuple(parent_models)
-      - .extended_by  = tuple of models which extend this model
-    and also update each parent’s `.extended_by` to include child_model.
-    """
-    child_model.extends = tuple(parent_models)
+def _attach_model_attrs(child_model, parent_models):
+    child_model.extends     = tuple(parent_models)
     child_model.extended_by = ()
+
+    child_model.is_model     = True
+    child_model.is_exact     = False
+    child_model.is_ordered   = False
+    child_model.is_rigid     = False
+    child_model.is_optional  = False
+    child_model.is_mandatory = False
+
+    reqs = getattr(child_model, '_defined_required_attributes', {})   # name → type
+    opts = getattr(child_model, '_defined_optional_attributes', {})   # name → _Optional(type, default)
+
+    all_meta = {}
+    for name, typ in reqs.items():
+        all_meta[name] = {
+            'type':     typ,
+            'optional': False,
+            'default':  None
+        }
+    for name, wrapper in opts.items():
+        all_meta[name] = {
+            'type':     wrapper.type,
+            'optional': True,
+            'default':  wrapper.default_value
+        }
+
+    child_model.attrs = all_meta
+
+    child_model.optional_attrs = {
+        name: meta
+        for name, meta in all_meta.items()
+        if meta['optional']
+    }
+
+    child_model.mandatory_attrs = {
+        name: meta
+        for name, meta in all_meta.items()
+        if not meta['optional']
+    }
+
     for parent in parent_models:
         try:
             prev = getattr(parent, 'extended_by', ())
