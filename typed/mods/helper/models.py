@@ -25,8 +25,8 @@ class _ModelFactory(type):
         else:
             entity_dict = kwargs
         if not cls.__instancecheck__(entity_dict):
-            from typed.models import Instance
-            Instance(entity_dict, cls)
+            from typed.models import Validate
+            Validate(entity_dict, cls)
         obj = cls.__new__(cls)
         obj.__init__(**entity_dict)
         return obj
@@ -183,3 +183,42 @@ class _RIGID(type):
         t = type(instance)
         cls = instance.__class__ if not isinstance(instance, type) else instance
         return type(cls).__name__ == "_Rigid"
+
+class _OPTIONAL(type):
+    def __instancecheck__(cls, instance):
+        # allow both model‐classes and model‐instances
+        if isinstance(instance, type):
+            mcls = instance
+        else:
+            mcls = instance.__class__
+        if not getattr(mcls, 'is_model', False):
+            return False
+        req = getattr(mcls, '_required_attribute_keys', None)
+        return isinstance(req, set) and len(req) == 0
+
+    def __subclasscheck__(cls, subclass):
+        if not isinstance(subclass, type):
+            return False
+        if not getattr(subclass, 'is_model', False):
+            return False
+        req = getattr(subclass, '_required_attribute_keys', None)
+        return isinstance(req, set) and len(req) == 0
+
+class _MANDATORY(type):
+    def __instancecheck__(cls, instance):
+        if isinstance(instance, type):
+            mcls = instance
+        else:
+            mcls = instance.__class__
+        if not getattr(mcls, 'is_model', False):
+            return False
+        opts = getattr(mcls, '_optional_attributes_and_defaults', None)
+        return isinstance(opts, dict) and len(opts) == 0
+
+    def __subclasscheck__(cls, subclass):
+        if not isinstance(subclass, type):
+            return False
+        if not getattr(subclass, 'is_model', False):
+            return False
+        opts = getattr(subclass, '_optional_attributes_and_defaults', None)
+        return isinstance(opts, dict) and len(opts) == 0

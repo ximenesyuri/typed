@@ -14,14 +14,18 @@ from typed.mods.helper.models import (
     _EXACT,
     _ORDERED,
     _RIGID,
-    _optional
+    _optional,
+    _OPTIONAL,
+    _MANDATORY
 )
 
 MODEL_METATYPES = (type(_MODEL), type(_EXACT), type(_ORDERED), type(_RIGID), _ModelFactory)
-MODEL   = _MODEL('MODEL', (type, ), {'__display__': 'MODEL'})
-EXACT   = _EXACT('EXACT', (type, ), {'__display__': 'EXACT'})
-ORDERED = _ORDERED('ORDERED', (type, ), {'__display__': 'ORDERED'})
-RIGID   = _RIGID('RIGID', (type, ), {'__display__': 'RIGID'})
+MODEL     = _MODEL('MODEL', (type, ), {'__display__': 'MODEL'})
+EXACT     = _EXACT('EXACT', (type, ), {'__display__': 'EXACT'})
+ORDERED   = _ORDERED('ORDERED', (type, ), {'__display__': 'ORDERED'})
+RIGID     = _RIGID('RIGID', (type, ), {'__display__': 'RIGID'})
+OPTIONAL  = _OPTIONAL('OPTIONAL', (type,), {'__display__': 'OPTIONAL'})
+MANDATORY = _MANDATORY('MANDATORY', (type,), {'__display__': 'MANDATORY'})
 
 def Optional(typ: Type, default_value: Any=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
@@ -778,61 +782,6 @@ def Validate(entity: dict, model: Type[Json]) -> Json:
         )
     return entity
 
-def OPTIONAL(base_model: Type[Json], *, nullable: bool = False) -> Type[Json]:
-    if not isinstance(base_model, MODEL_METATYPES):
-        raise TypeError(f"OPTIONAL(...) requires a Model-type, got {base_model!r}")
-
-    req_attrs = getattr(base_model, '_required_attributes_and_types', ())
-    opt_defs  = getattr(base_model, '_optional_attributes_and_defaults', {})
-
-    new_kwargs= {}
-
-    for name, typ in req_attrs:
-        new_kwargs[name] = _optional(typ, None, nullable)
-
-    for name, wrapper in opt_defs.items():
-        new_kwargs[name] = _optional(wrapper.type, wrapper.default_value, nullable)
-
-    if getattr(base_model, 'is_exact', False):
-        new_model = Exact(__extends__=base_model, **new_kwargs)
-    elif getattr(base_model, 'is_rigid', False):
-        new_model = Rigid(__extends__=base_model, **new_kwargs)
-    elif getattr(base_model, 'is_ordered', False):
-        new_model = Ordered(__extends__=base_model, **new_kwargs)
-    else:
-        new_model = Model(__extends__=base_model, **new_kwargs)
-
-    new_model.is_optional  = True
-    new_model.is_mandatory = False
-    return new_model
-
-def MANDATORY(model: Type[Json]) -> Type[Json]:
-    if not isinstance(model, MODEL_METATYPES):
-        raise TypeError(f"MANDATORY(...) requires a Model‐type, got {model!r}")
-
-    req_attrs = getattr(model, '_required_attributes_and_types', ())
-    opt_defs  = getattr(model, '_optional_attributes_and_defaults', {})
-
-    new_kwargs = {}
-    for name, typ in req_attrs:
-        new_kwargs[name] = typ
-    for name, wrapper in opt_defs.items():
-        new_kwargs[name] = wrapper.type
-
-    if getattr(model, 'is_exact', False):
-        new_model = Exact(__extends__=model, **new_kwargs)
-    elif getattr(model, 'is_rigid', False):
-        new_model = Rigid(__extends__=model, **new_kwargs)
-    elif getattr(model, 'is_ordered', False):
-        new_model = Ordered(__extends__=model, **new_kwargs)
-    else:
-        new_model = Model(__extends__=model, **new_kwargs)
-
-    new_model.is_mandatory = True
-    new_model.is_optional  = False
-
-    return new_model
-
 def Forget(model: Type[Json], entries: list) -> Type[Json]:
     if not isinstance(model, type(_MODEL)):
         raise TypeError(f"forget expects a Model-type. Got: {model}")
@@ -859,7 +808,7 @@ def Forget(model: Type[Json], entries: list) -> Type[Json]:
             new_kwargs[k] = optional_types[k]
     return Model(**new_kwargs)
 
-def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
+def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=True):
     def wrap(cls):
         annotations = cls.__annotations__
         is_nullable = getattr(cls, '__nullable__', nullable)
@@ -931,30 +880,112 @@ def rigid(_cls=None, *, extends=None, conditions=None):
     if _cls is None: return wrap
     else: return wrap(_cls)
 
-def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
+def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=True):
     def wrap(cls):
-        annotations = cls.__annotations__
-        is_nullable = getattr(cls, '__nullable__', nullable)
-        kwargs = {}
-        for name, type_hint in annotations.items():
-            if hasattr(cls, name):
-                default = getattr(cls, name)
+        is_null = getattr(cls, '__nullable__', nullable)
+
+        if getattr(cls, 'is_model', False):
+            old_req = getattr(cls, '_required_attributes_and_types', ())
+            old_opt = getattr(cls, '_optional_attributes_and_defaults', {})
+
+            new_kwargs = {}
+            for name, typ in old_req:
+                new_kwargs[name] = _optional(typ, None, is_null)
+            for name, wrappr in old_opt.items():
+                new_kwargs[name] = _optional(wrappr.type, wrappr.default_value, is_null)
+
+            if getattr(cls, 'is_exact', False):
+                new_m = Exact(__extends__=cls, **new_kwargs)
+            elif getattr(cls, 'is_rigid', False):
+                new_m = Rigid(__extends__=cls, **new_kwargs)
+            elif getattr(cls, 'is_ordered', False):
+                new_m = Ordered(__extends__=cls, **new_kwargs)
             else:
-                default = None
-            kwargs[name] = _optional(type_hint, default, is_nullable)
-        return_model = Model(
-            __extends__=extends,
-            __conditions__=conditions,
-            __exact__=exact,
-            __ordered__=ordered,
-            __rigid__=rigid,
+                new_m = Model(__extends__=cls, **new_kwargs)
+
+            new_m.is_optional  = True
+            new_m.is_mandatory = False
+
+            for a in ('__name__','__qualname__','__module__','__doc__'):
+                setattr(new_m, a, getattr(cls, a))
+            return new_m
+
+        ann = getattr(cls, '__annotations__', {})
+        kwargs = {}
+        for name, hint in ann.items():
+            default = getattr(cls, name, None)
+            kwargs[name] = _optional(hint, default, is_null)
+
+        built = Model(
+            __extends__   = extends,
+            __conditions__= conditions,
+            __exact__     = exact,
+            __ordered__   = ordered,
+            __rigid__     = rigid,
             **kwargs
         )
-        return_model.__name__ = cls.__name__
-        return_model.__qualname__ = cls.__qualname__
-        return_model.__module__ = cls.__module__
-        return_model.__doc__ = cls.__doc__
-        return return_model
+        for a in ('__name__','__qualname__','__module__','__doc__'):
+            setattr(built, a, getattr(cls, a))
+        return built
+
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)
+
+def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
+    from typed.mods.helper.models import _Optional as _Opt
+
+    def wrap(cls):
+        if getattr(cls, 'is_model', False):
+            old_req = getattr(cls, '_required_attributes_and_types', ())
+            old_opt = getattr(cls, '_optional_attributes_and_defaults', {})
+
+            new_kwargs = {}
+            for name, typ in old_req:
+                new_kwargs[name] = typ
+            for name, wrappr in old_opt.items():
+                new_kwargs[name] = wrappr.type
+
+            if getattr(cls, 'is_exact', False):
+                new_m = Exact(__extends__=cls, **new_kwargs)
+            elif getattr(cls, 'is_rigid', False):
+                new_m = Rigid(__extends__=cls, **new_kwargs)
+            elif getattr(cls, 'is_ordered', False):
+                new_m = Ordered(__extends__=cls, **new_kwargs)
+            else:
+                new_m = Model(__extends__=cls, **new_kwargs)
+
+            new_m.is_mandatory = True
+            new_m.is_optional  = False
+
+            for a in ('__name__','__qualname__','__module__','__doc__'):
+                setattr(new_m, a, getattr(cls, a))
+            return new_m
+
+        ann = getattr(cls, '__annotations__', {})
+        kwargs = {}
+        for name, hint in ann.items():
+            if isinstance(hint, _Opt):
+                base = hint.type
+            else:
+                base = hint
+            kwargs[name] = base
+
+        built = Model(
+            __extends__   = extends,
+            __conditions__= conditions,
+            __exact__     = exact,
+            __ordered__   = ordered,
+            __rigid__     = rigid,
+            **kwargs
+        )
+        for a in ('__name__','__qualname__','__module__','__doc__'):
+            setattr(built, a, getattr(cls, a))
+        built.is_mandatory = True
+        built.is_optional  = False
+        return built
+
     if _cls is None:
         return wrap
     else:

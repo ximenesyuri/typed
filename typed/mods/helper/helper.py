@@ -231,8 +231,8 @@ def _builtin_nulls():
     }
 
 def _get_null_object(typ):
-    from typed.models import MODEL, EXACT, Instance
-    if any(isinstance(typ, kind) for kind in (MODEL, EXACT)):
+    from typed.models import MODEL, EXACT, ORDERED, RIGID, Validate
+    if any(isinstance(typ, kind) for kind in (MODEL, EXACT, ORDERED, RIGID)):
         required = dict(getattr(typ, '_required_attributes_and_types', ()))
         optional = getattr(typ, '_optional_attributes_and_defaults', {})
         result = {}
