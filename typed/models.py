@@ -6,7 +6,7 @@ from typed.mods.helper.models import (
     _ModelFactory,
     ModelFactory,
     _get_keys_in_defined_order,
-    _attach_base_attrs,
+    _attach_model_attrs,
     _process_extends,
     _merge_attrs,
     _collect_attributes,
@@ -259,7 +259,7 @@ def Model(
             '_initial_ordered_keys': ordered_keys
         }
     )
-    _attach_base_attrs(new_model, extended_models)
+    _attach_model_attrs(new_model, extended_models)
     return new_model
 
 def Exact(
@@ -485,7 +485,8 @@ def Exact(
         }
     )
 
-    _attach_base_attrs(new_model, extended_models)
+    _attach_model_attrs(new_model, extended_models)
+    new_model.is_exact = True
     return new_model
 
 def Ordered(
@@ -605,7 +606,8 @@ def Ordered(
         }
     )
 
-    _attach_base_attrs(new_model, extended_models)
+    _attach_model_attrs(new_model, extended_models)
+    new_model.is_ordered = True
     return new_model
 
 def Rigid(
@@ -705,7 +707,8 @@ def Rigid(
         }
     )
 
-    _attach_base_attrs(new_model, extended_models)
+    _attach_model_attrs(new_model, extended_models)
+    new_model.is_rigid = True
     return new_model
 
 def Instance(entity: dict, model: Type[Json]) -> Json:
@@ -774,6 +777,61 @@ def Instance(entity: dict, model: Type[Json]) -> Json:
             + "\n".join(errors)
         )
     return entity
+
+def OPTIONAL(base_model: Type[Json], *, nullable: bool = False) -> Type[Json]:
+    if not isinstance(base_model, MODEL_METATYPES):
+        raise TypeError(f"OPTIONAL(...) requires a Model-type, got {base_model!r}")
+
+    req_attrs = getattr(base_model, '_required_attributes_and_types', ())
+    opt_defs  = getattr(base_model, '_optional_attributes_and_defaults', {})
+
+    new_kwargs= {}
+
+    for name, typ in req_attrs:
+        new_kwargs[name] = _optional(typ, None, nullable)
+
+    for name, wrapper in opt_defs.items():
+        new_kwargs[name] = _optional(wrapper.type, wrapper.default_value, nullable)
+
+    if getattr(base_model, 'is_exact', False):
+        new_model = Exact(__extends__=base_model, **new_kwargs)
+    elif getattr(base_model, 'is_rigid', False):
+        new_model = Rigid(__extends__=base_model, **new_kwargs)
+    elif getattr(base_model, 'is_ordered', False):
+        new_model = Ordered(__extends__=base_model, **new_kwargs)
+    else:
+        new_model = Model(__extends__=base_model, **new_kwargs)
+
+    new_model.is_optional  = True
+    new_model.is_mandatory = False
+    return new_model
+
+def MANDATORY(model: Type[Json]) -> Type[Json]:
+    if not isinstance(model, MODEL_METATYPES):
+        raise TypeError(f"MANDATORY(...) requires a Model‐type, got {model!r}")
+
+    req_attrs = getattr(model, '_required_attributes_and_types', ())
+    opt_defs  = getattr(model, '_optional_attributes_and_defaults', {})
+
+    new_kwargs = {}
+    for name, typ in req_attrs:
+        new_kwargs[name] = typ
+    for name, wrapper in opt_defs.items():
+        new_kwargs[name] = wrapper.type
+
+    if getattr(model, 'is_exact', False):
+        new_model = Exact(__extends__=model, **new_kwargs)
+    elif getattr(model, 'is_rigid', False):
+        new_model = Rigid(__extends__=model, **new_kwargs)
+    elif getattr(model, 'is_ordered', False):
+        new_model = Ordered(__extends__=model, **new_kwargs)
+    else:
+        new_model = Model(__extends__=model, **new_kwargs)
+
+    new_model.is_mandatory = True
+    new_model.is_optional  = False
+
+    return new_model
 
 def Forget(model: Type[Json], entries: list) -> Type[Json]:
     if not isinstance(model, type(_MODEL)):
