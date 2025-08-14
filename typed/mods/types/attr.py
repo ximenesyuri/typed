@@ -23,6 +23,7 @@ def ATTR(attributes):
 
     return type(type_name, (ATTR_,), {'_required_attributes': tuple(attributes)})
 
+NULLABLE       = ATTR('__null__')
 CALLABLE       = ATTR('__call__')
 ITERABLE       = ATTR('__iter__')
 ITERATOR       = ATTR('__next__')
@@ -35,6 +36,7 @@ ASYNC_ITERATOR = ATTR('__anext__')
 CONTEXT        = ATTR(['__enter__', '__exit__'])
 ASYNC_CONTEXT  = ATTR(['__aenter__', '__aexit__'])
 
+NULLABLE.__display__       = "NULLABLE"
 CALLABLE.__display__       = "CALLABLE"
 ITERABLE.__display__       = "ITERABLE"
 ITERATOR.__display__       = "ITERATOR"
