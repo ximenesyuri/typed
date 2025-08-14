@@ -14,28 +14,26 @@ def Inter(*types: Tuple_[Type]) -> Type:
     Build the 'intersection' of types:
         > an object 'p' of the Inter(X, Y, ...)
         > is an object of every 'X, Y, ...'
-    OBS: not applied to builtin types
     """
     unique_types = tuple(set(types))
+    print(unique_types)
 
-    if not unique_types:
-        return object
     if len(unique_types) == 1:
         return unique_types[0]
 
     if any(not isinstance(t, type) for t in unique_types):
         raise TypeError("All arguments must be types.")
 
-    if any(t.__module__ == 'builtins' and t is not object for t in unique_types):
-        raise TypeError("Cannot create an intersection type with specific built-in types due to potential layout conflicts.")
+    non_builtin_types = [t for t in unique_types if not t.__module__ == 'builtins']
 
     class _Inter(type):
         def __instancecheck__(cls, instance):
-            return all(isinstance(instance, t) for t in cls.__types__)
+            return all(isinstance(instance, t) for t in non_builtin_types)
 
     class_name = f"Inter({', '.join(t.__name__ for t in unique_types)})"
-
-    return _Inter(class_name, (object,), {'__types__': unique_types})
+    if non_builtin_types:
+        return _Inter(class_name, (), {'__types__': unique_types})
+    return type(None)
 
 @cache
 def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
@@ -68,7 +66,9 @@ def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
                 return False
             return all(f(instance) for f in real_filters)
 
-    return _Filter(f"Filter({X.__name__})", (X,), {})
+    class_name = f"Filter({X.__name__})"
+
+    return _Filter(class_name, (X,), {"__display__": class_name})
 
 @cache
 def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
@@ -104,7 +104,7 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
                 return False
             return not any(isinstance(instance, subtype) for subtype in cls.__excluded_subtypes__)
 
-    return _Compl(class_name, (X,), {'__base_type__': X, '__excluded_subtypes__': unique_subtypes})
+    return _Compl(class_name, (X,), {"__display__": class_name, '__base_type__': X, '__excluded_subtypes__': unique_subtypes})
 
 @cache
 def Regex(regex_string: str) -> Type[str]:
@@ -130,7 +130,7 @@ def Regex(regex_string: str) -> Type[str]:
             return issubclass(subclass, str)
 
     class_name = f"Regex({regex_string})"
-    return _Regex(class_name, (str,), {}, regex_pattern=regex_string)
+    return _Regex(class_name, (str,), {"__display__": class_name}, regex_pattern=regex_string)
 
 @cache
 def Range(x: int, y: int) -> Type[int]:
@@ -150,13 +150,13 @@ def Range(x: int, y: int) -> Type[int]:
             dct['_upper_bound'] = upper_bound
             return super().__new__(cls, name, bases, dct)
 
-        def __instancecheck__(cls, instance: int) -> bool:
+        def __instancecheck__(cls, instance):
             return isinstance(instance, int) and cls._lower_bound <= instance <= cls._upper_bound
 
-        def __subclasscheck__(cls, subclass: Type) -> bool:
+        def __subclasscheck__(cls, subclass):
             return issubclass(subclass, int)
     class_name = f"Range({x}, {y})"
-    return _Range(class_name, (int,), {}, lower_bound=x, upper_bound=y)
+    return _Range(class_name, (int,), {"__display__": class_name}, lower_bound=x, upper_bound=y)
 
 @cache
 def Not(*types: Tuple_[Type]) -> Type:
