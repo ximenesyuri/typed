@@ -182,22 +182,27 @@ def Not(*types: Tuple_[Type]) -> Type:
             return not any(issubclass(subclass, typ) for typ in cls.__types__)
 
     class_name = f"Not({', '.join(t.__name__ for t in _flattypes)})"
-    return _Not(class_name, (), {'__types__': _flattypes})
+    return _Not(class_name, (), {"__display__": class_name, '__types__': _flattypes})
 
 @cache
-def Values(typ: Type, *values: Tuple_[Any_]) -> Type:
+def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
     """
     Build the 'valued-type':
-        > 'x' is an object of 'Values(typ, *values)' iff:
+        > 'x' is an object of 'Enum(typ, *values)' iff:
             1. isinstance(x, typ) is True
             2. x in {v1, v2, ...}
-        > Values(typ, ...) is a subclass of 'typ'
+        > Enum(typ, ...) is a subclass of 'typ'
     """
     values_set = set(values)
-    class_name = "Values({} : {})".format(getattr(typ, '__name__', repr(typ)),
-                                          ", ".join(repr(v) for v in values))
-    class _Values(type):
+    class _Enum(type):
         def __instancecheck__(cls, instance):
+            if type(typ) is not type:
+                raise TypeError(
+                        f"Type mismatch for arg '{typ}':" +
+                        f"\n\t[received_type]: '{type(typ).__name__}'" +
+                        f"\n\t[expected_type]: 'TYPE'"
+                    )
+
             for value in values:
                 if not type(value) is typ:
                     raise TypeError(
@@ -210,31 +215,27 @@ def Values(typ: Type, *values: Tuple_[Any_]) -> Type:
 
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, cls.__base_type__)
-
-    return _Values(class_name, (typ,), {
-        '__base_type__': typ,
-        '__allowed_values__': values_set
-    })
-Enum = Values
+    class_name = "Enum({} : {})".format(getattr(typ, '__name__', repr(typ)), ", ".join(repr(v) for v in values))
+    return _Enum(class_name, (typ,), {"__display__": class_name, '__base_type__': typ, '__allowed_values__': values_set})
 
 @cache
 def Single(x: Any_) -> Type:
     """
     Build the 'singleton-type':
         > the only object of 'Single(x)' is 'x'
-        > 'Is(x)' is a subclass of 'type(x)'
+        > 'Single(x)' is a subclass of 'type(x)'
     """
     t = type(x)
-    class_name = f"Single({repr(x)})"
 
     class _Single(type):
         def __instancecheck__(cls, instance):
-            return type(instance) is t and instance == cls.__the_value__
+            return type(instance) is t and instance == cls.__value__
 
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, t)
 
-    return _Single(class_name, (t,), {'__the_value__': x})
+    class_name = f"Single({repr(x)})"
+    return _Single(class_name, (t,), {"__display__": class_name, '__value__': x})
 Singleton = Single
 
 @cache
@@ -269,12 +270,18 @@ def Len(typ: Type, size: int) -> Type:
 
     class _Len(type(typ)):
         def __instancecheck__(cls, instance):
+            if type(typ) is not type:
+                raise TypeError(
+                        f"Type mismatch for arg '{typ}':" +
+                        f"\n\t[received_type]: '{type(typ).__name__}'" +
+                        f"\n\t[expected_type]: 'TYPE'"
+                    )
             return isinstance(instance, typ) and len(instance) == cls.__len__
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, typ)
 
     class_name = f"Len({getattr(typ, '__name__', str(typ))}, {size})"
-    return _Len(class_name, (typ,), {'__len__': size})
+    return _Len(class_name, (typ,), {"__display__": class_name, '__len__': size})
 
 @cache
 def Maybe(*types: Tuple_[Type]) -> Type:
@@ -296,8 +303,14 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
     """
     class _Subtypes(type):
         def __instancecheck__(cls, instance):
-            return isinstance(instance, type) and any(issubclass(instance, typ) for typ in types)
+            for typ in types:
+                if type(typ) is not type:
+                    raise TypeError(
+                            f"Type mismatch for arg '{typ}':" +
+                            f"\n\t[received_type]: '{type(typ).__name__}'" +
+                            f"\n\t[expected_type]: 'TYPE'"
+                        )
+            return any(issubclass(instance, typ) for typ in types)
 
     class_name = f"Sub({', '.join(t.__name__ for t in types)})"
-    return _Subtypes(class_name, (), {})
-
+    return _Subtypes(class_name, (), {"__display__": class_name})
