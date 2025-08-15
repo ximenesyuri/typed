@@ -1,7 +1,7 @@
 from typed.mods.types.base          import Int, Float, Str, Json, Any, Path
-from typed.mods.types.func          import Function, TypedFuncType
+from typed.mods.types.func          import Function, Typed
 from typed.mods.factories.base      import Union, Prod, Dict
-from typed.mods.factories.func      import TypedFunc
+from typed.mods.factories.func      import Typed
 from typed.mods.factories.generics  import Filter, Regex, Range, Len
 from typed.mods.factories.specifics import Url
 from typed.mods.decorators          import typed
@@ -95,8 +95,8 @@ Hostname.__display__ = "Hostname"
 IPv4.__display__     = "IPv4"
 
 # Function
-Decorator      = TypedFunc(Function, cod=Function)
-TypedDecorator = TypedFunc(TypedFuncType, cod=TypedFuncType)
+Decorator      = Typed(Function, cod=Function)
+TypedDecorator = Typed(Typed, cod=Typed)
 VariableFunc   = Filter(Function, typed(_has_var_arg))
 KeywordFunc    = Filter(Function, typed(_has_var_kwarg))
 

@@ -1,6 +1,6 @@
 from typing import Union, Type, List, Any, Dict
 from typed.mods.types.base import Json
-from typed.mods.helper.helper import _get_type_display_name
+from typed.mods.helper.helper import _name
 from typed.mods.helper.models import (
     _Optional,
     _ModelFactory,
@@ -29,7 +29,7 @@ MANDATORY = _MANDATORY('MANDATORY', (type,), {'__display__': 'MANDATORY'})
 
 def Optional(typ: Type, default_value: Any=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
-        raise TypeError(f"'{_get_type_display_name(typ)}' is not a type.")
+        raise TypeError(f"'{_name(typ)}' is not a type.")
     from typed.mods.types.base import Any
     if default_value is None:
         return _Optional(typ, None)
@@ -37,8 +37,8 @@ def Optional(typ: Type, default_value: Any=None):
         raise TypeError(
             f"Error while defining optional type:\n"
             f" ==> '{default_value}': has wrong type\n"
-            f"     [received_type]: '{_get_type_display_name(type(default_value))}'\n"
-            f"     [expected_type]: '{_get_type_display_name(typ)}'"
+            f"     [received_type]: '{_name(type(default_value))}'\n"
+            f"     [expected_type]: '{_name(typ)}'"
         )
     return _Optional(typ, default_value)
 
@@ -108,8 +108,8 @@ def Model(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
-                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
             elif name in self._defined_optional_attributes:
@@ -117,8 +117,8 @@ def Model(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
-                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
             else:
@@ -319,8 +319,8 @@ def Exact(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
-                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
             elif name in self._defined_optional_attributes:
@@ -328,8 +328,8 @@ def Exact(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_get_type_display_name(type(value))}', "
-                        f"but expected type '{_get_type_display_name(expected_type)}'."
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
             else:
@@ -758,8 +758,8 @@ def Validate(entity: dict, model: Type[Json]) -> Json:
             if not type_is_correct:
                 errors.append(
                     f" ==> '{attr_name}': has a wrong type.\n" +
-                    f"     [received_type]: '{_get_type_display_name(type(actual_value))}'\n" +
-                    f"     [expected_type]: '{_get_type_display_name(expected_type)}'"
+                    f"     [received_type]: '{_name(type(actual_value))}'\n" +
+                    f"     [expected_type]: '{_name(expected_type)}'"
                 )
     if model_metaclass.__name__ == "_Exact":
         all_expected_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
@@ -777,7 +777,7 @@ def Validate(entity: dict, model: Type[Json]) -> Json:
 
     if errors:
         raise TypeError(
-            f"'{repr(entity)}' is not an instance of model '{_get_type_display_name(model)}':\n"
+            f"'{repr(entity)}' is not an instance of model '{_name(model)}':\n"
             + "\n".join(errors)
         )
     return entity

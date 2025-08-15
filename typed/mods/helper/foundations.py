@@ -1,5 +1,5 @@
 from typed.mods.factories.func import TypedFunc
-from typed.mods.helper.helper import _get_type_display_name
+from typed.mods.helper.helper import _type_name
 
 def _finite_instances_of(typ):
     if hasattr(typ, '__allowed_values__'):
@@ -24,7 +24,7 @@ def _equivalence(X, Y):
         and getattr(X, "__types__", None) == getattr(Y, "__types__", None)
     )
 
-class __CAT(type):
+class _CAT(type):
     """
     Metaclass for category objects.
 
@@ -45,7 +45,7 @@ class __CAT(type):
     def __call__(self, obj, morp):
         if not isinstance((obj, morp), self):
             raise TypeError(
-                f"({_get_type_display_name(obj)}, {_get_type_display_name(morp)}): is not a category object.\n"
+                f"({_type_name(obj)}, {_type_name(morp)}): is not a category object.\n"
                 f" ==> 'Morp={morp.__name__}' should be a subtype of 'TypedFunc(Obj, cod=Obj)'."
             )
         return (obj, morp)

@@ -1,15 +1,15 @@
-from typed.mods.types.func import TypedFuncType
-from typed.mods.types.base import BoolFuncType, TYPE
+from typed.mods.types.func import Typed
+from typed.mods.types.base import Condition, TYPE
 from functools import wraps, lru_cache
 
 def typed(arg):
-    """Decorator that wraps a function with the appropriate TypedFuncType subclass."""
+    """Decorator that wraps a function with the appropriate Typed subclass."""
     if isinstance(arg, type):
         return _variable_checker(arg)
     elif callable(arg):
-        wrapped_func = TypedFuncType(arg)
+        wrapped_func = Typed(arg)
         try:
-            wrapped_func = BoolFuncType(arg)
+            wrapped_func = Condition(arg)
         except TypeError:
             pass
         return wraps(arg)(wrapped_func)

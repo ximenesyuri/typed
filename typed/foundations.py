@@ -26,7 +26,7 @@ class SET:
 
 SET.__display__ = "SET"
 
-CAT = __CAT("CAT", (), {})
+CAT = _CAT("CAT", (), {})
 CAT.__display__ = "CAT"
 
 @typed

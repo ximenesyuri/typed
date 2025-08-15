@@ -6,7 +6,7 @@ from typed.mods.types.other         import *
 from typed.mods.factories.generics  import *
 from typed.mods.factories.specifics import *
 from typed.mods.factories.base      import *
-from typed.mods.factories.func      import *
+#from typed.mods.factories.func      import *
 from typed.mods.decorators          import *
 
 # the null typed function

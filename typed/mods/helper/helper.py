@@ -2,25 +2,6 @@ import re
 import inspect
 from typing import get_type_hints
 
-def _flat(*types):
-    if not types:
-        return (), False
-    flat_list = []
-    is_flexible = True
-    def _flatten(item):
-        if isinstance(item, type):
-           flat_list.append(item)
-        elif isinstance(item, (list, tuple)):
-            for sub_item in item:
-                _flatten(sub_item)
-        else:
-            raise TypeError(f"Unsupported type in _flat: {type(item)}")
-    for typ in types:
-       _flatten(typ)
-    if not all(isinstance(t, type) for t in flat_list):
-        raise TypeError("All arguments must be types.")
-    return (tuple(flat_list), True)
-
 def _runtime_domain(func):
     def wrapper(*args, **kwargs):
         types_at_runtime = tuple(type(arg) for arg in args)
@@ -102,24 +83,19 @@ def _hinted_codomain(func):
         pass
     return inspect.Signature.empty
 
-def _get_type_display_name(tp):
-    if hasattr(tp, '__display__'):
-        return tp.__display__
-    if hasattr(tp, '__types__'):
-        types = tp.__types__
-        cname = getattr(tp, '__name__', '')
-        if tuple in getattr(tp, '__bases__', ()):
-            return f"Prod({', '.join(_get_type_display_name(t) for t in types)})"
-        elif 'union' in cname.lower():
-            return f"Union({', '.join(_get_type_display_name(t) for t in types)})"
-        else:
-            return ', '.join(_get_type_display_name(t) for t in types)
-    name = getattr(tp, '__name__', None)
+def _name(obj):
+    if hasattr(obj, '__display__'):
+        return obj.__display__
+    name = getattr(obj, '__name__', None)
     if name in ['int', 'float', 'str', 'bool']:
         return name.capitalize()
     if name == 'NoneType':
         return "Nill"
-    return name or str(tp)
+    if name:
+        return name
+    if str(obj):
+        return str(obj)
+    return obj
 
 def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
@@ -127,8 +103,8 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         actual_value = args[i]
         actual_type = type(actual_value)
 
-        expected_display_name = _get_type_display_name(expected_type)
-        actual_display_name = _get_type_display_name(actual_type)
+        expected_display_name = _name(expected_type)
+        actual_display_name = _name(actual_type)
 
         if expected_display_name == actual_display_name:
             continue
@@ -150,8 +126,8 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
     return True
 
 def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
-    expected_display_name = _get_type_display_name(expected_codomain)
-    actual_display_name = _get_type_display_name(actual_codomain)
+    expected_display_name = _name(expected_codomain)
+    actual_display_name = _name(actual_codomain)
 
     if (
         isinstance(expected_codomain, type)
@@ -169,11 +145,11 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
                             f"\n ==> received the value '{result}'."
                             f"\n     [expected_type]: '{expected_display_name}'"
                             f"\n     [received_type]: '{actual_display_name}'"
-                            f"\n     [failed_typed]:  '{_get_type_display_name(t)}'"
+                            f"\n     [failed_typed]:  '{_name(t)}'"
                         )
             return
 
-        expected_union_names = [_get_type_display_name(t) for t in union_types]
+        expected_union_names = [_name(t) for t in union_types]
         raise TypeError(
             f"Codomain mismatch in func '{func.__name__}':"
             f"\n ==> received the value '{result}'."
@@ -194,7 +170,7 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
             f"\n ==> received the value '{result}'."
             f"\n    [expected_type]: '{expected_display_name}'"
             f"\n    [received_type]: '{actual_display_name}'"
-            f"\n    [failed_typed]:  '{_get_type_display_name(expected_codomain)}'"
+            f"\n    [failed_typed]:  '{_name(expected_codomain)}'"
         )
 
     return True
@@ -204,7 +180,7 @@ def _nill() -> type(None):
 
 def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
-    from typed.mods.types.func import TypedFuncType
+    from typed.mods.types.func import Typed
     from typed.mods.types.base import Pattern, Any
     from typed.models import Model, MODEL, Exact, EXACT
 
@@ -224,15 +200,15 @@ def _builtin_nulls():
         bool: False,
         type(None): None,
         Any: None,
-        TypedFuncType: TypedFuncType(_nill),
+        Typed: Typed(_nill),
         Pattern: r'',
         MODEL: Model(),
         EXACT: Exact()
     }
 
 def _get_null_object(typ):
-    from typed.models import MODEL, EXACT, ORDERED, RIGID, Validate
-    if any(isinstance(typ, kind) for kind in (MODEL, EXACT, ORDERED, RIGID)):
+    from typed.models import MODEL_METATYPES
+    if isinstance(typ, MODEL_METATYPES):
         required = dict(getattr(typ, '_required_attributes_and_types', ()))
         optional = getattr(typ, '_optional_attributes_and_defaults', {})
         result = {}
@@ -247,6 +223,7 @@ def _get_null_object(typ):
 
     if typ in _builtin_nulls():
         return _builtin_nulls()[typ]
+
     if hasattr(typ, '__bases__'):
         bases = typ.__bases__
         if list in bases:
@@ -282,6 +259,8 @@ def _get_null_object(typ):
                     return {None: vnull}
             else:
                 return {}
+    if hasattr(typ, "__null__"):
+        return typ.__null__
     return None
 
 def _is_null_of_type(x, typ):
@@ -299,12 +278,49 @@ def _variable_checker(typ):
             raise TypeError(
                 f"Mismatch type in variable value.\n"
                 f" ==> received value '{x}':\n"
-                f"     [expected_type]: '{_get_type_display_name(typ)}'\n"
-                f"     [received_type]: '{_get_type_display_name(type(x))}'"
+                f"     [expected_type]: '{_name(typ)}'\n"
+                f"     [received_type]: '{_name(type(x))}'"
             )
         return x
     return wrapper
 
+def _get_args(self):
+    func = getattr(self, 'func', self)
+    sig = inspect.signature(func)
+    hints = get_type_hints(func)
+    result = {}
+    from typed.mods.types.base import Empty
+    for name, param in sig.parameters.items():
+        if param.kind in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        ):
+            ann = hints.get(name, None)
+            default = Empty if param.default is inspect._empty else param.default
+            result[name] = {
+                "type": ann,
+                "default": default
+            }
+    return result
+
+def _get_kwargs(self):
+    all_args = _get_args(self)
+    from typed.mods.types.base import Empty
+    return {
+        name: info
+        for name, info in all_args.items()
+        if info['default'] is not Empty
+    }
+
+def _get_pos_args(self):
+    all_args = _get_args(self)
+    from typed.mods.types.base import Empty
+    return {
+        name: info
+        for name, info in all_args.items()
+        if info['default'] is Empty
+    }
 def _get_num_args(func):
     """
     1. Returns the number of fixed arguments of a function.
@@ -346,3 +362,28 @@ def _get_num_pos_args(func):
         if param.kind in (param.POSITIONAL_ONLY, param.POSITIONAL_OR_KEYWORD) and param.default is param.empty:
             num_args += 1
     return num_args
+
+def _name_list(*types):
+    return ', '.join(_name(t) for t in types)
+
+def _inner_union(*types):
+    class _union_meta(type):
+        def __instancecheck__(cls, instance):
+            return isinstance(instance, tuple(cls.__types__))
+
+    return _union_meta("Inner Union", (), {'__types__': types})
+
+def _inner_dict_union(*types):
+    class _union_meta(type):
+        def __instancecheck__(cls, instance):
+            for t in cls.__types__:
+                if isinstance(t, type) and hasattr(t, '__instancecheck__'):
+                    result = t.__instancecheck__(instance)
+                    if result:
+                        return True
+                else:
+                    result = isinstance(instance, t)
+                    if result:
+                        return True
+            return False
+    return _union_meta("Inner Union", (), {'__types__': types})

@@ -1,9 +1,16 @@
 import re
 from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as Callable_
-from typed.mods.helper.helper import _flat, _is_null_of_type, _get_null_object, _get_type_display_name
-from typed.mods.types.func import TypedFuncType
+from typed.mods.types.func import Typed
+from typed.mods.helper.helper import (
+    _is_null_of_type,
+    _get_null_object,
+    _name,
+    _name_list,
+    _inner_union,
+    _inner_dict_union
+)
 
-def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
+def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
     Build the 'union' of types:
         > an object 'p' of 'Union(X, Y, ...)'
@@ -11,24 +18,30 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
     Can be applied to typed functions:
         > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    from typed.mods.types.func import TypedFuncType
-    from typed.mods.helper.helper import _flat, _get_type_display_name
+    T = (Typed, type)
 
-    if args and all((not isinstance(f, type)) and isinstance(f, TypedFuncType) for f in args):
-        functors = args
-        domains = [f.domain for f in functors]
-        codomains = [f.codomain for f in functors]
+    if not args:
+        return type(None)
+    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
+        funcs = args
+        domains = [f.domain for f in funcs]
+        codomains = [f.codomain for f in funcs]
         dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        if any(not (isinstance(f, TypedFuncType) and not isinstance(f, type)) for f in functors):
-            raise TypeError("All functor arguments to Union must be TypedFuncType instances (not types)")
+        if any(not (isinstance(f, Typed) and not isinstance(f, type)) for f in funcs):
+            raise TypeError(
+                "Wrong type in Union factory: \n"
+                f" ==> {f}: has unexpected type\n"
+                 "     [expected_type] Typed"
+                f"     [received_type] {_name(type(t))}"
+            )
 
         def union_dispatcher(x):
             matching = []
-            for f, dom in zip(functors, dom_types):
+            for f, dom in zip(funcs, dom_types):
                 if isinstance(x, dom):
                     matching.append(f)
             if not matching:
-                allowed = ", ".join(_get_type_display_name(t) for t in dom_types)
+                allowed = ", ".join(_name(t) for t in dom_types)
                 raise TypeError(
                     f"No available functor matches input {x!r}. Must be instance of one of {allowed}."
                 )
@@ -52,44 +65,45 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[TypedFuncType]]) -> Union_[Type, Ty
                     )
             return first_val
 
-        union_dispatcher.__name__ = "Union(" + ", ".join(f.__name__ for f in functors) + ")"
+        union_dispatcher.__name__ = "Union(" + ", ".join(f.__name__ for f in funcs) + ")"
         union_dispatcher.__annotations__ = {
             "x": tuple(dom_types),
             "return": tuple(codomains)
         }
-        return TypedFuncType(union_dispatcher)
+        return Typed(union_dispatcher)
 
-    elif args and all(isinstance(f, type) for f in args):
-        _flattypes, _ = _flat(*args)
-        if not _flattypes:
-            class _EmptyUnion(type):
-                def __instancecheck__(cls, instance): return False
-                def __subclasscheck__(cls, subclass):
-                    from typed.mods.types.base import Any
-                    if subclass is cls or subclass is Any: return True
-                    return False
-            return _EmptyUnion("Union()", (), {})
-        class _Union(type):
-            def __instancecheck__(cls, instance):
-                return any(isinstance(instance, t) for t in cls.__types__)
-            def __subclasscheck__(cls, subclass):
-                from typed.mods.types.base import Any
-                if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
-                    return True
-                if subclass is cls or subclass is Any or subclass in cls.__types__:
-                    return True
-                return any(issubclass(subclass, t) for t in cls.__types__)
-        class_name = f"Union({', '.join(t.__name__ for t in _flattypes)})"
-        return _Union(class_name, (), {'__types__': _flattypes})
-
-    else:
-        types_seen = [type(f) for f in args]
+    elif all(isinstance(f, type) for f in args):
+        types = args
+    elif all(isinstance(t, T) for t in args):
         raise TypeError(
-            f"Union arguments must all be (1) TypedFuncType instances or (2) types (classes/constructed types), "
-            f"but received: {types_seen}"
+            "Mixed argument types: \n"
+            " ==> Union factory cannot receive both typed functions and types as arguments."
         )
+    else:
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                    "Wrong type in Union factory: \n"
+                    f" ==> {t}: has unexpected type\n"
+                     "     [expected_type] TYPE or Typed"
+                    f"     [received_type] {_name(type(t))}"
+                )
 
-def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type, TypedFuncType]:
+    class _Union(type):
+        def __instancecheck__(cls, instance):
+            return any(isinstance(instance, t) for t in cls.__types__)
+        def __subclasscheck__(cls, subclass):
+            from typed.mods.types.base import Any
+            if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
+                return True
+            if subclass is cls or subclass is Any or subclass in cls.__types__:
+                return True
+            return any(issubclass(subclass, t) for t in cls.__types__)
+
+    class_name = f"Union({_name_list(*types)})"
+    return _Union(class_name, (), {'__display__': class_name, '__types__': types})
+
+def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
     Build the 'product' of types:
         > the objects of 'Product(X, Y, ...)'
@@ -102,7 +116,10 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
         > 'Prod(f, g, ...): Prod(f.domain, g.domain, ...) -> Prod(f.codomain, g.codomain, ...)'
     """
 
-    if args and all((not isinstance(f, type)) and isinstance(f, TypedFuncType) for f in args):
+    T = (Typed, type)
+    if not args:
+        return type(None)
+    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
         in_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         out_types = [f.codomain for f in args]
         domain_type = Prod(*in_types)
@@ -121,13 +138,26 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
         prod_mapper._composed_domain_hint = (domain_type,)
         prod_mapper._composed_codomain_hint = codomain_type
         prod_mapper.__name__ = "Prod(" + ", ".join(f.__name__ for f in args) + ")"
-        return TypedFuncType(prod_mapper)
+        return Typed(prod_mapper)
 
     elif len(args) == 2 and isinstance(args[0], type) and isinstance(args[1], int) and args[1] > 0:
-        _flattypes = (args[0],) * args[1]
-        is_flexible = False
+        types = (args[0],) * args[1]
+    elif all(isinstance(t, type) for t in args):
+        types = args
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'Prod' factory cannot receive both typed functions and types as arguments."
+        )
     else:
-        _flattypes, is_flexible = _flat(*args)
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'Prod' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(type(t))}"
+            )
 
     class _Prod(type):
         def __instancecheck__(cls, instance):
@@ -136,13 +166,6 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
             if len(instance) != len(cls.__types__):
                 return False
             return all(isinstance(x, t) for x, t in zip(instance, cls.__types__))
-
-        def check(self, instance):
-            if not isinstance(instance, tuple):
-                return False
-            if len(instance) != len(self.__types__):
-                return False
-            return all(isinstance(x, t) for x, t in zip(instance, self.__types__))
 
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
@@ -158,10 +181,10 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[TypedFuncType]]) -> Union_[Type
         else:
             return tuple.__new__(cls, args)
 
-    class_name = f"Prod({', '.join(t.__name__ for t in _flattypes)})"
-    return _Prod(class_name, (tuple,), {'__types__': _flattypes, '__new__': prod_new})
+    class_name = f"Prod({_name_list(*types)})"
+    return _Prod(class_name, (tuple,), {"__display__": class_name, '__types__': types, '__new__': prod_new})
 
-def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
+def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'unordered product' of types:
         > the objects of 'UProd(X, Y, ...)'
@@ -171,7 +194,10 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
     Can be applied to typed functions:
         > 'UProd(f, g, ...): UProd(f.domain, g.domain, ...) -> UProd(f.codomain, g.codomain, ...)'
     """
-    if args and all(isinstance(f, TypedFuncType) for f in args):
+    T = (Typed, type)
+    if not args:
+        return type(None)
+    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
         dom_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         cod_types = [f.codomain for f in args]
         domain_type = UProd(*dom_types)
@@ -192,17 +218,31 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
         uprod_mapper._composed_domain_hint = (domain_type,)
         uprod_mapper._composed_codomain_hint = codomain_type
         uprod_mapper.__name__ = "UProd(" + ", ".join(f.__name__ for f in args) + ")"
-        return TypedFuncType(uprod_mapper)
-    _flattypes, is_flexible = _flat(*args)
+        return Typed(uprod_mapper)
+
+    elif all(isinstance(t, type) for t in args):
+        types = args
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'Prod' factory cannot receive both typed functions and types as arguments."
+        )
+    else:
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'Prod' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(type(t))}"
+            )
 
     class _Uprod(type):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
-
             if len(instance) != len(cls.__types__):
                 return False
-
             type_counts = {typ: cls.__types__.count(typ) for typ in cls.__types__}
             for elem in instance:
                 for typ in type_counts:
@@ -225,10 +265,11 @@ def UProd(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
             if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
             return False
-    class_name = f"UProd({', '.join(t.__name__ for t in _flattypes)})"
-    return _Uprod(class_name, (tuple,), {'__types__': _flattypes})
 
-def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
+    class_name = f"UProd({_name_list(*types)})"
+    return _Uprod(class_name, (tuple,), {"__display__": class_name, '__types__': types})
+
+def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'tuple' of types with flexible length:
         > the objects of 'Tuple(X, Y, ...)'
@@ -239,9 +280,11 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
     Can be applied to typed functions:
         > 'Tuple(f): Tuple(f.domain) -> Tuple(f.codomain)'
     """
+    if not args:
+        return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
         f = args[0]
-        if isinstance(f, TypedFuncType):
+        if isinstance(f, Typed):
             domain_type = Tuple(*f.domain)
             codomain_type = Tuple(f.codomain)
 
@@ -251,36 +294,35 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
             tuple_mapper.__annotations__ = {'xs': domain_type, 'return': codomain_type}
             tuple_mapper._composed_domain_hint = (domain_type,)
             tuple_mapper._composed_codomain_hint = codomain_type
-            return TypedFuncType(tuple_mapper)
-        raise TypeError(f"'{getattr(f,'__name__',str(f))}' is not a typed function.")
-
-    _flattypes, is_flexible = _flat(*args)
-
-    if not is_flexible and args:
-        raise ValueError("Tuple() based on this definition is always flexible; check _flat implementation.")
-
-    if not _flattypes:
-        class _EmptyFlexibleTupleMeta(type(tuple)):
-            def __instancecheck__(cls, instance):
-                return isinstance(instance, tuple)
-            def __subclasscheck__(cls, subclass):
-                from typed.mods.types.base import Any
-                if subclass is cls or subclass is Any or issubclass(subclass, tuple):
-                    return True
-                return False
-        return _EmptyFlexibleTupleMeta("Tuple()", (tuple,), {})
-
-    class _ElementUnionMeta(type):
-        def __instancecheck__(cls, instance):
-            return isinstance(instance, tuple(cls.__types__))
-
-    ElementUnion = _ElementUnionMeta("ElementUnion", (), {'__types__': _flattypes})
+            return Typed(tuple_mapper)
+        raise TypeError(
+            "Argument with unexpected type in Tuple factory."
+            f" ==> '{getattr(f, '__name__', str(f))}' has wrong type."
+             "     [expected_type] Typed"
+            f"     [received_type] {_name(type(f))}"
+        )
+    elif all(isinstance(f, type) for f in args):
+        types = args
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'Tuple' factory cannot receive both typed functions and types as arguments."
+        )
+    else:
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'Tuple' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(type(t)).__name__}"
+            )
 
     class _Tuple(type(tuple)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, tuple):
                 return False
-            return all(isinstance(x, ElementUnion) for x in instance)
+            return all(isinstance(x, _inner_union(*types)) for x in instance)
 
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
@@ -291,14 +333,10 @@ def Tuple(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncT
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
             return False
 
-    class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)})"
-    if _flattypes:
-        class_name = f"Tuple({', '.join(t.__name__ for t in _flattypes)}, ...)"
-    else:
-        class_name = "Tuple()"
-    return _Tuple(class_name, (tuple,), {'__types__': _flattypes})
+    class_name = f"Tuple({_name_list(*types)})"
+    return _Tuple(class_name, (tuple,), {'__display__': class_name, '__types__': types})
 
-def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
+def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'list' of types:
         > the objects of 'List(X, Y, ...)'
@@ -309,9 +347,11 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
     Can be applied to typed functions:
         > 'List(f): List(f.domain) -> List(f.codomain)'
     """
+    if not args:
+        return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
         f = args[0]
-        if isinstance(f, TypedFuncType):
+        if isinstance(f, Typed):
             domain_type = List(*f.domain)
             codomain_type = List(f.codomain)
             def list_mapper(xs: domain_type) -> codomain_type:
@@ -319,25 +359,37 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
             list_mapper.__annotations__ = {'xs': domain_type, 'return': codomain_type}
             list_mapper._composed_domain_hint = (domain_type,)
             list_mapper._composed_codomain_hint = codomain_type
-            return TypedFuncType(list_mapper) 
-        raise TypeError(f"'{f.__name}' is not a typed function.")
+            return Typed(list_mapper)
+        raise TypeError(
+            "Argument with unexpected type in Tuple factory."
+            f" ==> '{getattr(f, '__name__', str(f))}' has wrong type."
+             "     [expected_type] Typed"
+            f"     [received_type] {_name(f)}"
+        )
 
-    _flattypes, is_flexible = _flat(*args)
+    elif all(isinstance(f, type) for f in args):
+        types = args
 
-    if not is_flexible and args:
-        raise ValueError("List() based on this definition is always flexible; check _flat implementation.")
-
-    class _ElementUnionMeta(type):
-        def __instancecheck__(cls, instance):
-            return isinstance(instance, tuple(cls.__types__))
-
-    ElementUnion = _ElementUnionMeta("ListElementUnion", (), {'__types__': _flattypes})
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'List' factory cannot receive both typed functions and types as arguments."
+        )
+    else:
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'List' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(t)}"
+            )
 
     class _List(type(list)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, list):
                 return False
-            return all(isinstance(x, ElementUnion) for x in instance)
+            return all(isinstance(x, _inner_union(*types)) for x in instance)
         def __subclasscheck__(cls, subclass):
             from typed.mods.types.base import Any
             if subclass is cls or subclass is Any or issubclass(subclass, list):
@@ -347,14 +399,10 @@ def List(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTy
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
             return False
 
-    class_name = f"List({', '.join(t.__name__ for t in _flattypes)})"
-    if _flattypes:
-        class_name = f"List({', '.join(t.__name__ for t in _flattypes)}, ...)"
-    else:
-        class_name = "List()"
-    return _List(class_name, (list,), {'__types__': _flattypes})
+    class_name = f"List({_name_list(*types)})"
+    return _List(class_name, (tuple,), {'__display__': class_name, '__types__': types})
 
-def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncType]:
+def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'set' of types:
         > the objects of 'Set(X, Y, ...)'
@@ -366,9 +414,11 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
     Can be applied to typed functions:
         > 'Set(f): Set(f.domain) -> Set(f.codomain)'
     """
+    if not args:
+        return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
         f = args[0]
-        if isinstance(f, TypedFuncType):
+        if isinstance(f, Typed):
             domain_type = Set(*f.domain)
             codomain_type = Set(f.codomain)
             def set_mapper(xs: domain_type) -> codomain_type:
@@ -376,19 +426,31 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
             set_mapper.__annotations__ = {'xs': domain_type, 'return': codomain_type}
             set_mapper._composed_domain_hint = (domain_type,)
             set_mapper._composed_codomain_hint = codomain_type
-            return TypedFuncType(set_mapper)
-        raise TypeError(f"'{getattr(f,'__name__',str(f))}' is not a typed function.")
+            return Typed(set_mapper)
+        raise TypeError(
+            "Wrong type in Union factory: \n"
+            f" ==> {f}: has unexpected type\n"
+             "     [expected_type] Typed"
+            f"     [received_type] {_name(type(t))}"
+        )
 
-    _flattypes, is_flexible = _flat(*args)
+    elif all(isinstance(f, type) for f in args):
+        types = args
 
-    if not is_flexible and args:
-        raise ValueError("Set() based on this definition is always flexible; check _flat implementation.")
-
-    class _ElementUnionMeta(type):
-        def __instancecheck__(cls, instance):
-            return isinstance(instance, tuple(cls.__types__)) and isinstance(instance, Hashable)
-
-    ElementUnion = _ElementUnionMeta("SetElementUnion", (), {'__types__': _flattypes})
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'Set' factory cannot receive both typed functions and types as arguments."
+        )
+    else:
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'Set' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(t)}"
+            )
 
     class _Set(type(set)):
         def __instancecheck__(cls, instance):
@@ -397,29 +459,21 @@ def Set(*args: Union_[Tuple_[Type], TypedFuncType]) -> Union_[Type, TypedFuncTyp
             from typed.mods.types.base import Any
             if Any is args:
                 return True
-            return all(isinstance(x, ElementUnion) for x in instance)
+            return all(isinstance(x, _inner_union(types)) for x in instance)
 
         def __subclasscheck__(cls, subclass: Type) -> bool:
             from typed.mods.types.base import Any
-
             if subclass is cls or subclass is Any or issubclass(subclass, set):
                 return True
-
             if hasattr(subclass, '__bases__') and set in subclass.__bases__ and hasattr(subclass, '__types__'):
                 subclass_element_types = subclass.__types__
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
-
             return False
 
-    class_name = f"Set({', '.join(t.__name__ for t in _flattypes)})"
-    if _flattypes:
-        class_name = f"Set({', '.join(t.__name__ for t in _flattypes)}, ...)"
-    else:
-        class_name = "Set()"
+    class_name = f"Set({_name_list(*types)})"
+    return _Set(class_name, (set,), {'__types__': types})
 
-    return _Set(class_name, (set,), {'__types__': _flattypes})
-
-def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, TypedFuncType]:
+def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
     """
     Build the 'dict' of types:
         > the objects of 'Dict(X, Y, ...)'
@@ -438,19 +492,11 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
             1. 'f({k: v}) = {k: f(v)}'
     """
     if not args:
-        class _AnyAnyDictMeta(type(dict)):
-            def __instancecheck__(cls, instance):
-                return isinstance(instance, dict)
-            def __subclasscheck__(cls, subclass):
-                from typed.mods.types.base import Any
-                if subclass is cls or subclass is Any or issubclass(subclass, dict):
-                    return True
-                return False
-        return _AnyAnyDictMeta("Dict()", (dict,), {})
+        return type(None)
 
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
         f = args[0]
-        if isinstance(f, TypedFuncType):
+        if isinstance(f, Typed):
             domain_type = Dict(f.domain, keys=keys)
             codomain_type = Dict(f.codomain, keys=keys)
             def dict_mapper(d: domain_type) -> codomain_type:
@@ -458,44 +504,59 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
             dict_mapper.__annotations__ = {'d': domain_type, 'return': codomain_type}
             dict_mapper._composed_domain_hint = (domain_type,)
             dict_mapper._composed_codomain_hint = codomain_type
-            return TypedFuncType(dict_mapper)
+            return Typed(dict_mapper)
+        raise TypeError(
+            "Wrong type in Union factory: \n"
+            f" ==> {f}: has unexpected type\n"
+             "     [expected_type] Typed"
+            f"     [received_type] {_name(type(t))}"
+        )
 
-    _flattypes, is_flexible = _flat(*args)
+    elif all(isinstance(f, type) for f in args):
+        types = args
 
-    if not is_flexible and args:
-        pass
-
-    class _ValueUnionMeta(type):
-        def __instancecheck__(cls, instance):
-            for t in cls.__types__:
-                if isinstance(t, type) and hasattr(t, '__instancecheck__'):
-                    result = t.__instancecheck__(instance)
-                    if result:
-                        return True
-                else:
-                    result = isinstance(instance, t)
-                    if result:
-                        return True
-            return False
-    ValueUnion = _ValueUnionMeta("DictValueUnion", (), {'__types__': _flattypes})
-
-    key_type = keys
-    if key_type is not None:
-        if not isinstance(key_type, type):
-            raise TypeError(f"keys= must be a type, got {key_type!r}")
-        if not issubclass(key_type, str):
-            raise TypeError("keys= must be subclass of str")
+    elif all(isinstance(t, T) for t in args):
+        raise TypeError(
+            "Mixed argument types: \n"
+            " ==> 'Dict' factory cannot receive both typed functions and types as arguments."
+        )
     else:
-        key_type = None
+        for t in args:
+            if not isinstance(t, T):
+                raise TypeError(
+                "Wrong type in 'Dict' factory: \n"
+                f" ==> '{t}': has unexpected type\n"
+                 "     [expected_type] TYPE or Typed"
+                f"     [received_type] {_name(t)}"
+            )
+
+    if keys:
+        if not isinstance(keys, type):
+            raise TypeError(
+                "Wrong type in 'Dict' factory: \n"
+                f" ==> 'keys': has unexpected type\n"
+                 "     [expected_type] TYPE"
+                f"     [received_type] {_name(keys)}"
+            )
+        from typed.mods.types.attr import HASHABLE
+        if not isinstance(keys, HASHABLE):
+            raise TypeError(
+                "Wrong type in 'Dict' factory: \n"
+                f" ==> 'keys': has unexpected type\n"
+                 "     [expected_type] HASHABLE"
+                f"     [received_type] {_name(keys)}"
+            )
+    else:
+        keys = None
 
     class _Dict(type(dict)):
-        __types__ = _flattypes
-        __key_type__ = key_type
+        __types__ = types
+        __key_type__ = keys
 
         def __instancecheck__(cls, instance):
             if not isinstance(instance, dict):
                 return False
-            if not all(isinstance(v, ValueUnion) for v in instance.values()):
+            if not all(isinstance(v, _inner_dict_union(types)) for v in instance.values()):
                 return False
             if cls.__key_type__ is not None:
                 if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
@@ -517,49 +578,40 @@ def Dict(*args: Union_[Tuple_[Type], TypedFuncType], keys=None) -> Union_[Type, 
                 )
             return False
 
-    typename = f"Dict({', '.join(t.__name__ for t in _flattypes)})"
-    if key_type is not None:
-        typename = f"Dict({', '.join(t.__name__ for t in _flattypes)}, keys={key_type.__name__})"
-    return _Dict(typename, (dict,), {'__types__': _flattypes, '__key_type__': key_type})
+    class_name = f"Dict({_name_list(*types)})"
+    if keys is not None:
+        class_name = f"Dict({_name_list(*types)}, keys={_name(keys)})"
+    return _Dict(class_name, (dict,), {"__display__": class_name, '__types__': types, '__key_type__': keys})
 
-def Null(typ: Union_[Type, Callable_]) -> Type:
+def Null(typ: Union_[Type]) -> Type:
     """
     Null(T) returns a class that's a subclass of T (if possible).
     isinstance(x, Null(T)) is True iff x is the null/empty of T.
     """
-    from typed.mods.types.base import Any
-    if typ is Any:
-        class _NullAny(type):
-            def __instancecheck__(cls, instance):
-                for t in (str, int, float, bool, type(None), list, tuple, set, dict):
-                    if _is_null_of_type(instance, t):
-                        return True
-                for Fact in [List, Tuple, Set, Dict]:
-                    for Tp in (str, int, float, bool):
-                        try:
-                            if _is_null_of_type(instance, Fact(Tp)):
-                                return True
-                        except Exception:
-                            pass
-                try:
-                    if _is_null_of_type(instance, List(Dict(str))):
-                        return True
-                    if _is_null_of_type(instance, List(List(str))):
-                        return True
-                except Exception:
-                    pass
-                return False
-            def __repr__(cls):
-                return "Null[Any]"
-        return _NullAny("Null[Any]", (object,), {})
+    from typed.mods.types.attr import NULLABLE
+    if not isinstance(typ, type):
+        raise TypeError(
+            "Wrong type in 'Null' factory: \n"
+            f" ==> 'typ': has unexpected type\n"
+             "     [expected_type] TYPE"
+            f"     [received_type] {_name(keys)}"
+        )
+    if type is type(None):
+        return None
 
-    null_obj = _get_null_object(typ)
+    if _get_null_object(typ) is None:
+        raise TypeError(
+            "Wrong type in 'Null' factory: \n"
+            f" ==> 'typ': has unexpected type\n"
+             "     [expected_type] a type for which 'null(typ)' is defined"
+            f"     [received_type] {_name(typ)}"
+        )
 
     class _Null(type):
-        null = null_obj
         def __instancecheck__(cls, instance):
-            return instance == null_obj
+            return instance == _get_null_object(typ)
         def __repr__(cls):
-            return f"<Null[{getattr(typ, '__name__', str(typ))}]>"
-    class_name = f"Null[{getattr(typ, '__name__', str(typ))}]"
-    return _Null(class_name, (), {})
+            return f"<Null({_name(typ)})>"
+
+    class_name = f"Null({_name(typ)})"
+    return _Null(class_name, (), {"__display__": class_name})

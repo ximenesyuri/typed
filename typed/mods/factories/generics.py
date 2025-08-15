@@ -5,8 +5,8 @@ from types import FunctionType
 from typed.mods.helper.helper import (
     _hinted_domain,
     _hinted_codomain,
-    _type_name,
-    _type_name_list
+    _name,
+    _name_list
 )
 
 @cache
@@ -22,7 +22,7 @@ def Inter(*types: Tuple_[Type]) -> Type:
                 "Wrong type in Union factory: \n"
                 f" ==> {f}: has unexpected type\n"
                  "     [expected_type] TYPE"
-                f"     [received_type] {_type_name(type(t))}"
+                f"     [received_type] {_name(type(t))}"
             )
     unique_types = tuple(set(types))
 
@@ -35,7 +35,7 @@ def Inter(*types: Tuple_[Type]) -> Type:
         def __instancecheck__(cls, instance):
             return all(isinstance(instance, t) for t in non_builtin_types)
 
-    class_name = f"Inter({_type_name_list(*unique_types)})"
+    class_name = f"Inter({_name_list(*unique_types)})"
     if non_builtin_types:
         return _Inter(class_name, (), {'__types__': unique_types})
     return type(None)
@@ -44,22 +44,22 @@ def Inter(*types: Tuple_[Type]) -> Type:
 def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
     real_filters = []
     from typed.mods.types.base import Any
-    from typed.mods.types.base import BoolFuncType
+    from typed.mods.types.base import Condition
     for f in funcs:
-        if not isinstance(f, BoolFuncType):
+        if not isinstance(f, Condition):
             raise TypeError(
                 "Wrong type in Filter factory: \n"
                 f" ==> {f.__name__}: has unexpected type\n"
-                 "     [expected_type] BoolFuncType"
-                f"     [received_type] {_type_name(type(f))}"
+                 "     [expected_type] Condition"
+                f"     [received_type] {_name(type(f))}"
             )
         domain_hints = _hinted_domain(f)
         if len(domain_hints) != 1:
             raise TypeError(
                 "Wrong type in Filter factory: \n"
                 f" ==> {f.__name__}: has unexpected type\n"
-                 "     [expected_type] BoolFunc(1)"
-                f"     [received_type] {_type_name(type(f))}"
+                 "     [expected_type] Condition(1)"
+                f"     [received_type] {_name(type(f))}"
             )
         domain = domain_hints[0]
         if domain is Any:
@@ -69,7 +69,7 @@ def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
                 "Wrong type in Union factory: \n"
                 f" ==> {X.__name__}: has unexpected type\n"
                  "     [expected_type] some subtype of 'dom(f)' for every 'f' in 'funcs'"
-                f"     [received_type] {_type_name(type(X))}"
+                f"     [received_type] {_name(type(X))}"
             )
         if hasattr(f, 'func'):
             real_filters.append(f.func)
@@ -82,8 +82,7 @@ def Filter(X: Type, *funcs: Tuple_[FunctionType]) -> Type:
                 return False
             return all(f(instance) for f in real_filters)
 
-    class_name = f"Filter({_type_name(X)}; {_type_name_list(*funcs)})"
-
+    class_name = f"Filter({_name(X)}; {_name_list(*funcs)})"
     return _Filter(class_name, (X,), {"__display__": class_name})
 
 @cache
@@ -99,7 +98,7 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
             "Wrong type in Compl factory: \n"
             f" ==> 'X': has unexpected type\n"
              "     [expected_type] TYPE"
-            f"     [received_type] {_type_name(type(X))}"
+            f"     [received_type] {_name(type(X))}"
         )
     unique_subtypes = tuple(set(subtypes))
 
@@ -109,18 +108,18 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
             raise TypeError(
                 "Wrong type in Compl factory: \n"
                 f" ==> {subtype}: has unexpected type\n"
-                 "     [expected_type] TypedFuncType"
-                f"     [received_type] {_type_name(type(t))}"
+                 "     [expected_type] Typed"
+                f"     [received_type] {_name(type(t))}"
             )
         if not issubclass(subtype, X):
             raise TypeError(
                 "Wrong type in Compl factory: \n"
                 f" ==> {subtype}: has unexpected type\n"
                  "     [expected_type] a subtype of X"
-                f"     [received_type] {_type_name(type(subtype))}"
+                f"     [received_type] {_name(type(subtype))}"
             )
 
-    class_name = f"Compl({_type_name(X)}; {_type_name_list(*subtypes)})"
+    class_name = f"Compl({_name(X)}; {_name_list(*subtypes)})"
 
     class _Compl(type):
         def __instancecheck__(cls, instance):
@@ -131,25 +130,25 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
     return _Compl(class_name, (X,), {"__display__": class_name, '__base_type__': X, '__excluded_subtypes__': unique_subtypes})
 
 @cache
-def Regex(re: str) -> Type[str]:
+def Regex(regex: str) -> Type[str]:
     """
     Build the 'regex type' for a given regex:
         > an object 'x' of Regex(r'some_regex') is a string
         > that matches the regex r'some_regex'
     """
     from typed.mods.types.base import Pattern
-    if not isinstance(re, Pattern):
+    if not isinstance(regex, Pattern):
         raise TypeError(
             "Wrong type in Regex factory: \n"
-            f" ==> {re}: has unexpected type\n"
+            f" ==> {regex}: has unexpected type\n"
              "     [expected_type] Pattern"
-            f"     [received_type] {_type_name(type(re))}"
+            f"     [received_type] {_name(type(regex))}"
         )
 
     class _Regex(type):
         def __new__(cls, name, bases, dct, regex_pattern):
             dct['_regex_pattern'] = re.compile(regex_pattern)
-            dct['_re'] = regex_pattern
+            dct['_regex'] = regex_pattern
             return super().__new__(cls, name, bases, dct)
 
         def __instancecheck__(cls, instance):
@@ -158,8 +157,8 @@ def Regex(re: str) -> Type[str]:
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, str)
 
-    class_name = f"Regex({re})"
-    return _Regex(class_name, (str,), {"__display__": class_name}, regex_pattern=re)
+    class_name = f"Regex({regex})"
+    return _Regex(class_name, (str,), {"__display__": class_name}, regex_pattern=regex)
 
 @cache
 def Range(x: int, y: int) -> Type[int]:
@@ -173,14 +172,14 @@ def Range(x: int, y: int) -> Type[int]:
             "Wrong type in Range factory: \n"
             f" ==> {x}: has unexpected type\n"
              "     [expected_type] Int"
-            f"     [received_type] {_type_name(type(x))}"
+            f"     [received_type] {_name(type(x))}"
         )
     if not isinstance(y, int):
         raise TypeError(
             "Wrong type in Range factory: \n"
             f" ==> {y}: has unexpected type\n"
              "     [expected_type] Int"
-            f"     [received_type] {_type_name(type(y))}"
+            f"     [received_type] {_name(type(y))}"
         )
 
     class _Range(type):
@@ -234,20 +233,20 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
         > Enum(typ, ...) is a subclass of 'typ'
     """
     values_set = set(values)
-    if not insinstance(typ, type):
+    if not isinstance(typ, type):
         raise TypeError(
             "Wrong type in Enum factory: \n"
             f" ==> {typ}: has unexpected type\n"
-             "     [expected_type] TypedFuncType"
-            f"     [received_type] {_type_name(type(typ))}"
+             "     [expected_type] Typed"
+            f"     [received_type] {_name(type(typ))}"
         )
     for value in values:
-        if not insinstance(value, typ):
+        if not isinstance(value, typ):
             raise TypeError(
                 "Wrong type in Enum factory: \n"
                 f" ==> {value}: has unexpected type\n"
-                f"     [expected_type] {_type_name(typ)}"
-                f"     [received_type] {_type_name(type(value))}"
+                f"     [expected_type] {_name(typ)}"
+                f"     [received_type] {_name(type(value))}"
             )
     class _Enum(type):
         def __instancecheck__(cls, instance):
@@ -256,7 +255,7 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, cls.__base_type__)
 
-    class_name = f"Enum({_type_name(typ)}; {_type_name_list(*values)})"
+    class_name = f"Enum({_name(typ)}; {_name_list(*values)})"
     return _Enum(class_name, (typ,), {"__display__": class_name, '__base_type__': typ, '__allowed_values__': values_set})
 
 @cache
@@ -275,7 +274,7 @@ def Single(x: Any_) -> Type:
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, t)
 
-    class_name = f"Single({_type_name(x)})"
+    class_name = f"Single({_name(x)})"
     return _Single(class_name, (t,), {"__display__": class_name, '__value__': x})
 Singleton = Single
 
@@ -293,7 +292,7 @@ def Len(typ: Type, size: int) -> Type:
             "Wrong type in Len factory: \n"
             f" ==> {typ}: has unexpected type\n"
             f"     [expected_type] TYPE"
-            f"     [received_type] {_type_name(type(typ))}"
+            f"     [received_type] {_name(type(typ))}"
         )
     from typed.mods.types.attr import SIZED
     if not isinstance(typ, SIZED):
@@ -301,21 +300,21 @@ def Len(typ: Type, size: int) -> Type:
             "Wrong type in Len factory: \n"
             f" ==> {typ}: has unexpected type\n"
             f"     [expected_type] TYPE"
-            f"     [received_type] {_type_name(type(typ))}"
+            f"     [received_type] {_name(type(typ))}"
         )
     if not isinstance(size, int):
         raise TypeError(
             "Wrong type in Len factory: \n"
             f" ==> {size}: has unexpected type\n"
             f"     [expected_type] Nat"
-            f"     [received_type] {_type_name(type(size))}"
+            f"     [received_type] {_name(type(size))}"
         )
     if size < 0:
         raise TypeError(
             "Wrong type in Enum factory: \n"
             f" ==> {size}: has unexpected type\n"
             f"     [expected_type] Nat"
-            f"     [received_type] {_type_name(type(size))}"
+            f"     [received_type] {_name(type(size))}"
         )
     if size == 0:
         from typed.mods.types.base import Null
@@ -328,7 +327,7 @@ def Len(typ: Type, size: int) -> Type:
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, typ)
 
-    class_name = f"Len({_type_name(typ)}; {size})"
+    class_name = f"Len({_name(typ)}; {size})"
     return _Len(class_name, (typ,), {"__display__": class_name, '__len__': size})
 
 @cache
@@ -355,12 +354,12 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
                 "Wrong type in SUBTYPES factory: \n"
                 f" ==> {typ}: has unexpected type\n"
                 f"     [expected_type] TYPE"
-                f"     [received_type] {_type_name(type(typ))}"
+                f"     [received_type] {_name(type(typ))}"
             )
 
-    class _Subtypes(type):
+    class _SUBTYPES(type):
         def __instancecheck__(cls, instance):
             return any(issubclass(instance, typ) for typ in types)
 
-    class_name = f"Sub({_type_name(*types)})"
-    return _Subtypes(class_name, (), {"__display__": class_name})
+    class_name = f"Sub({_name(*types)})"
+    return _SUBTYPES(class_name, (), {"__display__": class_name})
