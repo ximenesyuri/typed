@@ -182,7 +182,16 @@ def _builtin_nulls():
     from typed.mods.factories.base import List, Tuple, Set, Dict
     from typed.mods.types.func import Typed
     from typed.mods.types.base import Pattern, Any
-    from typed.models import Model, MODEL, Exact, EXACT
+    from typed.models import (
+        Model,
+        MODEL,
+        Exact,
+        EXACT,
+        ORDERED,
+        Ordered,
+        RIGID,
+        Rigid
+    )
 
     return {
         Dict: {},
@@ -203,7 +212,9 @@ def _builtin_nulls():
         Typed: Typed(_nill),
         Pattern: r'',
         MODEL: Model(),
-        EXACT: Exact()
+        EXACT: Exact(),
+        ORDERED: Oredered(),
+        RIGID: Rigid()
     }
 
 def _get_null_object(typ):
