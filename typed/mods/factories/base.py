@@ -1,9 +1,8 @@
 import re
 from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as Callable_
 from typed.mods.types.func import Typed
+from typed.mods.helper.null import  _null, _null_from_list
 from typed.mods.helper.helper import (
-    _is_null_of_type,
-    _null,
     _name,
     _name_list,
     _inner_union,
@@ -30,9 +29,9 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
         if any(not (isinstance(f, Typed) and not isinstance(f, type)) for f in funcs):
             raise TypeError(
                 "Wrong type in Union factory: \n"
-                f" ==> {f}: has unexpected type\n"
+                f" ==> {_name(f)}: has unexpected type\n"
                  "     [expected_type] Typed"
-                f"     [received_type] {_name(type(t))}"
+                f"     [received_type] {_name(type(f))}"
             )
 
         def union_dispatcher(x):
@@ -58,14 +57,14 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
                     fv = f(*x)
                 if fv != first_val:
                     raise ValueError(
-                        f"Ambiguous value for {[ff.__name__ for ff in matching]}:"
+                        f"Ambiguous value for {[_name(ff) for ff in matching]}:"
                         f"\n ==> argument '{x!r}'"
                         f"\n     [{matching[0].__name__} value]: '{first_val!r}'"
                         f"\n     [{f.__name__} value]: '{fv!r}'"
                     )
             return first_val
 
-        union_dispatcher.__name__ = "Union(" + ", ".join(f.__name__ for f in funcs) + ")"
+        union_dispatcher.__name__ = f"Union({_name_list(*funcs)})"
         union_dispatcher.__annotations__ = {
             "x": tuple(dom_types),
             "return": tuple(codomains)
@@ -84,7 +83,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                     "Wrong type in Union factory: \n"
-                    f" ==> {t}: has unexpected type\n"
+                    f" ==> {_name(t)}: has unexpected type\n"
                      "     [expected_type] TYPE or Typed"
                     f"     [received_type] {_name(type(t))}"
                 )
@@ -101,7 +100,14 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
             return any(issubclass(subclass, t) for t in cls.__types__)
 
     class_name = f"Union({_name_list(*types)})"
-    return _Union(class_name, (), {'__display__': class_name, '__types__': types})
+
+    __null__ = _null_from_list(*types)
+
+    return _Union(class_name, (), {
+        '__display__': class_name,
+        '__types__': types,
+        '__null__': __null__
+    })
 
 def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
@@ -137,7 +143,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]
         prod_mapper.__annotations__ = {'xs': domain_type, 'return': codomain_type}
         prod_mapper._composed_domain_hint = (domain_type,)
         prod_mapper._composed_codomain_hint = codomain_type
-        prod_mapper.__name__ = "Prod(" + ", ".join(f.__name__ for f in args) + ")"
+        prod_mapper.__name__ = f"Prod({_name_list(*args)})"
         return Typed(prod_mapper)
 
     elif len(args) == 2 and isinstance(args[0], type) and isinstance(args[1], int) and args[1] > 0:
@@ -154,7 +160,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'Prod' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
                 f"     [received_type] {_name(type(t))}"
             )
@@ -182,7 +188,12 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]
             return tuple.__new__(cls, args)
 
     class_name = f"Prod({_name_list(*types)})"
-    return _Prod(class_name, (tuple,), {"__display__": class_name, '__types__': types, '__new__': prod_new})
+    return _Prod(class_name, (tuple,), {
+        "__display__": class_name,
+        '__types__': types,
+        '__new__': prod_new,
+        "__null__": tuple(_null(t) for t in types)
+    })
 
 def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
@@ -217,7 +228,7 @@ def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         uprod_mapper.__annotations__ = {'xs': domain_type, 'return': codomain_type}
         uprod_mapper._composed_domain_hint = (domain_type,)
         uprod_mapper._composed_codomain_hint = codomain_type
-        uprod_mapper.__name__ = "UProd(" + ", ".join(f.__name__ for f in args) + ")"
+        uprod_mapper.__name__ = f"UProd({_name_list(*args)})"
         return Typed(uprod_mapper)
 
     elif all(isinstance(t, type) for t in args):
@@ -232,7 +243,7 @@ def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'Prod' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
                 f"     [received_type] {_name(type(t))}"
             )
@@ -267,7 +278,11 @@ def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return False
 
     class_name = f"UProd({_name_list(*types)})"
-    return _Uprod(class_name, (tuple,), {"__display__": class_name, '__types__': types})
+    return _Uprod(class_name, (tuple,), {
+        "__display__": class_name,
+        '__types__': types,
+        "__null__": set(_null(t) for t in types)
+    })
 
 def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
@@ -297,7 +312,7 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return Typed(tuple_mapper)
         raise TypeError(
             "Argument with unexpected type in Tuple factory."
-            f" ==> '{getattr(f, '__name__', str(f))}' has wrong type."
+            f" ==> '{_name(f)}' has wrong type."
              "     [expected_type] Typed"
             f"     [received_type] {_name(type(f))}"
         )
@@ -313,9 +328,9 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'Tuple' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t)).__name__}"
+                f"     [received_type] {_name(type(t))}"
             )
 
     class _Tuple(type(tuple)):
@@ -333,8 +348,14 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
             return False
 
+    __null__ = _null_from_list(*types)
+
     class_name = f"Tuple({_name_list(*types)})"
-    return _Tuple(class_name, (tuple,), {'__display__': class_name, '__types__': types})
+    return _Tuple(class_name, (tuple,), {
+        '__display__': class_name,
+        '__types__': types,
+        '__null__': tuple(__null__) if __null__ is not None else None
+    })
 
 def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
@@ -362,9 +383,9 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return Typed(list_mapper)
         raise TypeError(
             "Argument with unexpected type in Tuple factory."
-            f" ==> '{getattr(f, '__name__', str(f))}' has wrong type."
+            f" ==> '{_name(f)}' has wrong type."
              "     [expected_type] Typed"
-            f"     [received_type] {_name(f)}"
+            f"     [received_type] {_name(type(f))}"
         )
 
     elif all(isinstance(f, type) for f in args):
@@ -380,9 +401,9 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'List' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(t)}"
+                f"     [received_type] {_name(type(t))}"
             )
 
     class _List(type(list)):
@@ -399,8 +420,14 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
             return False
 
+    __null__ = _null_from_list(*types)
+
     class_name = f"List({_name_list(*types)})"
-    return _List(class_name, (tuple,), {'__display__': class_name, '__types__': types})
+    return _List(class_name, (tuple,), {
+        '__display__': class_name,
+        '__types__': types,
+        '__null__': list(__null__) if __null__ is not None else None
+    })
 
 def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
@@ -429,9 +456,9 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return Typed(set_mapper)
         raise TypeError(
             "Wrong type in Union factory: \n"
-            f" ==> {f}: has unexpected type\n"
+            f" ==> {_name(f)}: has unexpected type\n"
              "     [expected_type] Typed"
-            f"     [received_type] {_name(type(t))}"
+            f"     [received_type] {_name(type(f))}"
         )
 
     elif all(isinstance(f, type) for f in args):
@@ -447,9 +474,9 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'Set' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(t)}"
+                f"     [received_type] {_name(type(t))}"
             )
 
     class _Set(type(set)):
@@ -470,10 +497,16 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
             return False
 
-    class_name = f"Set({_name_list(*types)})"
-    return _Set(class_name, (set,), {'__types__': types})
+    __null__ = _null_from_list(*types)
 
-def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
+    class_name = f"Set({_name_list(*types)})"
+    return _Set(class_name, (set,), {
+        '__display__': class_name,
+        '__types__': types,
+        '__null__': set(__null__) if __null__ is not None else None
+    })
+
+def Dict(*args: Union_[Tuple_[Type], Typed], keys=str) -> Union_[Type, Typed]:
     """
     Build the 'dict' of types:
         > the objects of 'Dict(X, Y, ...)'
@@ -506,10 +539,10 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
             dict_mapper._composed_codomain_hint = codomain_type
             return Typed(dict_mapper)
         raise TypeError(
-            "Wrong type in Union factory: \n"
-            f" ==> {f}: has unexpected type\n"
+            "Wrong type in Dict factory: \n"
+            f" ==> {_name(f)}: has unexpected type\n"
              "     [expected_type] Typed"
-            f"     [received_type] {_name(type(t))}"
+            f"     [received_type] {_name(type(f))}"
         )
 
     elif all(isinstance(f, type) for f in args):
@@ -525,9 +558,9 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
             if not isinstance(t, T):
                 raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
-                f" ==> '{t}': has unexpected type\n"
+                f" ==> '{_name(t)}': has unexpected type\n"
                  "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(t)}"
+                f"     [received_type] {_name(type(t))}"
             )
 
     if keys:
@@ -536,7 +569,7 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
                  "     [expected_type] TYPE"
-                f"     [received_type] {_name(keys)}"
+                f"     [received_type] {_name(type(keys))}"
             )
         from typed.mods.types.attr import HASHABLE
         if not isinstance(keys, HASHABLE):
@@ -544,7 +577,7 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
                  "     [expected_type] HASHABLE"
-                f"     [received_type] {_name(keys)}"
+                f"     [received_type] {_name(type(keys))}"
             )
     else:
         keys = None
@@ -578,40 +611,14 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
                 )
             return False
 
+    __null__ = _null_from_list(*types)
+
     class_name = f"Dict({_name_list(*types)})"
     if keys is not None:
         class_name = f"Dict({_name_list(*types)}, keys={_name(keys)})"
-    return _Dict(class_name, (dict,), {"__display__": class_name, '__types__': types, '__key_type__': keys})
-
-def Null(typ: Union_[Type]) -> Type:
-    """
-    Null(T) returns a class that's a subclass of T (if possible).
-    isinstance(x, Null(T)) is True iff x is the null/empty of T.
-    """
-    from typed.mods.types.attr import NULLABLE
-    if not isinstance(typ, type):
-        raise TypeError(
-            "Wrong type in 'Null' factory: \n"
-            f" ==> 'typ': has unexpected type\n"
-             "     [expected_type] TYPE"
-            f"     [received_type] {_name(keys)}"
-        )
-    if type is type(None):
-        return None
-
-    if _null(typ) is None:
-        raise TypeError(
-            "Wrong type in 'Null' factory: \n"
-            f" ==> 'typ': has unexpected type\n"
-             "     [expected_type] a type for which 'null(typ)' is defined"
-            f"     [received_type] {_name(typ)}"
-        )
-
-    class _Null(type):
-        def __instancecheck__(cls, instance):
-            return instance == _null(typ)
-        def __repr__(cls):
-            return f"<Null({_name(typ)})>"
-
-    class_name = f"Null({_name(typ)})"
-    return _Null(class_name, (), {"__display__": class_name})
+    return _Dict(class_name, (dict,), {
+        "__display__": class_name,
+        '__types__': types,
+        '__key_type__': keys,
+        '__null__': {_null(keys): __null__} if keys else {None: __null__}
+    })

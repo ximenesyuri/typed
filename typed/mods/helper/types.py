@@ -1,6 +1,7 @@
 import os
 from typed.mods.types.func import Function
-from typed.mods.types.base import Int, Str, Float, Any, Json, Bool, Path
+from typed.mods.types.base import Int, Str, Float, Any, Bool
+from typed.mods.types.core import Json, Path
 from typed.mods.factories.base import Union
 
 def _is_natural(x: Int) -> Bool:
@@ -70,9 +71,9 @@ def _is_json_flat(data: Json) -> Bool:
     if not isinstance(data, dict):
         return False
 
-    from typed.mods.types.other import JsonEntry
+    from typed.mods.types.other import Entry
     for key in data.keys():
-        if not isinstance(key, JsonEntry):
+        if not isinstance(key, Entry):
             return False
     return True
 

@@ -1,8 +1,9 @@
-from typed.mods.types.base          import Int, Float, Str, Json, Any, Path
+from typed.mods.types.base          import Int, Float, Str, Any
+from typed.mods.types.core          import Json, Path
 from typed.mods.types.func          import Function, Typed
 from typed.mods.factories.base      import Union, Prod, Dict
 from typed.mods.factories.func      import Typed
-from typed.mods.factories.generics  import Filter, Regex, Range, Len
+from typed.mods.factories.generics  import Filter, Regex, Range, Len, Enum
 from typed.mods.factories.specifics import Url
 from typed.mods.decorators          import typed
 from typed.mods.helper.types        import (
@@ -44,13 +45,15 @@ PosNum.__display__ = "PosNum"
 NegNum.__display__ = "NegNum"
 
 # Json
+
+Entry = Regex(r'^[a-zA-Z0-9_.]+$')
 Table = Filter(Json, typed(_is_json_table))
 Flat  = Filter(Dict(Str, Any), typed(_is_json_flat))
-Entry = Regex(r'^[a-zA-Z0-9_.]+$')
 
+Entry.__display__ = "Entry"
 Table.__display__ = "Table"
 Flat.__display__  = "Flat"
-Entry.__display__ = "Entry"
+
 
 # System
 Env = Regex(r"^[A-Z0-9_]+$")
@@ -72,13 +75,22 @@ Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 Char.__display__  = "Char"
 Email.__display__ = "Email"
 
+# Network
+Protocol = Enum(Str, "http", "https", "file", "ftp")
+Hostname = Regex(r"^(?:[a-zA-Z-1-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
+IPv3     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+
+Protocol.__display__ = "Protocol"
+Hostname.__display__ = "Hostname"
+IPv3.__display__     = "IPv4"
+
 # Path
-Exists     = Filter(Path, typed(_exists))
-File       = Filter(Path, typed(_is_file))
-Dir        = Filter(Path, typed(_is_dir))
-Symlink    = Filter(Path, typed(_is_symlink))
-Mount      = Filter(Path, typed(_is_mount))
-PathUrl    = Union(Path, Url("http", "https"))
+Exists  = Filter(Path, typed(_exists))
+File    = Filter(Path, typed(_is_file))
+Dir     = Filter(Path, typed(_is_dir))
+Symlink = Filter(Path, typed(_is_symlink))
+Mount   = Filter(Path, typed(_is_mount))
+PathUrl = Union(Path, Url("http", "https"))
 
 Exists.__display__  = "Exists"
 File.__display__    = "File"
@@ -86,13 +98,6 @@ Dir.__display__     = "Dir"
 Symlink.__display__ = "Symlink"
 Mount.__display__   = "Mount"
 PathUrl.__display__ = "PathUrl"
-
-# Network
-Hostname = Regex(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
-IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
-
-Hostname.__display__ = "Hostname"
-IPv4.__display__     = "IPv4"
 
 # Function
 Decorator      = Typed(Function, cod=Function)

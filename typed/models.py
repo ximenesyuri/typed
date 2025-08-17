@@ -1,5 +1,5 @@
 from typing import Union, Type, List, Any, Dict
-from typed.mods.types.base import Json
+from typed.mods.types.core import Json
 from typed.mods.helper.helper import _name
 from typed.mods.helper.models import (
     _Optional,
@@ -264,6 +264,9 @@ def Model(
         }
     )
     _attach_model_attrs(new_model, extended_models)
+    from typed.mods.helper.null import _null_model
+    new_model.__null__ = _null_model(new_model)
+
     return new_model
 
 def Exact(
@@ -491,6 +494,8 @@ def Exact(
 
     _attach_model_attrs(new_model, extended_models)
     new_model.is_exact = True
+    from typed.mods.helper.null import _null_model
+    new_model.__null__ = _null_model(new_model)
     return new_model
 
 def Ordered(
@@ -612,6 +617,8 @@ def Ordered(
 
     _attach_model_attrs(new_model, extended_models)
     new_model.is_ordered = True
+    from typed.mods.helper.null import _null_model
+    new_model.__null__ = _null_model(new_model)
     return new_model
 
 def Rigid(
@@ -713,6 +720,8 @@ def Rigid(
 
     _attach_model_attrs(new_model, extended_models)
     new_model.is_rigid = True
+    from typed.mods.helper.null import _null_model
+    new_model.__null__ = _null_model(new_model)
     return new_model
 
 def Validate(entity: dict, model: Type[Json]) -> Json:
