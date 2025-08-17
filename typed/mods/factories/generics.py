@@ -6,7 +6,8 @@ from typed.mods.helper.helper import (
     _hinted_domain,
     _hinted_codomain,
     _name,
-    _name_list
+    _name_list,
+    _null
 )
 
 @cache
@@ -231,23 +232,33 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
             1. isinstance(x, typ) is True
             2. x in {v1, v2, ...}
         > Enum(typ, ...) is a subclass of 'typ'
+        > Enum(typ) = Null(typ)
+        > Enum() = Nill
     """
-    values_set = set(values)
-    if not isinstance(typ, type):
-        raise TypeError(
-            "Wrong type in Enum factory: \n"
-            f" ==> {typ}: has unexpected type\n"
-             "     [expected_type] Typed"
-            f"     [received_type] {_name(type(typ))}"
-        )
-    for value in values:
-        if not isinstance(value, typ):
+    if typ and not values:
+        try:
+            from typed.mods.factories.base import Null
+            return Null(typ)
+        except Exception as e:
+            from typed.mods.types.base import Nill
+            return Nill
+    if typ and values:
+        if not isinstance(typ, type):
             raise TypeError(
                 "Wrong type in Enum factory: \n"
-                f" ==> {value}: has unexpected type\n"
-                f"     [expected_type] {_name(typ)}"
-                f"     [received_type] {_name(type(value))}"
+                f" ==> {typ}: has unexpected type\n"
+                 "     [expected_type] Typed"
+                f"     [received_type] {_name(type(typ))}"
             )
+        for value in values:
+            if not isinstance(value, typ):
+                raise TypeError(
+                    "Wrong type in Enum factory: \n"
+                    f" ==> {value}: has unexpected type\n"
+                    f"     [expected_type] {_name(typ)}"
+                    f"     [received_type] {_name(type(value))}"
+                )
+    values_set = set(values)
     class _Enum(type):
         def __instancecheck__(cls, instance):
             return isinstance(instance, cls.__base_type__) and instance in cls.__allowed_values__
@@ -256,7 +267,12 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
             return issubclass(subclass, cls.__base_type__)
 
     class_name = f"Enum({_name(typ)}; {_name_list(*values)})"
-    return _Enum(class_name, (typ,), {"__display__": class_name, '__base_type__': typ, '__allowed_values__': values_set})
+    return _Enum(class_name, (typ,), {
+        "__display__": class_name,
+        '__base_type__': typ,
+        '__allowed_values__': values_set,
+        "__null__": _null(typ)
+    })
 
 @cache
 def Single(x: Any_) -> Type:

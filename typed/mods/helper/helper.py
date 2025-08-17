@@ -110,14 +110,14 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
             continue
 
         if not isinstance(actual_value, expected_type):
-            mismatches.append(f"\n ==> '{name}' has value '{actual_value}'")
-            mismatches.append(f"\n     [expected_type]: '{expected_display_name}'")
-            mismatches.append(f"\n     [received_type]: '{actual_display_name}'")
+            mismatches.append(f" ==> '{name}' has value '{actual_value}'\n")
+            mismatches.append(f"     [expected_type]: '{expected_display_name}'\n")
+            mismatches.append(f"     [received_type]: '{actual_display_name}'\n")
         elif hasattr(expected_type, 'check'):
             if not expected_type.check(actual_value):
-                mismatches.append(f"\n ==> '{name}' has value '{actual_value}'")
-                mismatches.append(f"\n     [expected_type]: '{expected_display_name}'")
-                mismatches.append(f"\n     [received_type]: '{actual_display_name}'")
+                mismatches.append(f" ==> '{name}' has value '{actual_value}'\n")
+                mismatches.append(f"     [expected_type]: '{expected_display_name}'\n")
+                mismatches.append(f"     [received_type]: '{actual_display_name}'")
 
     if mismatches:
         mismatch_str = "".join(mismatches) + "."
@@ -141,36 +141,36 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
                 if isinstance(result, t):
                     if hasattr(t, 'check') and not t.check(result):
                         raise TypeError(
-                            f"Codomain mismatch in func '{func.__name__}':"
-                            f"\n ==> received the value '{result}'."
-                            f"\n     [expected_type]: '{expected_display_name}'"
-                            f"\n     [received_type]: '{actual_display_name}'"
-                            f"\n     [failed_typed]:  '{_name(t)}'"
+                            f"Codomain mismatch in func '{func.__name__}':\n"
+                            f" ==> received the value '{result}'.\n"
+                            f"     [expected_type]: '{expected_display_name}'\n"
+                            f"     [received_type]: '{actual_display_name}'\n"
+                            f"     [failed_typed]:  '{_name(t)}'"
                         )
             return
 
         expected_union_names = [_name(t) for t in union_types]
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':"
-            f"\n ==> received the value '{result}'."
-            f"\n     [expected_type]: 'Union({', '.join(expected_union_names)})'."
-            f"\n     [received_type]: '{actual_display_name}'"
+            f"Codomain mismatch in func '{func.__name__}':\n"
+            f" ==> received the value '{result}'.\n"
+            f"     [expected_type]: 'Union({', '.join(expected_union_names)})'.\n"
+            f"     [received_type]: '{actual_display_name}'"
         )
 
     if not isinstance(result, expected_codomain):
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':"
-            f"\n ==> received the value '{result}'."
-            f"\n     [expected_type]: '{expected_display_name}'"
-            f"\n     [received_type]: '{actual_display_name}'"
+            f"Codomain mismatch in func '{func.__name__}':\n"
+            f" ==> received the value '{result}'.\n"
+            f"     [expected_type]: '{expected_display_name}'\n"
+            f"     [received_type]: '{actual_display_name}'"
         )
     elif hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':"
-            f"\n ==> received the value '{result}'."
-            f"\n    [expected_type]: '{expected_display_name}'"
-            f"\n    [received_type]: '{actual_display_name}'"
-            f"\n    [failed_typed]:  '{_name(expected_codomain)}'"
+            f"Codomain mismatch in func '{func.__name__}':\n"
+            f" ==> received the value '{result}'.\n"
+            f"    [expected_type]: '{expected_display_name}'\n"
+            f"    [received_type]: '{actual_display_name}'\n"
+            f"    [failed_typed]:  '{_name(expected_codomain)}'"
         )
 
     return True
@@ -213,53 +213,57 @@ def _builtin_nulls():
         Pattern: r'',
         MODEL: Model(),
         EXACT: Exact(),
-        ORDERED: Oredered(),
+        ORDERED: Ordered(),
         RIGID: Rigid()
     }
 
-def _get_null_object(typ):
+def _null(typ):
     from typed.models import MODEL_METATYPES
+
+    if typ in _builtin_nulls():
+        return _builtin_nulls()[typ]
+
+    if hasattr(typ, "__null__"):
+        return typ.__null__
+
     if isinstance(typ, MODEL_METATYPES):
         required = dict(getattr(typ, '_required_attributes_and_types', ()))
         optional = getattr(typ, '_optional_attributes_and_defaults', {})
         result = {}
         for key, field_type in required.items():
-            result[key] = _get_null_object(field_type)
+            result[key] = _null(field_type)
         for key, wrapper in optional.items():
             if hasattr(wrapper, "default_value"):
                 result[key] = wrapper.default_value
             else:
-                result[key] = _get_null_object(wrapper.type)
+                result[key] = _null(wrapper.type)
         return typ(result)
-
-    if typ in _builtin_nulls():
-        return _builtin_nulls()[typ]
 
     if hasattr(typ, '__bases__'):
         bases = typ.__bases__
         if list in bases:
             if hasattr(typ, '__types__') and typ.__types__:
-                elem_null = _get_null_object(typ.__types__[0])
+                elem_null = _null(typ.__types__[0])
                 return [elem_null]
             else:
                 return []
         if tuple in bases:
             if hasattr(typ, '__types__') and typ.__types__:
                 if hasattr(typ, '__name__') and typ.__name__.startswith("Prod"):
-                    return tuple(_get_null_object(t) for t in typ.__types__)
+                    return tuple(_null(t) for t in typ.__types__)
                 return tuple()
             else:
                 return ()
         if set in bases:
             if hasattr(typ, '__types__') and typ.__types__:
-                elem_null = _get_null_object(typ.__types__[0])
+                elem_null = _null(typ.__types__[0])
                 return {elem_null}
             else:
                 return set()
         if dict in bases:
             if hasattr(typ, '__types__') and typ.__types__:
                 vtyp = typ.__types__[0]
-                vnull = _get_null_object(vtyp)
+                vnull = _null(vtyp)
                 if vtyp in (str,):
                     return {"": vnull}
                 elif vtyp in (int,):
@@ -270,12 +274,10 @@ def _get_null_object(typ):
                     return {None: vnull}
             else:
                 return {}
-    if hasattr(typ, "__null__"):
-        return typ.__null__
     return None
 
 def _is_null_of_type(x, typ):
-    null = _get_null_object(typ)
+    null = _null(typ)
     if typ in _builtin_nulls().keys():
         return x == _builtin_nulls()[typ]
     if hasattr(typ, '__bases__'):

@@ -3,7 +3,7 @@ from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as
 from typed.mods.types.func import Typed
 from typed.mods.helper.helper import (
     _is_null_of_type,
-    _get_null_object,
+    _null,
     _name,
     _name_list,
     _inner_union,
@@ -599,7 +599,7 @@ def Null(typ: Union_[Type]) -> Type:
     if type is type(None):
         return None
 
-    if _get_null_object(typ) is None:
+    if _null(typ) is None:
         raise TypeError(
             "Wrong type in 'Null' factory: \n"
             f" ==> 'typ': has unexpected type\n"
@@ -609,7 +609,7 @@ def Null(typ: Union_[Type]) -> Type:
 
     class _Null(type):
         def __instancecheck__(cls, instance):
-            return instance == _get_null_object(typ)
+            return instance == _null(typ)
         def __repr__(cls):
             return f"<Null({_name(typ)})>"
 

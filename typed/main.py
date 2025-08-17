@@ -1,4 +1,4 @@
-from typed.mods.helper.helper       import _nill, _get_null_object
+from typed.mods.helper.helper       import _nill, _null
 from typed.mods.types.base          import *
 from typed.mods.types.func          import *
 from typed.mods.types.attr          import *
@@ -13,5 +13,5 @@ from typed.mods.decorators          import *
 nill = typed(_nill)
 
 # the null values
-null = _get_null_object
+null = _null
 
