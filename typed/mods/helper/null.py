@@ -1,16 +1,3 @@
-def _builtin_nulls():
-    return {
-        str: "",
-        int: 0,
-        float: 0.0,
-        bool: False,
-        set: set(),
-        dict: {},
-        list: [],
-        tuple: (),
-        frozenset: frozenset()
-    }
-
 def _null_model(typ):
     """
     Build the null (empty) instance of a Model‐type:
@@ -31,9 +18,6 @@ def _null_model(typ):
     return typ(**data)
 
 def _null(typ):
-    built = _builtin_nulls()
-    if typ in built:
-        return built[typ]
     if hasattr(typ, '__null__'):
         return typ.__null__
     return None

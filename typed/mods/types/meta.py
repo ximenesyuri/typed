@@ -2,13 +2,56 @@ import re
 import inspect
 from typed.mods.helper.helper import _name
 
+class _TYPE(type(type)):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, type)
+
+    def __subclasscheck__(cls, instance):
+        return issubclass(instance, type)
+
+class _Nill(type(type(None))):
+    def __instancecheck__(cls, instance):
+        return False
+
+    def __subclasscheck__(cls, instance):
+        return False
+
+class _Int(type(int)):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, int)
+
+    def __subclasscheck__(cls, instance):
+        return issubclass(instance, int)
+
+class _Float(type(float)):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, float)
+
+    def __subclasscheck__(cls, instance):
+        return issubclass(instance, float)
+
+class _Str(type(str)):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, str)
+
+    def __subclasscheck__(cls, instance):
+        return issubclass(instance, str)
+
+class _Bool(type(bool)):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, bool)
+
+    def __subclasscheck__(cls, instance):
+        return issubclass(instance, bool)
+
+
 class _Any(type):
     def __instancecheck__(cls, instance):
         return True
     def __subclasscheck__(cls, subclass):
         return True
 
-class _Pattern(type):
+class _Pattern(_Str):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, str):
             return False
@@ -20,7 +63,7 @@ class _Pattern(type):
     def __repr__(cls):
         return "Pattern(str): a string valid as Python regex"
 
-class _META(type):
+class _META(_TYPE):
     def __instancecheck__(self, instance):
         return isinstance(instance, type) and issubclass(instance, type)
 

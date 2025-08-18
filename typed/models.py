@@ -1,5 +1,3 @@
-from typing import Union, Type, List, Any, Dict
-from typed.mods.types.core import Json
 from typed.mods.helper.helper import _name
 from typed.mods.helper.models import (
     _Optional,
@@ -27,7 +25,7 @@ RIGID     = _RIGID('RIGID', (type, ), {'__display__': 'RIGID'})
 OPTIONAL  = _OPTIONAL('OPTIONAL', (type,), {'__display__': 'OPTIONAL'})
 MANDATORY = _MANDATORY('MANDATORY', (type,), {'__display__': 'MANDATORY'})
 
-def Optional(typ: Type, default_value: Any=None):
+def Optional(typ, default_value=None):
     if not isinstance(typ, type) and not hasattr(typ, '__instancecheck__'):
         raise TypeError(f"'{_name(typ)}' is not a type.")
     from typed.mods.types.base import Any
@@ -42,14 +40,7 @@ def Optional(typ: Type, default_value: Any=None):
         )
     return _Optional(typ, default_value)
 
-def Model(
-    __extends__: Type[Json] | List[Type[Json]] = None,
-    __conditions__=None,
-    __exact__=False,
-    __ordered__=False,
-    __rigid__=False,
-    **kwargs: Type
-) -> Type[Json]:
+def Model(__extends__= None, __conditions__=None, __exact__=False, __ordered__=False, __rigid__=False, **kwargs):
     if __rigid__:
         __exact__ = True
         __ordered__ = True
@@ -74,8 +65,8 @@ def Model(
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
     class ModelValidate(dict):
-        _defined_required_attributes: dict = {}
-        _defined_optional_attributes: dict = {}
+        _defined_required_attributes = {}
+        _defined_optional_attributes = {}
         _defined_keys: set = set()
         _ordered_keys: list = _get_keys_in_defined_order(attributes_and_types, optional_attributes_and_defaults)
 
@@ -102,7 +93,7 @@ def Model(
             except AttributeError:
                 raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-        def __setattr__(self, name: str, value: Any):
+        def __setattr__(self, name, value):
             if name in self._defined_required_attributes:
                 expected_type = self._defined_required_attributes[name]
                 if not (isinstance(value, expected_type) or
@@ -124,7 +115,7 @@ def Model(
             else:
                 object.__setattr__(self, name, value)
 
-        def __delattr__(self, name: str):
+        def __delattr__(self, name):
             if name in self._defined_required_attributes:
                 raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
             elif name in self._defined_optional_attributes:
@@ -157,7 +148,7 @@ def Model(
                     del dct[key]
             super().__init__(name, bases, dct)
 
-        def __instancecheck__(cls, instance: Any) -> bool:
+        def __instancecheck__(cls, instance):
             if not isinstance(instance, dict):
                 return False
             required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
@@ -196,7 +187,7 @@ def Model(
                     return False
             return True
 
-        def __subclasscheck__(cls, subclass: Type) -> bool:
+        def __subclasscheck__(cls, subclass):
             if not hasattr(subclass, '_required_attributes_and_types') or \
                not hasattr(subclass, '_required_attribute_keys') or \
                not hasattr(subclass, '_optional_attributes_and_defaults'):
@@ -269,12 +260,7 @@ def Model(
 
     return new_model
 
-def Exact(
-    __extends__: Type[Json] | List[Type[Json]] = None,
-    __conditions__=None,
-    **kwargs: Type
-) -> Type[Json]:
-
+def Exact(__extends__=None, __conditions__=None, **kwargs):
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
@@ -292,8 +278,8 @@ def Exact(
         conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
 
     class ExactValidate(dict):
-        _defined_required_attributes: dict = {}
-        _defined_optional_attributes: dict = {}
+        _defined_required_attributes = {}
+        _defined_optional_attributes = {}
         _defined_keys: set = set()
         _all_possible_keys: set = set()
 
@@ -316,7 +302,7 @@ def Exact(
             except AttributeError:
                 raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-        def __setattr__(self, name: str, value: Any):
+        def __setattr__(self, name, value):
             if name in self._defined_required_attributes:
                 expected_type = self._defined_required_attributes[name]
                 if not (isinstance(value, expected_type) or
@@ -338,7 +324,7 @@ def Exact(
             else:
                 object.__setattr__(self, name, value)
 
-        def __delattr__(self, name: str):
+        def __delattr__(self, name):
             if name in self._defined_required_attributes:
                 raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
             elif name in self._defined_optional_attributes:
@@ -372,7 +358,7 @@ def Exact(
                     del dct[key]
             super().__init__(name, bases, dct)
 
-        def __instancecheck__(cls, instance: Any) -> bool:
+        def __instancecheck__(cls, instance):
             if not isinstance(instance, dict):
                 return False
 
@@ -498,12 +484,7 @@ def Exact(
     new_model.__null__ = _null_model(new_model)
     return new_model
 
-def Ordered(
-    __extends__: Type[Json] | List[Type[Json]] = None,
-    __conditions__=None,
-    **kwargs: Type
-) -> Type[Json]:
-
+def Ordered(__extends__= None, __conditions__=None, **kwargs):
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
@@ -621,12 +602,7 @@ def Ordered(
     new_model.__null__ = _null_model(new_model)
     return new_model
 
-def Rigid(
-    __extends__: Type[Json] | List[Type[Json]] = None,
-    __conditions__=None,
-    **kwargs: Type
-) -> Type[Json]:
-
+def Rigid(__extends__=None, __conditions__=None, **kwargs):
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
@@ -724,7 +700,7 @@ def Rigid(
     new_model.__null__ = _null_model(new_model)
     return new_model
 
-def Validate(entity: dict, model: Type[Json]) -> Json:
+def Validate(entity, model):
     model_metaclass = type(model)
 
     if not isinstance(model, MODEL_METATYPES):
@@ -791,7 +767,7 @@ def Validate(entity: dict, model: Type[Json]) -> Json:
         )
     return entity
 
-def Forget(model: Type[Json], entries: list) -> Type[Json]:
+def Forget(model, entries):
     if not isinstance(model, type(_MODEL)):
         raise TypeError(f"forget expects a Model-type. Got: {model}")
 

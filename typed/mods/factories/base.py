@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache as cache
 from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as Callable_
 from typed.mods.types.func import Typed
 from typed.mods.helper.null import  _null, _null_from_list
@@ -9,6 +10,7 @@ from typed.mods.helper.helper import (
     _inner_dict_union
 )
 
+@cache
 def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
     Build the 'union' of types:
@@ -72,7 +74,9 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
         return Typed(union_dispatcher)
 
     elif all(isinstance(f, type) for f in args):
-        types = args
+        types = tuple(dict.fromkeys(args))
+        if len(types) == 1:
+            return types[0]
     elif all(isinstance(t, T) for t in args):
         raise TypeError(
             "Mixed argument types: \n"
@@ -88,15 +92,16 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
                     f"     [received_type] {_name(type(t))}"
                 )
 
-    class _Union(type):
+    _types = tuple(type(typ) for typ in types)
+    class _Union(*_types):
         def __instancecheck__(cls, instance):
             return any(isinstance(instance, t) for t in cls.__types__)
         def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if hasattr(subclass, '__types__') and getattr(cls, '__types__', None) == getattr(subclass, '__types__', None):
+            if subclass is cls:
                 return True
-            if subclass is cls or subclass is Any or subclass in cls.__types__:
-                return True
+            if hasattr(subclass, '__types__'):
+                return all(any(issubclass(st, ct) for ct in cls.__types__)
+                           for st in subclass.__types__)
             return any(issubclass(subclass, t) for t in cls.__types__)
 
     class_name = f"Union({_name_list(*types)})"
@@ -109,6 +114,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
         '__null__': __null__
     })
 
+@cache
 def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
     Build the 'product' of types:
@@ -195,6 +201,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]
         "__null__": tuple(_null(t) for t in types)
     })
 
+@cache
 def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'unordered product' of types:
@@ -284,6 +291,7 @@ def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         "__null__": set(_null(t) for t in types)
     })
 
+@cache
 def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'tuple' of types with flexible length:
@@ -357,6 +365,7 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         '__null__': tuple(__null__) if __null__ is not None else None
     })
 
+@cache
 def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'list' of types:
@@ -429,6 +438,7 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         '__null__': list(__null__) if __null__ is not None else None
     })
 
+@cache
 def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     """
     Build the 'set' of types:
@@ -506,6 +516,7 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         '__null__': set(__null__) if __null__ is not None else None
     })
 
+@cache
 def Dict(*args: Union_[Tuple_[Type], Typed], keys=str) -> Union_[Type, Typed]:
     """
     Build the 'dict' of types:

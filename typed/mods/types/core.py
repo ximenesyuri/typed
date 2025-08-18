@@ -6,4 +6,6 @@ Path = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$")
 Json = Union(Dict(Any), Set(Any), List(Any))
 
 Json.__display__  = "Json"
+Json.__null__     = {}
 Path.__display__  = "Path"
+Path.__null__     = ""
