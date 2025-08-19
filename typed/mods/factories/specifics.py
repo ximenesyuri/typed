@@ -13,6 +13,8 @@ def Extension(ext: str) -> Type:
         def __instancecheck__(cls, instance):
             if not isinstance(instance, Path):
                 return False
+            if instance == '':
+                return True
             parts = instance.split('.')
             return parts[-1] == ext
     class_name = f'Extension({ext})'
