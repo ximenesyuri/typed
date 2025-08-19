@@ -92,7 +92,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
                     f"     [received_type] {_name(type(t))}"
                 )
 
-    class _Union():
+    class _Union(type):
         def __instancecheck__(cls, instance):
             return any(isinstance(instance, t) for t in cls.__types__)
         def __subclasscheck__(cls, subclass):
