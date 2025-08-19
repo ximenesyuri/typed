@@ -516,7 +516,7 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     })
 
 @cache
-def Dict(*args: Union_[Tuple_[Type], Typed], keys=Str) -> Union_[Type, Typed]:
+def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
     """
     Build the 'dict' of types:
         > the objects of 'Dict(X, Y, ...)'
