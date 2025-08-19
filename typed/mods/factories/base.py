@@ -361,7 +361,7 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     return _Tuple(class_name, (tuple,), {
         '__display__': class_name,
         '__types__': types,
-        '__null__': tuple(__null__) if __null__ is not None else None
+        '__null__': __null__ if __null__ is not None else None
     })
 
 @cache
@@ -434,7 +434,7 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     return _List(class_name, (tuple,), {
         '__display__': class_name,
         '__types__': types,
-        '__null__': list(__null__) if __null__ is not None else None
+        '__null__': __null__ if __null__ is not None else None
     })
 
 @cache
@@ -512,7 +512,7 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     return _Set(class_name, (set,), {
         '__display__': class_name,
         '__types__': types,
-        '__null__': set(__null__) if __null__ is not None else None
+        '__null__': __null__ if __null__ is not None else None
     })
 
 @cache
