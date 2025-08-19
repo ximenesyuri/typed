@@ -793,7 +793,7 @@ def Forget(model, entries):
             new_kwargs[k] = optional_types[k]
     return Model(**new_kwargs)
 
-def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=True):
+def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         annotations = cls.__annotations__
         is_nullable = getattr(cls, '__nullable__', nullable)
@@ -865,7 +865,7 @@ def rigid(_cls=None, *, extends=None, conditions=None):
     if _cls is None: return wrap
     else: return wrap(_cls)
 
-def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=True):
+def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         is_null = getattr(cls, '__nullable__', nullable)
 
