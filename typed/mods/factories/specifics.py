@@ -8,7 +8,7 @@ from typed.mods.helper.null import _null
 
 @cache
 def Extension(ext: str) -> Type:
-    from typed.mods.types.base import Path
+    from typed.mods.types.core import Path
     class _Extension(type(Path)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, Path):
