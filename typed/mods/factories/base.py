@@ -630,5 +630,5 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=str) -> Union_[Type, Typed]:
         "__display__": class_name,
         '__types__': types,
         '__key_type__': keys,
-        '__null__': {_null(keys): __null__} if keys else {None: __null__}
+        '__null__': {_null(keys): __null__} if keys else {'': __null__}
     })
