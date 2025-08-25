@@ -21,6 +21,16 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
     """
     T = (Typed, type)
 
+    if args and all(isinstance(f, type) for f in args):
+        unique_types = set(args)
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        sorted_types = tuple(sorted(unique_types, key=_key))
+        if len(sorted_types) == 1:
+            return sorted_types[0]
+        if sorted_types != args:
+            return Union(*sorted_types)
+
     if not args:
         return type(None)
     if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
@@ -302,6 +312,15 @@ def Tuple(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     Can be applied to typed functions:
         > 'Tuple(f): Tuple(f.domain) -> Tuple(f.codomain)'
     """
+    if args and all(isinstance(t, type) for t in args):
+        unique = set(args)
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        sorted_types = tuple(sorted(unique, key=_key))
+        if len(sorted_types) == 1:
+            return sorted_types[0]
+        if sorted_types != args:
+            return Tuple(*sorted_types)
     if not args:
         return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
@@ -376,6 +395,15 @@ def List(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     Can be applied to typed functions:
         > 'List(f): List(f.domain) -> List(f.codomain)'
     """
+    if args and all(isinstance(t, type) for t in args):
+        unique = set(args)
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        sorted_types = tuple(sorted(unique, key=_key))
+        if len(sorted_types) == 1:
+            return sorted_types[0]
+        if sorted_types != args:
+            return List(*sorted_types)
     if not args:
         return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
@@ -450,6 +478,16 @@ def Set(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     Can be applied to typed functions:
         > 'Set(f): Set(f.domain) -> Set(f.codomain)'
     """
+    if args and all(isinstance(t, type) for t in args):
+        unique = set(args)
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        sorted_types = tuple(sorted(unique, key=_key))
+        if len(sorted_types) == 1:
+            return sorted_types[0]
+        if sorted_types != args:
+            return Set(*sorted_types)
+
     if not args:
         return type(None)
     if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
@@ -534,6 +572,14 @@ def Dict(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
         > 'Dict(f): Dict(f.domain) -> Dict(f.codomain)' such that
             1. 'f({k: v}) = {k: f(v)}'
     """
+    if args and all(isinstance(t, type) for t in args):
+        unique = set(args)
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        sorted_types = tuple(sorted(unique, key=_key))
+        if sorted_types != args:
+            return Dict(*sorted_types, keys=keys)
+
     if not args:
         return type(None)
 

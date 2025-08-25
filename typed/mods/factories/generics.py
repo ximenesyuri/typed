@@ -25,10 +25,18 @@ def Inter(*types: Tuple_[Type]) -> Type:
                  "     [expected_type] TYPE\n"
                 f"     [received_type] {_name(type(t))}"
             )
-    unique_types = tuple(set(types))
-
-    if len(unique_types) == 1:
-        return unique_types[0]
+    if types:
+        def _key(t):
+            return (t.__module__, getattr(t, '__qualname__', t.__name__))
+        unique = set(types)
+        sorted_types = tuple(sorted(unique, key=_key))
+        if len(sorted_types) == 1:
+            return sorted_types[0]
+        if sorted_types != types:
+            return Inter(*sorted_types)
+        unique_types = sorted_types
+    else:
+        unique_types = ()
 
     non_builtin_types = [t for t in unique_types if not t.__module__ == 'builtins']
 
