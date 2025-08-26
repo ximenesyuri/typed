@@ -125,7 +125,7 @@ def Datetime(datetime_format: datetime) -> Type:
 
 @cache
 def Url(*protocols: Tuple_[str], pattern: Pattern=None) -> Type:
-    from typed.mods.types.other import Protocol
+    from typed.mods.types.specifics import Protocol
     wrong_type = []
     for prot in protocols:
         if not isinstance(prot, Protocol):

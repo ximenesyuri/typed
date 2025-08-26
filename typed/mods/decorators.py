@@ -1,5 +1,4 @@
-from typed.mods.types.func import Typed
-from typed.mods.types.base import Condition, TYPE
+from typed.mods.types.base import TYPE
 from functools import wraps, lru_cache
 
 def typed(arg):
@@ -7,12 +6,8 @@ def typed(arg):
     if isinstance(arg, type):
         return _variable_checker(arg)
     elif callable(arg):
-        wrapped_func = Typed(arg)
-        try:
-            wrapped_func = Condition(arg)
-        except TypeError:
-            pass
-        return wraps(arg)(wrapped_func)
+        from typed.mods.types.func import Typed
+        return wraps(arg)(Typed(arg))
     raise TypeError(
         "typed function can only be applied to types or callable objects:\n"
         f" ==> '{arg}': is not callable nor a type\n"

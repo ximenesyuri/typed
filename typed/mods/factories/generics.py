@@ -67,14 +67,14 @@ def Inter(*types: Tuple_[Type]) -> Type:
 def Filter(X: Type, f: Tuple_[FunctionType]) -> Type:
     real_filters = []
     from typed.mods.types.base import Any
-    from typed.mods.types.base import Condition
+    from typed.mods.types.func import Condition
     if not isinstance(f, Condition):
         raise TypeError(
             "Wrong type in Filter factory: \n"
             f" ==> {_name(f)}: has unexpected type\n"
              "     [expected_type] Condition\n"
             f"     [received_type] {_name(type(f))}"
-        ) 
+        )
     class _Filter(type(X)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, X):
@@ -390,34 +390,6 @@ def Maybe(*types: Tuple_[Type]) -> Type:
     Maybe_.__display__ = f"Maybe({_name_list(*types)})"
     Maybe_.__null__ = _null_from_list(*types)
     return Maybe_
-
-@cache
-def SUBTYPES(*types: Tuple_[Type]) -> Type:
-    """
-    Build the type of subtypes of a given types.
-        > An object of `SUBTYPE(X, Y, ...)`
-        > is a type T such that issubclass(T, K) is True
-        > for some K in (X, Y, ...)
-    """
-    for typ in types:
-        if type(typ) is not type:
-            raise TypeError(
-                "Wrong type in SUBTYPES factory: \n"
-                f" ==> {_name(typ)}: has unexpected type\n"
-                f"     [expected_type] TYPE"
-                f"     [received_type] {_name(type(typ))}"
-            )
-
-    class _SUBTYPES(type):
-        def __instancecheck__(cls, instance):
-            return any(issubclass(instance, typ) for typ in types)
-
-    class_name = f"Sub({_name(*types)})"
-    return _SUBTYPES(class_name, (), {
-        "__display__": class_name,
-        "__null__": None
-    })
-SUB = SUBTYPES
 
 def Null(typ: Type) -> Type:
     if not isinstance(typ, type):

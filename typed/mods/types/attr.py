@@ -21,9 +21,9 @@ def ATTR(attributes):
     class ATTR_(metaclass=_ATTR):
         pass
 
-    return type(type_name, (ATTR_,), {'_required_attributes': tuple(attributes)})
+    from typed.mods.types.base import Nill
+    return type(type_name, (ATTR_,), {'_required_attributes': tuple(attributes), "__null__": Nill})
 
-NULLABLE       = ATTR('__null__')
 CALLABLE       = ATTR('__call__')
 ITERABLE       = ATTR('__iter__')
 ITERATOR       = ATTR('__next__')
@@ -36,7 +36,12 @@ ASYNC_ITERATOR = ATTR('__anext__')
 CONTEXT        = ATTR(['__enter__', '__exit__'])
 ASYNC_CONTEXT  = ATTR(['__aenter__', '__aexit__'])
 
-NULLABLE.__display__       = "NULLABLE"
+NULLABLE   = ATTR('__null__')
+JOINABLE   = ATTR('__join__')
+UNIONABLE  = ATTR('__union__')
+INTERNABLE = ATTR('__intern__')
+APPENDABLE = ATTR('__append__')
+
 CALLABLE.__display__       = "CALLABLE"
 ITERABLE.__display__       = "ITERABLE"
 ITERATOR.__display__       = "ITERATOR"
@@ -48,3 +53,9 @@ ASYNC_ITERABLE.__display__ = "ASYNC_ITERABLE"
 ASYNC_ITERATOR.__display__ = "ASYNC_ITERATOR"
 CONTEXT.__display__        = "CONTEXT"
 ASYNC_CONTEXT.__display__  = "ASYNC_CONTEXT"
+
+NULLABLE.__display__   = "NULLABLE"
+JOINABLE.__display__   = "JOINABLE"
+UNIONABLE.__display__  = "UNIONABLE"
+INTERNABLE.__display__ = "INTERNABLE"
+APPENDABLE.__display__ = "APPENDABLE"

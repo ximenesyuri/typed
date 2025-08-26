@@ -154,3 +154,32 @@ class Typed(Hinted, TypedDom, TypedCod, metaclass=_Typed):
         ds = ', '.join(t.__name__ for t in self.domain)
         cs = self.codomain.__name__
         return f"{self.__name__}({ds})! -> {cs}!"
+
+from typed.mods.decorators import typed
+from typed.mods.factories.generics import Filter
+from typed.mods.types.base import Any, Bool
+
+def _has_var_arg(func: Function) -> Bool:
+    signature = inspect.signature(func)
+    for param in signature.parameters.values():
+        if param.kind == param.VAR_POSITIONAL:
+            return True
+    return False
+
+def _has_var_kwarg(func: Function) -> Bool:
+    signature = inspect.signature(func)
+    for param in signature.parameters.values():
+        if param.kind == param.VAR_KEYWORD:
+            return True
+    return False
+
+Condition      = Typed(Any, cod=Bool)
+Decorator      = Typed(Function, cod=Function)
+TypedDecorator = Typed(Typed, cod=Typed)
+VariableFunc   = Filter(Function, typed(_has_var_arg))
+KeywordFunc    = Filter(Function, typed(_has_var_kwarg))
+
+Decorator.__diplay__       = "Decorator"
+TypedDecorator.__display__ = "TypedDecorator"
+VariableFunc.__display__   = "VariableFunc"
+KeywordFunc.__display__    = "KeywordFunc"
