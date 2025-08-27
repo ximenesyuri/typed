@@ -162,7 +162,7 @@ class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
 
 from typed.mods.decorators import typed
 from typed.mods.factories.generics import Filter
-from typed.mods.types.base import Any, Bool
+from typed.mods.types.base import Any, Bool, TYPE, META
 
 def _has_var_arg(func: Function) -> Bool:
     signature = inspect.signature(func)
@@ -178,12 +178,16 @@ def _has_var_kwarg(func: Function) -> Bool:
             return True
     return False
 
+Factory        = Typed(Any, cod=TYPE)
+MetaFactory    = Typed(Any, cod=META)
 Condition      = Typed(Any, cod=Bool)
 Decorator      = Typed(Function, cod=Function)
 TypedDecorator = Typed(Typed, cod=Typed)
 VariableFunc   = Filter(Function, typed(_has_var_arg))
 KeywordFunc    = Filter(Function, typed(_has_var_kwarg))
 
+Factory.__display__        = "Factory"
+MetaFactory.__display__    = "MetaFactory"
 Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"
 VariableFunc.__display__   = "VariableFunc"
