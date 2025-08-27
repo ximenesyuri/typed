@@ -1,4 +1,4 @@
-def symmetrization(func=None, *, key=None):
+def symmetrize(func=None, *, key=None):
     """
     Decorator that makes a function symmetric in its positional arguments:
       – All permutations of *args get sorted (by key or by value, or by repr())

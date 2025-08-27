@@ -290,3 +290,22 @@ def _inner_dict_union(*types):
                         return True
             return False
     return _union_meta("Inner Union", (), {'__types__': types})
+
+def _type(obj):
+    from typed.mods.types.base import Str, Int, Float, Bool, Nill, Any
+    from typed.mods.types.factories import List, Tuple, Set, Dict
+    types_map = {
+        type(None): Nill,
+        bool: Bool,
+        int: Int,
+        float: Float,
+        str: Str,
+        list: List,
+        tuple: Tuple,
+        dict: Dict,
+        set: Set
+    }
+    for k, v in types_map.items():
+        if type(obj) is k:
+            return v
+    return type(obj)

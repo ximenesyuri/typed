@@ -1,7 +1,7 @@
 from typing import Tuple as Tuple_, Type
 from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Nill
-from typed.mods.types.meta import _TYPE
+from typed.mods.meta.base import _TYPE_
 from typed.mods.helper.helper import _name, _name_list
 
 @cache
@@ -21,12 +21,12 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
                 f"     [received_type] {_name(type(typ))}"
             )
 
-    class _SUBTYPES(_TYPE):
+    class _SUBTYPES_(_TYPE_):
         def __instancecheck__(cls, instance):
             return any(issubclass(instance, typ) for typ in types)
 
     class_name = f"SUBTYPES({_name_list(*types)})"
-    return _SUBTYPES(class_name, (), {
+    return _SUBTYPES_(class_name, (), {
         "__display__": class_name,
         "__null__": Nill
     })
@@ -50,12 +50,12 @@ def NOT(*types: Tuple_[Type]) -> Type:
                 f"     [received_type] {_name(type(typ))}"
             )
 
-    class _NOT(_TYPE):
+    class _NOT_(_TYPE_):
         def __instancecheck__(cls, instance):
             return not any(instance is t for t in types)
 
     class_name = f"NOT({_name_list(*types)})"
-    return _NOT(class_name, (), {
+    return _NOT_(class_name, (), {
         "__display__": class_name,
         "__null__": Nill
     })

@@ -1,5 +1,5 @@
 from typed.mods.factories.base import (
-    Union, Prod, UProd, Tuple, List, Set, Dict
+    Union, Prod, UProd
 )
 from typed.mods.factories.generics import (
     Inter, Filter, Compl, Regex, Range, Not, Enum, Single, Len

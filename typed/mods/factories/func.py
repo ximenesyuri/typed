@@ -20,7 +20,7 @@ from typed.mods.types.func import (
 )
 
 @cache
-def Function_(*args: Tuple_[int]) -> Type:
+def _Function_(*args: Tuple_[int]) -> Type:
     """
     Build the 'function type' of functions with
     a given number of argumens:
@@ -28,7 +28,7 @@ def Function_(*args: Tuple_[int]) -> Type:
         > with exactly 'n>=0' pos arguments and 'm>=' kwargs.
         > For 'n<0' and 'm<0' any function is in 'Function(n, m)'
     """
-    class _Func(type(Function)):
+    class _FUNCTION(type(Function)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, Function):
                 return False
@@ -49,10 +49,10 @@ def Function_(*args: Tuple_[int]) -> Type:
             raise AttributeError(f"Expected 1 or 2 arguments. Received '{len(args)}' arguments")
 
     class_name = f'Function({args})'
-    return _Func(class_name, (Function,), {'__display__': class_name})
+    return _FUNCTION(class_name, (Function,), {'__display__': class_name})
 
 @cache
-def HintedDom_(*types: Tuple_[Type]) -> Type:
+def _HintedDom_(*types: Tuple_[Type]) -> Type:
     """
     Build the 'hinted-domain function type' of types:
         > the objects of 'HintedDom(X, Y, ...)'
@@ -61,7 +61,7 @@ def HintedDom_(*types: Tuple_[Type]) -> Type:
     'Function(n, m)' to 'HintedDom'
     """
 
-    class _HintedDom(type(HintedDom)):
+    class _HINTED_DOM(type(HintedDom)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, HintedDom):
                 return False
@@ -77,16 +77,16 @@ def HintedDom_(*types: Tuple_[Type]) -> Type:
             return set(domain_hints) == set(self.__types__)
 
     class_name = f"HintedDom({_name_list(*types)})"
-    return _HintedDom(class_name, (HintedDom,), {'__display__': class_name, '__types__': types})
+    return _HINTED_DOM(class_name, (HintedDom,), {'__display__': class_name, '__types__': types})
 
 @cache
-def HintedCod_(cod: Type) -> Type:
+def _HintedCod_(cod: Type) -> Type:
     """
     Build the 'hinted-codomain function type' of types:
         > the objects of 'HintedCod(R)' are
         > objects 'f(x, y, ... ) -> R' of 'HintedCod'
     """
-    class _HintedCod(type(HintedCod)):
+    class _HINTED_COD(type(HintedCod)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, HintedCod):
                 return False
@@ -100,10 +100,10 @@ def HintedCod_(cod: Type) -> Type:
             return return_hint == self.__codomain__
 
     class_name = f"HintedCod(cod={_name(cod)})"
-    return _HintedCodFunc(class_name, (HintedCod,), {"__display__": class_name, '__codomain__': cod})
+    return _HINTED_COD(class_name, (HintedCod,), {"__display__": class_name, '__codomain__': cod})
 
 @cache
-def Hinted_(*types: Tuple_[Type], cod: Type) -> Type:
+def _Hinted_(*types: Tuple_[Type], cod: Type) -> Type:
     """
     Build the 'hinted function type' of types:
         > the objects of Hinted(X, Y, ..., cod=R)
@@ -111,7 +111,7 @@ def Hinted_(*types: Tuple_[Type], cod: Type) -> Type:
     The case 'Hinted(n, m)' is the restriction of
     'Function(n, m)' to 'Hinted'
     """
-    class _Hinted(type(Hinted)):
+    class _HINTED(type(Hinted)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, Hinted):
                 return False
@@ -129,10 +129,10 @@ def Hinted_(*types: Tuple_[Type], cod: Type) -> Type:
             return domain_hints == set(self.__types__) and return_hint == self.__coddomain__
 
     class_name = f"Hinted({_name_list(*types)}; {_name(cod)})"
-    return _Hinted(class_name, (Hinted,), {"__display__": class_name, '__types__': types, '__codomain__': cod})
+    return _HINTED(class_name, (Hinted,), {"__display__": class_name, '__types__': types, '__codomain__': cod})
 
 @cache
-def TypedDom_(*types: Tuple_[Type]) -> Type:
+def _TypedDom_(*types: Tuple_[Type]) -> Type:
     """
     Build the 'typed-domain function type' of types:
         > the objects of 'TypedDom(X, Y, ...)'
@@ -140,7 +140,7 @@ def TypedDom_(*types: Tuple_[Type]) -> Type:
     The case 'TypedDom(n, m)' is the restriction of
     'Function(n, m)' to 'TypedDom'
     """
-    class _TypedDomFunc(type(TypedDom)):
+    class _TYPED_DOM(type(TypedDom)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, TypedDom):
                 return False
@@ -156,16 +156,16 @@ def TypedDom_(*types: Tuple_[Type]) -> Type:
             return set(domain_hints) == set(self.__types__)
 
     class_name = f"TypedDom({_name_list(*types)})"
-    return _TypedDom(class_name, (TypedDom,), {"__display__": class_name, '__types__': types})
+    return _TYPED_DOM(class_name, (TypedDom,), {"__display__": class_name, '__types__': types})
 
 @cache
-def TypedCod_(cod: Type) -> Type:
+def _TypedCod_(cod: Type) -> Type:
     """
     Build the 'typed-codomain function type' of types:
         > the objects of TypedCod(R) are
         > objects 'f(x, y, ... ) -> R' of TypedCod
     """
-    class _TypedCod(type(TypedCod)):
+    class _TYPED_COD(type(TypedCod)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, TypedCod):
                 return False
@@ -178,10 +178,10 @@ def TypedCod_(cod: Type) -> Type:
             return return_hint == self.__codomain__
 
     class_name = f"TypedCod(cod={_name(cod)})"
-    return _TypedCod(class_name, (TypedCod,), {"__display__": class_name, '__codomain__': typ})
+    return _TYPED_COD(class_name, (TypedCod,), {"__display__": class_name, '__codomain__': typ})
 
 @cache
-def Typed_(*types: Tuple_[Type], cod: Type=None) -> Type:
+def _Typed_(*types: Tuple_[Type], cod: Type=None) -> Type:
     """
     Build the type of 'typed functions' with given types:
         > the objects of 'Typed(X, Y, ..., cod=K)' are
@@ -189,7 +189,7 @@ def Typed_(*types: Tuple_[Type], cod: Type=None) -> Type:
     The case 'Typed(n, m)' is the restriction of
     'Function(n, m)' to 'Typed'
     """
-    class _Typed(type(Typed)):
+    class _TYPED(type(Typed)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, Typed):
                 return False
@@ -213,8 +213,8 @@ def Typed_(*types: Tuple_[Type], cod: Type=None) -> Type:
             return domain_hints == set(self.__types__) and return_hint == self.__codomain___
 
     class_name = f"Typed({_name_list(*types)}, cod={_name(cod)})"
-    return _Typed(class_name, (Typed,), {"__display__": class_name, '__types__': types, '__codomain__': cod})
+    return _TYPED(class_name, (Typed,), {"__display__": class_name, '__types__': types, '__codomain__': cod})
 
 @cache
-def Condition_(*types: Tuple_[Type]) -> Type:
-    return Typed_(*types, cod=bool)
+def _Condition_(*types: Tuple_[Type]) -> Type:
+    return _Typed_(*types, cod=bool)

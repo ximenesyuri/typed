@@ -10,31 +10,36 @@ from typed.mods.helper.helper import (
     _get_pos_args,
     _name,
 )
-from typed.mods.types.meta import (
-    _Callable,
-    _Builtin,
-    _Lambda,
-    _Method,
-    _Function,
-    _Composable,
-    _HintedDom,
-    _HintedCod,
-    _Hinted,
-    _TypedDom,
-    _TypedCod,
-    _Typed,
+from typed.mods.meta.func import (
+    CALLABLE,
+    BUILTIN,
+    LAMBDA,
+    BOUND_METHOD,
+    UNBOUND_METHOD,
+    METHOD,
+    FUNCTION,
+    COMPOSABLE,
+    HINTED_DOM,
+    HINTED_COD,
+    HINTED,
+    TYPED_DOM,
+    TYPED_COD,
+    TYPED,
 )
 
-Callable = _Callable('Callable', (), {"__display__": "Callable"})
-Builtin  = _Builtin('Builtin', (Callable,), {"__display__": "Builtin"})
-Lambda   = _Lambda('Lambda', (Callable,), {"__display__": "Lambda"})
-Function = _Function('Function', (Callable,), {"__display__": "Function"})
+Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
+Builtin       = BUILTIN('Builtin', (Callable,), {"__display__": "Builtin"})
+Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
+Function      = FUNCTION('Function', (Callable,), {"__display__": "Function"})
+BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
+UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
+Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
 
 setattr(Function, 'args', property(_get_args))
 setattr(Function, 'kwargs', property(_get_kwargs))
 setattr(Function, 'posargs', property(_get_pos_args))
 
-class Composable(Function, metaclass=_Composable):
+class Composable(Function, metaclass=COMPOSABLE):
     def __init__(self, func):
         self.func = func
         self.__name__ = getattr(func, '__name__', 'anonymous')
@@ -59,7 +64,7 @@ class Composable(Function, metaclass=_Composable):
     def __str__(self):
         return self.__name__
 
-class HintedDom(Composable, metaclass=_HintedDom):
+class HintedDom(Composable, metaclass=HINTED_DOM):
     def __init__(self, func):
         _is_domain_hinted(func)
         super().__init__(func)
@@ -77,7 +82,7 @@ class HintedDom(Composable, metaclass=_HintedDom):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})"
 
-class HintedCod(Composable, metaclass=_HintedCod):
+class HintedCod(Composable, metaclass=HINTED_COD):
     def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
@@ -95,7 +100,7 @@ class HintedCod(Composable, metaclass=_HintedCod):
         c = self.codomain.__name__
         return f"{self.__name__} -> {c}"
 
-class Hinted(HintedDom, HintedCod, metaclass=_Hinted):
+class Hinted(HintedDom, HintedCod, metaclass=HINTED):
     def __init__(self, func):
         _is_domain_hinted(func)
         _is_codomain_hinted(func)
@@ -117,7 +122,7 @@ class Hinted(HintedDom, HintedCod, metaclass=_Hinted):
 import inspect as _ins
 from typed.mods.helper.helper import _check_domain, _check_codomain
 
-class TypedDom(HintedDom, metaclass=_TypedDom):
+class TypedDom(HintedDom, metaclass=TYPED_DOM):
     def __call__(self, *args, **kwargs):
         sig = _ins.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
@@ -130,7 +135,7 @@ class TypedDom(HintedDom, metaclass=_TypedDom):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})!!"
 
-class TypedCod(HintedCod, metaclass=_TypedCod):
+class TypedCod(HintedCod, metaclass=TYPED_COD):
     def __call__(self, *args, **kwargs):
         sig = _ins.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
@@ -145,7 +150,7 @@ class TypedCod(HintedCod, metaclass=_TypedCod):
         c = self.codomain.__name__
         return f"{self.__name__} -> {c}!"
 
-class Typed(Hinted, TypedDom, TypedCod, metaclass=_Typed):
+class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
     def __repr__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         cs = self.codomain.__name__

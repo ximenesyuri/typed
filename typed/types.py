@@ -6,15 +6,11 @@ from typed.mods.types.func import (
     Callable, Builtin, Lambda, Function, Composable,
     HintedDom, HintedCod, Hinted,
     TypedDom, TypedCod, Typed,
+    BoundMethod, UnboundMethod, Method,
     Condition, Decorator, TypedDecorator,
     VariableFunc, KeywordFunc
 )
-from typed.mods.types.attr import (
-    ATTR,
-    CALLABLE, ITERABLE, ITERATOR, SIZED, CONTAINER, HASHABLE, CONTEXT,
-    AWAITABLE, ASYNC_ITERABLE, ASYNC_ITERATOR, ASYNC_CONTEXT,
-    NULLABLE, JOINABLE, UNIONABLE, INTERNABLE, APPENDABLE
-)
+from typed.mods.types.attr import *
 from typed.mods.types.path import Path, Exists, File, Dir, Symlink, Mount, PathUrl
 from typed.mods.types.json import Json, Entry, Table, Flat
 from typed.mods.types.specifics import (
