@@ -25,4 +25,4 @@ def ATTR(attributes):
         '__attrs__': tuple(attributes),
         "__null__": Nill,
         "__display__": class_name
-    })
+    }) 

@@ -120,7 +120,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
     return UNION(class_name, (), {
         '__display__': class_name,
         '__types__': types,
-        '__null__': __null__
+        '__null__': __null__,
     })
 
 @cache

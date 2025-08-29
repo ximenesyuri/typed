@@ -1,7 +1,7 @@
-from typed.mods.types.base          import Str
-from typed.mods.factories.base      import Prod
-from typed.mods.factories.func      import Typed
-from typed.mods.factories.generics  import Regex, Range, Len, Enum
+from typed.mods.types.base         import Str
+from typed.mods.types.func         import Typed
+from typed.mods.factories.base     import Prod
+from typed.mods.factories.generics import Regex, Range, Len, Enum
 
 # System
 Env = Regex(r"^[A-Z0-9_]+$")
@@ -17,10 +17,10 @@ HEX.__display__ = "HEX"
 HSL.__display__ = "HSL"
 
 # Text
-Char     = Len(Str, 1)
+#Char     = Len(Str, 1)
 Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-Char.__display__  = "Char"
+#Char.__display__  = "Char"
 Email.__display__ = "Email"
 
 # Network

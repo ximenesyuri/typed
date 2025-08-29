@@ -12,6 +12,7 @@ from typed.mods.helper.helper import (
 )
 from typed.mods.meta.func import (
     CALLABLE,
+    GENERATOR,
     BUILTIN,
     LAMBDA,
     BOUND_METHOD,
@@ -25,9 +26,11 @@ from typed.mods.meta.func import (
     TYPED_DOM,
     TYPED_COD,
     TYPED,
+    CONDITION
 )
 
 Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
+Generator     = GENERATOR('Generator', (), {"__display__": "Generator"})
 Builtin       = BUILTIN('Builtin', (Callable,), {"__display__": "Builtin"})
 Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
 Function      = FUNCTION('Function', (Callable,), {"__display__": "Function"})
@@ -141,7 +144,8 @@ class TypedCod(HintedCod, metaclass=TYPED_COD):
         b = sig.bind(*args, **kwargs); b.apply_defaults()
         r = self.func(*b.args, **b.kwargs)
         from typed.mods.helper.helper import _hinted_codomain
-        _check_codomain(self.func, _hinted_codomain(self.func), type(r), r)
+        from typed.mods.types.base import TYPE
+        _check_codomain(self.func, _hinted_codomain(self.func), TYPE(r), r)
         return r
     def __repr__(self):
         c = self.codomain.__name__
@@ -160,9 +164,12 @@ class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
         cs = self.codomain.__name__
         return f"{self.__name__}({ds})! -> {cs}!"
 
-from typed.mods.decorators import typed
+class Condition(Typed, metaclass=CONDITION):
+    pass
+
 from typed.mods.factories.generics import Filter
 from typed.mods.types.base import Any, Bool, TYPE, META
+from typed.mods.decorators import condition
 
 def _has_var_arg(func: Function) -> Bool:
     signature = inspect.signature(func)
@@ -180,11 +187,10 @@ def _has_var_kwarg(func: Function) -> Bool:
 
 Factory        = Typed(Any, cod=TYPE)
 MetaFactory    = Typed(Any, cod=META)
-Condition      = Typed(Any, cod=Bool)
 Decorator      = Typed(Function, cod=Function)
 TypedDecorator = Typed(Typed, cod=Typed)
-VariableFunc   = Filter(Function, typed(_has_var_arg))
-KeywordFunc    = Filter(Function, typed(_has_var_kwarg))
+VariableFunc   = Filter(Function, condition(_has_var_arg))
+KeywordFunc    = Filter(Function, condition(_has_var_kwarg))
 
 Factory.__display__        = "Factory"
 MetaFactory.__display__    = "MetaFactory"

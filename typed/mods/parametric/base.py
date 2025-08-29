@@ -59,7 +59,7 @@ def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 f"     [received_type] {_name(type(t))}"
             )
 
-    from typed.mods.meta.factories import TUPLE
+    from typed.mods.meta.base import TUPLE
     __null__ = _null_from_list(*types)
     class_name = f"Tuple({_name_list(*types)})"
     return TUPLE(class_name, (tuple,), {
@@ -119,7 +119,7 @@ def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             )
 
     __null__ = _null_from_list(*types)
-    from typed.mods.meta.factories import LIST
+    from typed.mods.meta.base import LIST
     class_name = f"List({_name_list(*types)})"
     return LIST(class_name, (tuple,), {
         '__display__': class_name,
@@ -179,7 +179,7 @@ def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             )
 
     __null__ = _null_from_list(*types)
-    from typed.mods.meta.factories import SET
+    from typed.mods.meta.base import SET
     class_name = f"Set({_name_list(*types)})"
     return SET(class_name, (set,), {
         '__display__': class_name,
@@ -257,7 +257,7 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
         keys = None
 
     __null__ = _null_from_list(*types)
-    from typed.mods.meta.factories import DICT
+    from typed.mods.meta.base import DICT
     class_name = f"Dict({_name_list(*types)})"
     if keys is not None:
         class_name = f"Dict({_name_list(*types)}, keys={_name(keys)})"
@@ -270,3 +270,4 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
         '__null__': {_null(keys): __null__} if keys else {'': __null__},
         '__doc__': DICT.__doc__
     })
+

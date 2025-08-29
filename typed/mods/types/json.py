@@ -1,6 +1,5 @@
-from typed.mods.types.base import Bool, Any, Str
+from typed.mods.types.base import Bool, Any, Str, Dict, Set, List
 from typed.mods.factories.base import Union
-from typed.mods.types.factories import Dict, Set, List
 from typed.mods.factories.generics import Regex, Filter
 from typed.mods.decorators import typed
 

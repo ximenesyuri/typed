@@ -1,6 +1,8 @@
 import inspect
+from typed.mods.meta.base import _TYPE_
+from typed.mods.helper.helper import _name
 
-class CALLABLE(type):
+class CALLABLE(_TYPE_):
     def __instancecheck__(cls, instance):
         if issubclass(type(instance), cls):
             return True
@@ -12,6 +14,13 @@ class CALLABLE(type):
             or inspect.ismethod(instance)
             or inspect.isfunction(instance)
             or inspect.isclass(instance)
+        )
+
+class GENERATOR(_TYPE_):
+    def __instancecheck__(cls, instance):
+        return (
+            inspect.isgeneratorfunction(instance)
+            or inspect.isasyncgenfunction(instance)
         )
 
 class BUILTIN(CALLABLE):
@@ -48,6 +57,13 @@ class LAMBDA(CALLABLE):
         )
 
 class FUNCTION(CALLABLE):
+    """
+    Build the 'function type' of functions with
+    a given number of argumens:
+        > the objects of 'Function(n, m)' are functions
+        > with exactly 'n>=0' pos arguments and 'm>=' kwargs.
+        > For 'n<0' and 'm<0' any function is in 'Function(n, m)'
+    """
     def __instancecheck__(cls, instance):
         if super().__instancecheck__(instance):
             if issubclass(type(instance), cls):
@@ -59,7 +75,6 @@ class FUNCTION(CALLABLE):
                 and not inspect.ismethod(unwrapped)
                 and not inspect.isbuiltin(unwrapped)
             )
-        return False
 
     def __call__(cls, *args, **kwargs):
         if not args and not kwargs:
@@ -83,13 +98,24 @@ class FUNCTION(CALLABLE):
                        f"     [received_type] {_name(type(arg))}"
                     )
 
-        from typed.mods.factories.func import _Function_
+        class_name = f'Function({args})'
+        from typed.mods.meta.func import FUNCTION
+        return FUNCTION(class_name, (Function,), {'__display__': class_name})
+        from typed.mods.parametric.func  import _Function_
         return _Function_(*args)
 
 class COMPOSABLE(FUNCTION):
-    pass
+    def __instancecheck__(cls, instance):
+        super().__instancecheck__(instance)
 
 class HINTED_DOM(COMPOSABLE):
+    """
+    Build the 'hinted-domain function type' of types:
+        > the objects of 'HintedDom(X, Y, ...)'
+        > are objects 'f(x: X, y: Y, ...)' of 'HintedDom'
+    The case 'HintedDom(n, m)' is the restriction of
+    'Function(n, m)' to 'HintedDom'
+    """
     def __instancecheck__(cls, instance):
         if issubclass(type(instance), cls):
             return True
@@ -102,15 +128,16 @@ class HINTED_DOM(COMPOSABLE):
             return False
 
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.base  import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int):
-            from typed.mods.factories.func import HintedDom_ as _ff
-            return _ff(args[0])
-        if args and all(isinstance(t, type) for t in args) and not kwargs:
-            from typed.mods.factories.func import _HintedDom_
+        if len(args)==1 and isinstance(args[0], Int):
+            from typed.mods.parametric.func  import _HintedDom_
+            return _HintedDom_(args[0])
+        if args and all(isinstance(t, TYPE) for t in args) and not kwargs:
+            from typed.mods.parametric.func  import _HintedDom_
             return _HintedDom_(*args, **kwargs)
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types")
 
@@ -127,73 +154,121 @@ class HINTED_COD(COMPOSABLE):
             return False
 
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.base  import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int):
-            from typed.mods.factories.func import _HintedCod_
+        if len(args)==1 and isinstance(args[0], Int):
+            from typed.mods.parametric.func  import _HintedCod_
             return _HintedCod_(args[0])
-        if len(args)==1 and isinstance(args[0], type):
-            from typed.mods.factories.func import HintedCod_
+        if len(args)==1 and isinstance(args[0], TYPE):
+            from typed.mods.parametric.func  import HintedCod_
             return _HintedCod_(args[0])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or a single type")
 
 class HINTED(HINTED_COD, HINTED_DOM):
+    def __instancecheck__(cls, instance):
+        return super().__instancecheck__(instance)
+
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.base  import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int) and not kwargs:
-            from typed.mods.factories.func import _Hinted_
+        if len(args)==1 and isinstance(args[0], Int) and not kwargs:
+            from typed.mods.parametric.func  import _Hinted_
             return _Hinted_(args[0])
-        if 'cod' in kwargs and all(isinstance(t, type) for t in args):
-            from typed.mods.factories.func import _Hinted_
+        if 'cod' in kwargs and all(isinstance(t, TYPE) for t in args):
+            from typed.mods.parametric.func  import _Hinted_
             return _Hinted_(*args, cod=kwargs['cod'])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types+cod=Type")
 
 class TYPED_DOM(HINTED_DOM):
+    def __instancecheck__(cls, instance):
+        return super().__instancecheck__(instance)
+
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.base  import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int):
-            from typed.mods.factories.func import _TypedDom_
+        if len(args)==1 and isinstance(args[0], Int):
+            from typed.mods.parametric.func  import _TypedDom_
             return _TypedDom_(args[0])
-        if args and all(isinstance(t, type) for t in args) and not kwargs:
-            from typed.mods.factories.func import _TypedDom_
+        if args and all(isinstance(t, TYPE) for t in args) and not kwargs:
+            from typed.mods.parametric.func  import _TypedDom_
             return _TypedDom_(*args)
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types")
 
 class TYPED_COD(HINTED_COD):
+    def __instancecheck__(cls, instance):
+        return super().__instancecheck__(instance) 
+
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.base  import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int):
-            from typed.mods.factories.func import _TypedCod_
+        if len(args)==1 and isinstance(args[0], Int):
+            from typed.mods.parametric.func  import _TypedCod_
             return _TypedCod_(args[0])
-        if len(args)==1 and isinstance(args[0], type):
-            from typed.mods.factories.func import _TypedCod_
+        if len(args)==1 and isinstance(args[0], TYPE):
+            from typed.mods.parametric.func  import _TypedCod_
             return _TypedCod_(args[0])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or a single type")
 
 class TYPED(HINTED, TYPED_DOM, TYPED_COD):
+    def __instancecheck__(cls, instance):
+        return super().__instancecheck__(instance)
+
+    def check(self, instance):
+        if not callable(instance):
+            return False
+        domain_hints = set(_hinted_domain(instance))
+        return_hint = _hinted_codomain(instance)
+        return domain_hints == set(self.__types__) and return_hint == self.__codomain___
+
     def __call__(cls, *args, **kwargs):
+        from typed.mods.types.func import Typed
+        if cls is Typed or issubclass(cls, Typed):
+            if len(args) == 1 and inspect.isfunction(args[0]) and not isinstance(args[0], Typed):
+                return type.__call__(Typed, args[0])
+        from typed.mods.types.base import TYPE, Int, Bool
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
             return super().__call__(*args)
-        if len(args)==1 and isinstance(args[0], int) and not kwargs:
-            from typed.mods.factories.func import _Typed_
+        if len(args)==1 and isinstance(args[0], Int) and not kwargs:
+            from typed.mods.parametric.func  import _Typed_
             return _Typed_(args[0])
-        if 'cod' in kwargs and all(isinstance(t, type) for t in args):
-            if kwargs['cod'] is bool:
-                from typed.mods.factories.func import _Condition_
-                return _Condition_(*args)
-            from typed.mods.factories.func import _Typed_
+        if 'cod' in kwargs and all(isinstance(t, TYPE) for t in args):
+            from typed.mods.parametric.func  import _Typed_
             return _Typed_(*args, cod=kwargs['cod'])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types+cod=Type")
+
+class CONDITION(TYPED):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import Bool
+        return super().__instancecheck__(instance) and instance.cod is Bool
+
+    def __call__(cls, *args, **kwargs):
+        from typed.mods.types.func import Condition
+        if cls is Condition or issubclass(cls, Condition):
+            if len(args) == 1 and inspect.isfunction(args[0]) and not isinstance(args[0], Condition):
+                from typed.mods.types.base import Bool
+                typed = super().__call__(args[0])
+                if typed.cod is not Bool:
+                    from typed.mods.types.base import TYPE
+                    raise TypeError(
+                        f"Wrong type in codomain of '{_name(args[0])}':\n"
+                        f" ==> '{_name(typed.cod)}' is not 'Bool'"
+                    )
+                return type.__call__(Condition, args[0])
+        from typed.mods.types.base import TYPE
+        if all(isinstance(t, TYPE) for t in args):
+            from typed.mods.parametric.func  import _Condition_
+            return _Condition_(*args)

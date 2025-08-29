@@ -3,7 +3,7 @@ from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Regex, Null, Filter
 from typed.mods.factories.specifics import Url
 from typed.mods.types.base import Any, Str, Bool
-from typed.mods.decorators import typed
+from typed.mods.types.func import Condition
 
 Path = Union(Regex(r"^/?(?:(?:[^/:\r\n*?\"<>|\\]+/)*[^/:\r\n*?\"<>|\\]+/?|/?)$"), Null(Str))
 
@@ -22,11 +22,11 @@ def _is_symlink(path: Path) -> Bool:
 def _is_mount(path: Path) -> Bool:
     return os.path.ismount(path)
 
-Exists  = Filter(Path, typed(_exists))
-File    = Filter(Path, typed(_is_file))
-Dir     = Filter(Path, typed(_is_dir))
-Symlink = Filter(Path, typed(_is_symlink))
-Mount   = Filter(Path, typed(_is_mount))
+Exists  = Filter(Path, Condition(_exists))
+File    = Filter(Path, Condition(_is_file))
+Dir     = Filter(Path, Condition(_is_dir))
+Symlink = Filter(Path, Condition(_is_symlink))
+Mount   = Filter(Path, Condition(_is_mount))
 PathUrl = Union(Path, Url("http", "https"))
 
 Path.__display__    = "Path"

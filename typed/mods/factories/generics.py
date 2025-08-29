@@ -9,7 +9,6 @@ from typed.mods.helper.helper import (
     _hinted_codomain,
     _name,
     _name_list,
-    _type
 )
 
 @cache
@@ -68,14 +67,15 @@ def Inter(*types: Tuple_[Type]) -> Type:
 @cache
 def Filter(X: Type, f: Tuple_[FunctionType]) -> Type:
     real_filters = []
-    from typed.mods.types.base import Any
+    from typed.mods.types.base import Any, Bool, TYPE
     from typed.mods.types.func import Condition
-    if not isinstance(f, Condition):
+    from typed.mods.meta.func import CONDITION
+    if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
         raise TypeError(
             "Wrong type in Filter factory: \n"
-            f" ==> {_name(f)}: has unexpected type\n"
+            f" ==> '{_name(f)}': has unexpected type\n"
              "     [expected_type] Condition\n"
-            f"     [received_type] {_name(TYPE(f))}"
+            f"     [received_type] '{_name(TYPE(f))}'"
         )
     class FILTER(TYPE(X)):
         def __instancecheck__(cls, instance):
@@ -102,7 +102,7 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
         raise TypeError(
             "Wrong type in Compl factory: \n"
             f" ==> '{_name(X)}': has unexpected type\n"
-             "     [expected_type] TYPE"
+             "     [expected_type] TYPE\n"
             f"     [received_type] {_name(TYPE(X))}"
         )
     unique_subtypes = tuple(set(subtypes))
@@ -113,14 +113,14 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
             raise TypeError(
                 "Wrong type in Compl factory: \n"
                 f" ==> {_name(subtype)}: has unexpected type\n"
-                 "     [expected_type] Typed"
+                 "     [expected_type] Typed\n"
                 f"     [received_type] {_name(TYPE(subtype))}"
             )
         if not issubclass(subtype, X):
             raise TypeError(
                 "Wrong type in Compl factory: \n"
                 f" ==> {_name(subtype)}: has unexpected type\n"
-                f"     [expected_type] a subtype of {_name(X)}"
+                f"     [expected_type] a subtype of {_name(X)}\n"
                 f"     [received_type] {_name(TYPE(subtype))}"
             )
 
@@ -153,7 +153,7 @@ def Regex(regex: str) -> Type[str]:
         raise TypeError(
             "Wrong type in Regex factory: \n"
             f" ==> {regex}: has unexpected type\n"
-             "     [expected_type] Pattern"
+             "     [expected_type] Pattern\n"
             f"     [received_type] {_name(TYPE(regex))}"
         )
 
@@ -270,7 +270,7 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
             raise TypeError(
                 "Wrong type in Enum factory: \n"
                 f" ==> {_name(typ)}: has unexpected type\n"
-                 "     [expected_type] Typed"
+                 "     [expected_type] Typed\n"
                 f"     [received_type] {_name(TYPE(typ))}"
             )
         for value in values:
@@ -278,7 +278,7 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
                 raise TypeError(
                     "Wrong type in Enum factory: \n"
                     f" ==> {value}: has unexpected type\n"
-                    f"     [expected_type] {_name(typ)}"
+                    f"     [expected_type] {_name(typ)}\n"
                     f"     [received_type] {_name(TYPE(value))}"
                 )
     values_set = set(values)
@@ -339,7 +339,7 @@ def Null(typ: Type) -> Type:
         raise TypeError(
             "Wrong type in 'Null' factory: \n"
             f" ==> '{_name(typ)}': has unexpected type\n"
-             "     [expected_type] a type for which 'null(typ)' is defined"
+             "     [expected_type] a type for which 'null(typ)' is defined\n"
             f"     [received_type] {_name(TYPE(typ))}"
         )
 
@@ -367,30 +367,31 @@ def Len(typ: Type, size: int) -> Type:
     if not isinstance(typ, TYPE):
         raise TypeError(
             "Wrong type in Len factory: \n"
-            f" ==> {typ}: has unexpected type\n"
-            f"     [expected_type] TYPE"
+            f" ==> {_name(typ)}: has unexpected type\n"
+            f"     [expected_type] TYPE\n"
             f"     [received_type] {_name(TYPE(typ))}"
         )
     from typed.mods.types.attr import ATTR
     if not isinstance(typ, ATTR('__len__')):
         raise TypeError(
             "Wrong type in Len factory: \n"
-            f" ==> {typ}: has unexpected type\n"
-            f"     [expected_type] TYPE"
+            f" ==> {_name(typ)}: has unexpected type\n"
+            f"     [expected_type] TYPE\n"
             f"     [received_type] {_name(TYPE(typ))}"
         )
-    if not isinstance(size, int):
+    from typed.mods.types.base import Int
+    if not isinstance(size, Int):
         raise TypeError(
             "Wrong type in Len factory: \n"
             f" ==> {size}: has unexpected type\n"
-            f"     [expected_type] Nat"
+            f"     [expected_type] Nat\n"
             f"     [received_type] {_name(TYPE(size))}"
         )
     if size < 0:
         raise TypeError(
             "Wrong type in Enum factory: \n"
             f" ==> {size}: has unexpected type\n"
-            f"     [expected_type] Nat"
+            f"     [expected_type] Nat\n"
             f"     [received_type] {_name(TYPE(size))}"
         )
     if size == 0:

@@ -80,6 +80,9 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
         def __instancecheck__(cls, instance):
             return any(issubclass(instance, typ) for typ in types)
 
+        def __subclasscheck__(cls, subclass):
+            return issubclass(subclass, cls)
+
     class_name = f"SUBTYPES({_name_list(*types)})"
     return _SUBTYPES_(class_name, (), {
         "__display__": class_name,
