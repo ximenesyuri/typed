@@ -18,8 +18,26 @@ class _TYPE_(type, metaclass=UNIVERSE):
     def __instancecheck__(cls, instance):
         return isinstance(instance, type)
 
-    def __subclasscheck__(cls, instance):
-        return issubclass(instance, type)
+    def __eq__(cls, other):
+        return issubclass(cls, other) and issubclass(other, cls)
+
+    def __ne__(cls, other):
+        return not (issubclass(cls, other) or issubclass(other, cls))
+
+    def __lt__(cls, other):
+        return issubclass(cls, other) and not issubclass(other, cls)
+
+    def __le__(cls, other):
+        return issubclass(cls, other)
+
+    def __gt__(cls, other):
+        return issubclass(other, cls) and not issubclass(cls, other)
+
+    def __ge__(cls, other):
+        return issubclass(other, cls)
+
+    def __hash__(cls):
+        return id(cls)
 
     def __call__(cls, *args, **kwargs):
         if args and isinstance(args[0], str):
@@ -82,9 +100,6 @@ class INT(_TYPE_):
     def __instancecheck__(cls, instance):
         return isinstance(instance, int)
 
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, int)
-
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
         from typed.mods.types.attr import ATTR
@@ -101,9 +116,6 @@ class INT(_TYPE_):
 class FLOAT(_TYPE_):
     def __instancecheck__(cls, instance):
         return isinstance(instance, float)
-
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, float)
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
@@ -122,19 +134,14 @@ class STR(_TYPE_):
     def __instancecheck__(cls, instance):
         return isinstance(instance, str)
 
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, str)
-
 class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
         return isinstance(instance, bool)
 
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, bool)
-
 class ANY(_TYPE_):
     def __instancecheck__(cls, instance):
         return True
+
     def __subclasscheck__(cls, subclass):
         return True
 
