@@ -29,6 +29,7 @@ def _is_domain_hinted(func):
 
     if non_hinted_params:
         raise TypeError(
+             "Type hints are missing.\n"
             f"'{func.__name__}':  missing type hints for the following parameters:\n"
             f"  ==> '{', '.join(non_hinted_params)}'."
         )
@@ -38,7 +39,10 @@ def _is_codomain_hinted(func):
     """Check if the function has a type hint for its return value and report if missing."""
     type_hints = get_type_hints(func)
     if 'return' not in type_hints or type_hints['return'] is None:
-        raise TypeError(f"Function '{func.__name__}' must have a return type hint.")
+        raise TypeError(
+            "Type hints are missing.\n"
+            f" ==> {_name(func)}: missing return type hint."
+        )
     return True
 
 def _get_original_func(func):
@@ -99,80 +103,102 @@ def _name(obj):
 
 def _check_domain(func, param_names, expected_domain, actual_domain, args, allow_subclass=True):
     mismatches = []
+    param_value_map = dict(zip(param_names, args))
+
     for i, (name, expected_type) in enumerate(zip(param_names, expected_domain)):
         actual_value = args[i]
         actual_type = type(actual_value)
-
         expected_display_name = _name(expected_type)
         actual_display_name = _name(actual_type)
 
-        if expected_display_name == actual_display_name:
-            continue
+        if callable(expected_type) and not isinstance(expected_type, type):
+            original = getattr(expected_type, "_dependent_func", expected_type)
+            expected_sig = inspect.signature(original)
+            dep_args = [
+                param_value_map[pname]
+                for pname in expected_sig.parameters
+                if pname in param_value_map
+            ]
+            expected_type_resolved = original(*dep_args)
+        else:
+            expected_type_resolved = expected_type
 
-        if not isinstance(actual_value, expected_type):
-            mismatches.append(f" ==> '{name}' has value '{actual_value}'\n")
-            mismatches.append(f"     [expected_type]: '{expected_display_name}'\n")
-            mismatches.append(f"     [received_type]: '{actual_display_name}'\n")
-        elif hasattr(expected_type, 'check'):
-            if not expected_type.check(actual_value):
-                mismatches.append(f" ==> '{name}' has value '{actual_value}'\n")
-                mismatches.append(f"     [expected_type]: '{expected_display_name}'\n")
-                mismatches.append(f"     [received_type]: '{actual_display_name}'")
+        if not isinstance(actual_value, expected_type_resolved):
+            mismatches.append(f" ==> '{name}': has value '{actual_value}'\n")
+            mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
+            mismatches.append(f"     [received_type] '{actual_display_name}'\n")
+        elif hasattr(expected_type_resolved, 'check'):
+            if not expected_type_resolved.check(actual_value):
+                mismatches.append(f" ==> '{name}': has value '{actual_value}'\n")
+                mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
+                mismatches.append(f"     [received_type] '{actual_display_name}'")
 
     if mismatches:
-        mismatch_str = "".join(mismatches) + "."
-        raise TypeError(f"Domain mismatch in func '{func.__name__}': {mismatch_str}")
+        mismatch_str = "".join(mismatches)
+        raise TypeError(f"Domain mismatch in func '{func.__name__}':\n {mismatch_str}")
 
     return True
 
-def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True):
+def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subclass=True, param_value_map=None):
     expected_display_name = _name(expected_codomain)
     actual_display_name = _name(actual_codomain)
 
+    if callable(expected_codomain) and not isinstance(expected_codomain, type):
+        import inspect
+        expected_sig = inspect.signature(expected_codomain)
+        if param_value_map is None:
+            raise TypeError(f"param_value_map required for dependent codomain '{func.__name__}'")
+        dep_args = [
+            param_value_map[pname]
+            for pname in expected_sig.parameters
+            if pname in param_value_map
+        ]
+        expected_codomain_resolved = expected_codomain(*dep_args)
+    else:
+        expected_codomain_resolved = expected_codomain
+
     if (
-        isinstance(expected_codomain, type)
-        and hasattr(expected_codomain, '__types__')
-        and isinstance(expected_codomain.__types__, tuple)
-        and expected_codomain.__name__.startswith('Union')
+        isinstance(expected_codomain_resolved, type)
+        and hasattr(expected_codomain_resolved, '__types__')
+        and isinstance(expected_codomain_resolved.__types__, tuple)
+        and expected_codomain_resolved.__name__.startswith('Union')
     ):
-        union_types = expected_codomain.__types__
+        union_types = expected_codomain_resolved.__types__
         if any(isinstance(result, union_type) for union_type in union_types):
             for t in union_types:
                 if isinstance(result, t):
                     if hasattr(t, 'check') and not t.check(result):
                         raise TypeError(
-                            f"Codomain mismatch in func '{func.__name__}':\n"
+                            f"Codomain mismatch in func '{_name(func)}':\n"
                             f" ==> received the value '{result}'.\n"
-                            f"     [expected_type]: '{expected_display_name}'\n"
-                            f"     [received_type]: '{actual_display_name}'\n"
-                            f"     [failed_typed]:  '{_name(t)}'"
+                            f"     [expected_type] '{expected_display_name}'\n"
+                            f"     [received_type] '{actual_display_name}'\n"
+                            f"     [failed_typed]  '{_name(t)}'"
                         )
             return
-
         expected_union_names = [_name(t) for t in union_types]
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':\n"
+            f"Codomain mismatch in func '{_name(func)}':\n"
             f" ==> received the value '{result}'.\n"
             f"     [expected_type]: 'Union({', '.join(expected_union_names)})'.\n"
             f"     [received_type]: '{actual_display_name}'"
         )
 
-    if not isinstance(result, expected_codomain):
+    if not isinstance(result, expected_codomain_resolved):
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':\n"
+            f"Codomain mismatch in func '{_name(func)}':\n"
             f" ==> received the value '{result}'.\n"
-            f"     [expected_type]: '{expected_display_name}'\n"
+            f"     [expected_type]: '{_name(expected_codomain_resolved)}'\n"
             f"     [received_type]: '{actual_display_name}'"
         )
-    elif hasattr(expected_codomain, 'check') and not expected_codomain.check(result):
+    elif hasattr(expected_codomain_resolved, 'check') and not expected_codomain_resolved.check(result):
         raise TypeError(
-            f"Codomain mismatch in func '{func.__name__}':\n"
+            f"Codomain mismatch in func '{_name(func)}':\n"
             f" ==> received the value '{result}'.\n"
-            f"    [expected_type]: '{expected_display_name}'\n"
+            f"    [expected_type]: '{_name(expected_codomain_resolved)}'\n"
             f"    [received_type]: '{actual_display_name}'\n"
-            f"    [failed_typed]:  '{_name(expected_codomain)}'"
+            f"    [failed_typed]:  '{_name(expected_codomain_resolved)}'"
         )
-
     return True
 
 def _variable_checker(typ):
@@ -309,3 +335,43 @@ def _type(obj):
         if type(obj) is k:
             return v
     return type(obj)
+
+def _check_dependent_signature(dep_type, using_func):
+    """
+    Checks that, for each argument of using_func annotated with dep_type,
+    every parameter expected by dep_type exists in using_func with matching type annotation.
+    """
+    def _unwrap(f):
+        while hasattr(f, '__wrapped__'):
+            f = f.__wrapped__
+        return getattr(f, 'func', f)
+    dep_func   = _unwrap(dep_type)
+    using_func = _unwrap(using_func)
+
+    dep_sig    = inspect.signature(dep_func)
+    dep_anns   = dep_func.__annotations__
+    using_sig  = inspect.signature(using_func)
+    using_anns = using_func.__annotations__
+
+    for uname, param in using_sig.parameters.items():
+        if param.annotation is dep_type:
+            for dep_name in dep_sig.parameters:
+                if dep_name not in using_sig.parameters:
+                    raise TypeError(
+                        f"{using_func.__name__}: argument '{uname}' uses dependent type '{dep_func.__name__}'"
+                        f" which expects param '{dep_name}', but it is missing in this function's parameters."
+                    )
+                if dep_anns.get(dep_name) != using_anns.get(dep_name):
+                    raise TypeError(
+                        f"{using_func.__name__}: argument '{uname}' uses dependent type '{dep_func.__name__}'."
+                        f"\nParameter '{dep_name}': expected type {dep_anns.get(dep_name)!r},"
+                        f" got {using_anns.get(dep_name)!r}."
+                    )
+
+def _dependent_signature(func):
+    sig = inspect.signature(func)
+    for name, param in sig.parameters.items():
+        ann = param.annotation
+        if hasattr(ann, '_is_dependent_type'):
+            _check_dependent_signature(ann, func)
+    return func

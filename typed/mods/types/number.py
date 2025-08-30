@@ -1,7 +1,7 @@
 from typed.mods.factories.base     import Union
 from typed.mods.factories.generics import Filter
 from typed.mods.decorators         import typed
-from typed.mods.types.base         import Int, Float
+from typed.mods.types.base         import Int, Float, Bool
 
 Num = Union(Int, Float)
 

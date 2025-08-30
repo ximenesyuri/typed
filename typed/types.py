@@ -15,6 +15,7 @@ from typed.mods.types.func import (
 from typed.mods.types.attr import ATTR
 from typed.mods.types.path import Path, Exists, File, Dir, Symlink, Mount, PathUrl
 from typed.mods.types.json import Json, Entry, Table, Flat
+from typed.mods.types.number import Nat, Pos, Neg, Num, PosNum, NegNum
 from typed.mods.types.specifics import (
     Env,
     RGB, HEX, HSL,

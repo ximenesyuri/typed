@@ -169,7 +169,6 @@ class Condition(Typed, metaclass=CONDITION):
 
 from typed.mods.factories.generics import Filter
 from typed.mods.types.base import Any, Bool, TYPE, META
-from typed.mods.decorators import condition
 
 def _has_var_arg(func: Function) -> Bool:
     signature = inspect.signature(func)
@@ -189,8 +188,8 @@ Factory        = Typed(Any, cod=TYPE)
 MetaFactory    = Typed(Any, cod=META)
 Decorator      = Typed(Function, cod=Function)
 TypedDecorator = Typed(Typed, cod=Typed)
-VariableFunc   = Filter(Function, condition(_has_var_arg))
-KeywordFunc    = Filter(Function, condition(_has_var_kwarg))
+VariableFunc   = Filter(Function, Condition(_has_var_arg))
+KeywordFunc    = Filter(Function, Condition(_has_var_kwarg))
 
 Factory.__display__        = "Factory"
 MetaFactory.__display__    = "MetaFactory"
