@@ -375,3 +375,10 @@ def _dependent_signature(func):
         if hasattr(ann, '_is_dependent_type'):
             _check_dependent_signature(ann, func)
     return func
+
+def _META(name, bases, instancecheck, subclasscheck=None, **attrs):
+    dct = {'__instancecheck__': staticmethod(instancecheck)}
+    if subclasscheck:
+        dct['__subclasscheck__'] = staticmethod(subclasscheck)
+    dct.update(attrs)
+    return type(name, bases, dct)

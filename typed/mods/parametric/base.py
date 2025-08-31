@@ -1,5 +1,4 @@
 from functools import lru_cache as cache
-from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as Callable_
 from typed.mods.types.func import Typed
 from typed.mods.helper.null import  _null, _null_from_list
 from typed.mods.helper.helper import (
@@ -10,8 +9,9 @@ from typed.mods.helper.helper import (
 )
 
 @cache
-def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
-    if args and all(isinstance(t, type) for t in args):
+def _Tuple_(*args):
+    from typed.mods.types.base import TYPE
+    if args and all(isinstance(t, TYPE) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -22,7 +22,7 @@ def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return _Tuple_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Tuple_(*f.domain)
@@ -37,12 +37,12 @@ def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return Typed(tuple_mapper)
 
         raise TypeError(
-            "Argument with unexpected type in Tuple factory."
-            f" ==> '{_name(f)}' has wrong type."
-             "     [expected_type] Typed"
-            f"     [received_type] {_name(type(f))}"
+            "Argument with unexpected type in Tuple factory.\n"
+            f" ==> '{_name(f)}' has wrong type.\n"
+             "     [expected_type] Typed\n"
+            f"     [received_type] {_name(TYPE(f))}"
         )
-    elif all(isinstance(f, type) for f in args):
+    elif all(isinstance(f, TYPE) for f in args):
         types = args
     elif all(isinstance(t, T) for t in args):
         raise TypeError(
@@ -55,14 +55,15 @@ def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 raise TypeError(
                 "Wrong type in 'Tuple' factory: \n"
                 f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
+                 "     [expected_type] TYPE or Typed\n"
+                f"     [received_type] {_name(TYPE(t))}"
             )
 
     from typed.mods.meta.base import TUPLE
+    from typed.mods.types.base import Tuple
     __null__ = _null_from_list(*types)
     class_name = f"Tuple({_name_list(*types)})"
-    return TUPLE(class_name, (tuple,), {
+    return TUPLE(class_name, (Tuple,), {
         '__display__': class_name,
         '__types__': types,
         '__convert__': staticmethod(TUPLE.__convert__),
@@ -70,8 +71,9 @@ def _Tuple_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     })
 
 @cache
-def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
-    if args and all(isinstance(t, type) for t in args):
+def _List_(*args):
+    from typed.mods.types.base import TYPE
+    if args and all(isinstance(t, TYPE) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -82,7 +84,7 @@ def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             return _List_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _List_(*f.domain)
@@ -94,13 +96,13 @@ def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
             list_mapper._composed_codomain_hint = codomain_type
             return Typed(list_mapper)
         raise TypeError(
-            "Argument with unexpected type in Tuple factory."
-            f" ==> '{_name(f)}' has wrong type."
-             "     [expected_type] Typed"
-            f"     [received_type] {_name(type(f))}"
+            "Argument with unexpected type in Tuple factory.\n"
+            f" ==> '{_name(f)}' has wrong type.\n"
+             "     [expected_type] Typed\n"
+            f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, type) for f in args):
+    elif all(isinstance(f, TYPE) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -114,14 +116,15 @@ def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 raise TypeError(
                 "Wrong type in 'List' factory: \n"
                 f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
+                 "     [expected_type] TYPE or Typed\n"
+                f"     [received_type] {_name(TYPE(t))}"
             )
 
     __null__ = _null_from_list(*types)
     from typed.mods.meta.base import LIST
     class_name = f"List({_name_list(*types)})"
-    return LIST(class_name, (tuple,), {
+    from typed.mods.types.base import List
+    return LIST(class_name, (List,), {
         '__display__': class_name,
         '__types__': types,
         '__convert__': staticmethod(LIST.__convert__),
@@ -129,8 +132,9 @@ def _List_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     })
 
 @cache
-def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
-    if args and all(isinstance(t, type) for t in args):
+def _Set_(*args):
+    from typed.mods.types.base import TYPE
+    if args and all(isinstance(t, TYPE) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -142,7 +146,7 @@ def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
 
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Set_(*f.domain)
@@ -156,11 +160,11 @@ def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
         raise TypeError(
             "Wrong type in Union factory: \n"
             f" ==> {_name(f)}: has unexpected type\n"
-             "     [expected_type] Typed"
-            f"     [received_type] {_name(type(f))}"
+             "     [expected_type] Typed\n"
+            f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, type) for f in args):
+    elif all(isinstance(f, TYPE) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -174,14 +178,15 @@ def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
                 raise TypeError(
                 "Wrong type in 'Set' factory: \n"
                 f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
+                 "     [expected_type] TYPE or Typed\n"
+                f"     [received_type] {_name(TYPE(t))}"
             )
 
     __null__ = _null_from_list(*types)
     from typed.mods.meta.base import SET
     class_name = f"Set({_name_list(*types)})"
-    return SET(class_name, (set,), {
+    from typed.mods.types.base import Set
+    return SET(class_name, (Set,), {
         '__display__': class_name,
         '__types__': types,
         '__convert__': staticmethod(SET.__convert__),
@@ -189,8 +194,9 @@ def _Set_(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
     })
 
 @cache
-def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]:
-    if args and all(isinstance(t, type) for t in args):
+def _Dict_(*args, keys=None):
+    from typed.mods.types.base import TYPE
+    if args and all(isinstance(t, TYPE) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -201,7 +207,7 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
     if not args:
         return type(None)
 
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], type):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Dict_(f.domain, keys=keys)
@@ -215,11 +221,11 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
         raise TypeError(
             "Wrong type in Dict factory: \n"
             f" ==> {_name(f)}: has unexpected type\n"
-             "     [expected_type] Typed"
-            f"     [received_type] {_name(type(f))}"
+             "     [expected_type] Typed\n"
+            f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, type) for f in args):
+    elif all(isinstance(f, TYPE) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -233,25 +239,25 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
                 raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
+                 "     [expected_type] TYPE or Typed\n"
+                f"     [received_type] {_name(TYPE(t))}"
             )
 
     if keys:
-        if not isinstance(keys, type):
+        if not isinstance(keys, TYPE):
             raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
-                 "     [expected_type] TYPE"
-                f"     [received_type] {_name(type(keys))}"
+                 "     [expected_type] TYPE\n"
+                f"     [received_type] {_name(TYPE(keys))}"
             )
         from typed.mods.types.attr import HASHABLE
         if not isinstance(keys, HASHABLE):
             raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
-                 "     [expected_type] HASHABLE"
-                f"     [received_type] {_name(type(keys))}"
+                 "     [expected_type] HASHABLE\n"
+                f"     [received_type] {_name(TYPE(keys))}"
             )
     else:
         keys = None
@@ -261,8 +267,8 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
     class_name = f"Dict({_name_list(*types)})"
     if keys is not None:
         class_name = f"Dict({_name_list(*types)}, keys={_name(keys)})"
-
-    return DICT(class_name, (dict,), {
+    from typed.mods.types.base import Dict
+    return DICT(class_name, (Dict,), {
         "__display__": class_name,
         '__types__': types,
         '__key_type__': keys,
@@ -270,4 +276,3 @@ def _Dict_(*args: Union_[Tuple_[Type], Typed], keys=None) -> Union_[Type, Typed]
         '__null__': {_null(keys): __null__} if keys else {'': __null__},
         '__doc__': DICT.__doc__
     })
-

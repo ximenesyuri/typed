@@ -1,6 +1,5 @@
 import re
 from functools import lru_cache as cache
-from typing import Type, Tuple as Tuple_, Union as Union_, Hashable, Callable as Callable_
 from typed.mods.types.func import Typed
 from typed.mods.helper.null import  _null, _null_from_list
 from typed.mods.helper.helper import (
@@ -11,7 +10,7 @@ from typed.mods.helper.helper import (
 )
 
 @cache
-def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
+def Union(*args):
     """
     Build the 'union' of types:
         > an object 'p' of 'Union(X, Y, ...)'
@@ -124,7 +123,7 @@ def Union(*args: Union_[Tuple_[Type], Tuple_[Typed]]) -> Union_[Type, Typed]:
     })
 
 @cache
-def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]:
+def Prod(*args):
     """
     Build the 'product' of types:
         > the objects of 'Product(X, Y, ...)'
@@ -211,7 +210,7 @@ def Prod(*args: Union_[Tuple_[Type, int], Tuple_[Typed]]) -> Union_[Type, Typed]
     })
 
 @cache
-def UProd(*args: Union_[Tuple_[Type], Typed]) -> Union_[Type, Typed]:
+def UProd(*args):
     """
     Build the 'unordered product' of types:
         > the objects of 'UProd(X, Y, ...)'

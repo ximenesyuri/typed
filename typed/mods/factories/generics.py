@@ -1,18 +1,42 @@
 import re
 from functools import lru_cache as cache
-from typing import Tuple as Tuple_, Type, Any as Any_
-from types import FunctionType
-from typed.mods.types.base import TYPE
+from typed.mods.types.base import TYPE, DISCOURSE
 from typed.mods.helper.null import _null, _null_from_list
 from typed.mods.helper.helper import (
     _hinted_domain,
     _hinted_codomain,
     _name,
     _name_list,
+    _META
 )
 
+def Type(name, bases, instancecheck, subclasscheck=None, **attrs):
+    from typed.mods.types.base import Str
+    if not isinstance(name, Str):
+        raise TypeError
+    meta_bases = tuple(TYPE(t) for t in bases)
+    return _META(name.upper(), meta_bases, instancecheck, subclasscheck)(name, bases, attrs)
+
+def Free(Discourse):
+    if not isinstance(Discourse, DISCOURSE):
+        raise TypeError(
+            "Wrong type in Free factory: \n"
+            f" ==> {_name(Discourse)}: has unexpected type\n"
+             "     [expected_type] DISCOURSE\n"
+            f"     [received_type] {_name(TYPE(Discourse))}"
+        )
+
+    class FREE(_TYPE_):
+        def __instancecheck__(cls, instance):
+            return any(instance is x for x in Discourse)
+        def __iter__(cls):
+            return Discourse.__iter__(cls)
+
+    class_name = f"Free({_name(Discourse)})"
+    return FREE(class_name, (), {"__display__": class_name})
+
 @cache
-def Inter(*types: Tuple_[Type]) -> Type:
+def Inter(*types):
     """
     Build the 'intersection' of types:
         > an object 'p' of the Inter(X, Y, ...)
@@ -65,7 +89,7 @@ def Inter(*types: Tuple_[Type]) -> Type:
         })
 
 @cache
-def Filter(X: Type, f: Tuple_[FunctionType]) -> Type:
+def Filter(X, f):
     real_filters = []
     from typed.mods.types.base import Any, Bool, TYPE
     from typed.mods.types.func import Condition
@@ -91,7 +115,7 @@ def Filter(X: Type, f: Tuple_[FunctionType]) -> Type:
     return Filter_
 
 @cache
-def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
+def Compl(X, *subtypes):
     """
     Build the 'complement subtype' of a type by given subtypes:
         > an object 'x' of Compl(X, *subtypes)
@@ -141,7 +165,7 @@ def Compl(X: Type, *subtypes: Tuple_[Type]) -> Type:
     return Compl_
 
 @cache
-def Regex(regex: str) -> Type[str]:
+def Regex(regex):
     """
     Build the 'regex type' for a given regex:
         > an object 'x' of Regex(r'some_regex') is a string
@@ -179,7 +203,7 @@ def Regex(regex: str) -> Type[str]:
     return Regex_
 
 @cache
-def Range(x: int, y: int) -> Type[int]:
+def Range(x, y):
     """
     Build the 'range type' for a given integer range [x, y]:
         > an object 'z' of Range(x, y) is an integer
@@ -220,7 +244,7 @@ def Range(x: int, y: int) -> Type[int]:
     }, lower_bound=x, upper_bound=y)
 
 @cache
-def Not(*types: Tuple_[Type]) -> Type:
+def Not(*types):
     """
     Build the 'not-type':
         > an object x of Not(X, Y, ...)
@@ -248,7 +272,7 @@ def Not(*types: Tuple_[Type]) -> Type:
     })
 
 @cache
-def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
+def Enum(typ, *values):
     """
     Build the 'valued-type':
         > 'x' is an object of 'Enum(typ, *values)' iff:
@@ -301,7 +325,7 @@ def Enum(typ: Type, *values: Tuple_[Any_]) -> Type:
     return Enum_
 
 @cache
-def Single(x: Any_) -> Type:
+def Single(x):
     """
     Build the 'singleton-type':
         > the only object of 'Single(x)' is 'x'
@@ -324,7 +348,7 @@ def Single(x: Any_) -> Type:
     })
 Singleton = Single
 
-def Null(typ: Type) -> Type:
+def Null(typ):
     if not isinstance(typ, TYPE):
         raise TypeError(
             "Wrong type in 'Null' factory: \n"
@@ -356,7 +380,7 @@ def Null(typ: Type) -> Type:
     })
 
 @cache
-def Len(typ: Type, size: int) -> Type:
+def Len(typ, size):
     """
     Build a 'sized-type'.
         > An object of 'Len(X, size)' is an object
@@ -412,7 +436,7 @@ def Len(typ: Type, size: int) -> Type:
     })
 
 @cache
-def Maybe(*types: Tuple_[Type]) -> Type:
+def Maybe(*types):
     """
     Build a 'maybe-type'.
         > An object of `Maybe(X, Y, ..)`

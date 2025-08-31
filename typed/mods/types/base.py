@@ -4,7 +4,7 @@ from typed.mods.meta.base import (
     ANY,
     PATTERN,
     _META_,
-    _ITER_,
+    _DISCOURSE_,
     STR,
     INT,
     FLOAT,
@@ -25,10 +25,10 @@ Float = FLOAT("Int", (), {"__display__": "Float", "__null__": 0.0})
 Bool  = BOOL("Bool", (), {"__display__": "Bool", "__null__": False})
 Str   = STR("Str", (), {"__display__": "Str", "__null__": ""})
 
-Any      = ANY("Any", (), {"__display__": "Any", "__null__": None})
-Pattern  = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})
-META     = _META_("META", (TYPE,), {"__display__": "META", "__null__": EMPTY})
-ITER     = _TYPE_("ITER", (TYPE,), {"__display__": "META", "__null__": EMPTY})
+Any       = ANY("Any", (), {"__display__": "Any", "__null__": None})
+Pattern   = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})
+META      = _META_("META", (TYPE,), {"__display__": "META", "__null__": EMPTY})
+DISCOURSE = _DISCOURSE_("DISCOURSE", (TYPE,), {"__display__": "DISCOURSE", "__null__": EMPTY})
 
 Tuple = TUPLE("Tuple", (), {"__display__": "Tuple", "__null__": ()})
 List  = LIST("List", (), {"__display__": "List", "__null__": []})

@@ -1,5 +1,5 @@
 from typed.mods.meta.base import (
-    _TYPE_, _META_, _ITER_,
+    _TYPE_, _META_, _DISCOURSE_,
     NILL, ANY,
     INT, BOOL, STR, FLOAT,
     TUPLE, LIST, DICT, SET

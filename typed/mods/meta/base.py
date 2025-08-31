@@ -80,7 +80,7 @@ class _META_(_TYPE_):
                 and issubclass(subclass, cls)
             )
 
-class _ITER_(_TYPE_):
+class _DISCOURSE_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.attr import ATTR
         from typed.mods.types.func import Generator
@@ -88,7 +88,6 @@ class _ITER_(_TYPE_):
             isinstance(type(instance), ATTR("__iter__"))
             and isinstance(type(instance).__iter__, Generator)
         )
-
 
 class NILL(_TYPE_):
     def __instancecheck__(cls, instance):

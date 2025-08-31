@@ -1,11 +1,10 @@
-from typing import Tuple as Tuple_, Type
 from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Nill
 from typed.mods.meta.base import _TYPE_
 from typed.mods.helper.helper import _name, _name_list
 
 @cache
-def PARAMETRIC(*types: Type, factory) -> Type:
+def PARAMETRIC(*types, factory):
     from typed.mods.types.base import TYPE
     from typed.mods.types.func import Factory
 
@@ -22,7 +21,7 @@ def PARAMETRIC(*types: Type, factory) -> Type:
         raise TypeError(
             "Wrong type in PARAMETRIC factory: \n"
             f" ==> {_name(factory)}: has unexpected type\n"
-            f"     [expected_type] a subtype of Factory"
+            f"     [expected_type] a subtype of Factory\n"
             f"     [received_type] {_name(type(factory))}"
         )
 
@@ -31,7 +30,7 @@ def PARAMETRIC(*types: Type, factory) -> Type:
             raise TypeError(
                 "Wrong type in PARAMETRIC factory: \n"
                 f" ==> {_name(typ)}: has unexpected type\n"
-                f"     [expected_type] a subtype of TYPE"
+                f"     [expected_type] a subtype of TYPE\n"
                 f"     [received_type] {_name(type(typ))}"
             )
 
@@ -57,7 +56,7 @@ def PARAMETRIC(*types: Type, factory) -> Type:
     })
 
 @cache
-def SUBTYPES(*types: Tuple_[Type]) -> Type:
+def SUBTYPES(*types):
     """
     Build the metatype of subtypes of a given types.
         > An object of `SUBTYPE(X, Y, ...)`
@@ -72,7 +71,7 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
             raise TypeError(
                 "Wrong type in SUBTYPES metafactory: \n"
                 f" ==> {_name(typ)}: has unexpected type\n"
-                f"     [expected_type] a subtype of TYPE"
+                f"     [expected_type] a subtype of TYPE\n"
                 f"     [received_type] {_name(type(typ))}"
             )
 
@@ -91,7 +90,7 @@ def SUBTYPES(*types: Tuple_[Type]) -> Type:
 SUB = SUBTYPES
 
 @cache
-def NOT(*types: Tuple_[Type]) -> Type:
+def NOT(*types):
     """
     Build the metatype of types which are not
     the given types.
@@ -104,7 +103,7 @@ def NOT(*types: Tuple_[Type]) -> Type:
             raise TypeError(
                 "Wrong type in NOT metafactory: \n"
                 f" ==> {_name(typ)}: has unexpected type\n"
-                f"     [expected_type] a subtype of TYPE"
+                f"     [expected_type] a subtype of TYPE\n"
                 f"     [received_type] {_name(type(typ))}"
             )
 
