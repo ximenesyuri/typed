@@ -1,4 +1,5 @@
 from typed.mods.meta.base import (
+    __UNIVERSE__,
     _TYPE_, _META_, _DISCOURSE_,
     NILL, ANY,
     INT, BOOL, STR, FLOAT,

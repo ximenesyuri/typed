@@ -1,7 +1,7 @@
 import re
 from typed.mods.helper.helper import _inner_union, _inner_dict_union, _name
 
-class UNIVERSE(type):
+class __UNIVERSE__(type):
     def __new__(mcls, name, bases, namespace, **kwds):
         if '__instancecheck__' not in namespace:
             raise TypeError(f"{name} must implement __instancecheck__")
@@ -14,7 +14,7 @@ class UNIVERSE(type):
         namespace['__contains__'] = __contains__
         return super().__new__(mcls, name, bases, namespace, **kwds)
 
-class _TYPE_(type, metaclass=UNIVERSE):
+class _TYPE_(type, metaclass=__UNIVERSE__):
     def __instancecheck__(cls, instance):
         return isinstance(instance, type)
 
@@ -157,7 +157,7 @@ class PATTERN(STR):
     def __subclasscheck__(cls, subclass):
         return issubclass(subclass, cls)
 
-class TUPLE(_TYPE_, metaclass=UNIVERSE):
+class TUPLE(_TYPE_):
     """
     Build the typed 'Tuple' parametric type:
         > the objects of 'Tuple' are tuples
@@ -196,7 +196,7 @@ class TUPLE(_TYPE_, metaclass=UNIVERSE):
             except Exception: pass
         raise TypeError(f"Cannot convert {obj!r} to Tuple.")
 
-class LIST(_TYPE_, metaclass=UNIVERSE):
+class LIST(_TYPE_):
     """
     Build the typed 'List' parametric type:
         > the objects of 'List' are lists
@@ -257,7 +257,7 @@ class SET(_TYPE_):
 
     def __subclasscheck__(cls, subclass):
         from typed.mods.types.base import Any
-        
+
         if subclass is cls or subclass is Any or issubclass(subclass, set):
             return True
         if hasattr(subclass, '__bases__') and set in subclass.__bases__ and hasattr(subclass, '__types__'):
@@ -278,7 +278,7 @@ class SET(_TYPE_):
             except Exception: pass
         raise TypeError(f"Cannot convert {obj!r} to Set.")
 
-class DICT(_TYPE_, metaclass=UNIVERSE):
+class DICT(_TYPE_):
     """
     The typed 'Dict' parametric type:
         > the objects of 'Dict' are dictionaries

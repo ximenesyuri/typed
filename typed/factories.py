@@ -8,3 +8,6 @@ from typed.mods.factories.generics import (
 from typed.mods.factories.meta import (
     SUBTYPES, NOT, PARAMETRIC
 )
+from typed.mods.factories.specifics import (
+    Extension, Date, Time, Datetime, Url
+)
