@@ -1,6 +1,5 @@
 from typed.mods.decorators import typed
-from typed.mods.meta.base import _TYPE_
-from typed.mods.types.base import Any, TYPE, Str, ITER
+from typed.mods.types.base import Any, TYPE, Str
 from typed.mods.helper.helper import _name
 
 @typed
