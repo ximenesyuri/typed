@@ -443,7 +443,7 @@ def Maybe(*types):
         > is `None` or an object of `X`, `Y`, ...
     """
     from typed.mods.factories.base import Union
-    from typed.mods.types.bases import Nill
+    from typed.mods.types.base import Nill
     Maybe_ = Union(*types, Nill)
     Maybe_.__display__ = f"Maybe({_name_list(*types)})"
     Maybe_.__null__ = _null_from_list(*types)
