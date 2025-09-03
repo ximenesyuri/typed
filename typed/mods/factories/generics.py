@@ -1,6 +1,5 @@
 import re
 from functools import lru_cache as cache
-from typed.mods.types.base import TYPE, DISCOURSE
 from typed.mods.helper.null import _null, _null_from_list
 from typed.mods.helper.helper import (
     _hinted_domain,
@@ -10,14 +9,8 @@ from typed.mods.helper.helper import (
     _META
 )
 
-def Type(name, bases, instancecheck, subclasscheck=None, **attrs):
-    from typed.mods.types.base import Str
-    if not isinstance(name, Str):
-        raise TypeError
-    meta_bases = tuple(TYPE(t) for t in bases)
-    return _META(name.upper(), meta_bases, instancecheck, subclasscheck)(name, bases, attrs)
-
 def Free(Discourse):
+    from typed.mods.types.base import TYPE, DISCOURSE
     if not isinstance(Discourse, DISCOURSE):
         raise TypeError(
             "Wrong type in Free factory: \n"
@@ -26,6 +19,7 @@ def Free(Discourse):
             f"     [received_type] {_name(TYPE(Discourse))}"
         )
 
+    from typed.mods.meta.base import _TYPE_
     class FREE(_TYPE_):
         def __instancecheck__(cls, instance):
             return any(instance is x for x in Discourse)
@@ -251,13 +245,14 @@ def Not(*types):
         > is NOT an instance of any X, Y, ...
     """
     from typed.mods.types.base import Any, Nill
+    from typed.mods.meta.base import _TYPE_
 
     if not types:
         return Any
     if Any in types:
         return Nill
 
-    class NOT(type):
+    class NOT(_TYPE_):
         def __instancecheck__(cls, instance):
             return not any(isinstance(instance, typ) for typ in cls.__types__)
 
@@ -269,6 +264,56 @@ def Not(*types):
         "__display__": class_name,
         '__types__': types,
         '__null__': None
+    })
+
+@cache
+def Null(typ):
+    from typed.mods.types.base import TYPE
+    if not isinstance(typ, TYPE):
+        raise TypeError(
+            "Wrong type in 'Null' factory: \n"
+            f" ==> '{_name(typ)}': has unexpected type\n"
+             "     [expected_type] TYPE"
+            f"     [received_type] {_name(TYPE(typ))}"
+        )
+
+    from typed.mods.types.base import Nill
+    if typ is Nill:
+        return Nill
+
+    class NULL(TYPE(typ)):
+        def __instancecheck__(cls, instance):
+            return instance == _null(typ)
+        def __repr__(cls):
+            return f"<Null({_name(typ)})>"
+
+    class_name = f"Null({_name(typ)})"
+    return NULL(class_name, (typ,), {
+        "__display__": class_name,
+        "__null__": _null(typ)
+    })
+
+@cache
+def NotNull(typ):
+    from typed.mods.types.base import TYPE
+    if not isinstance(typ, TYPE):
+        raise TypeError(
+            "Wrong type in 'NotNull' factory: \n"
+            f" ==> '{_name(typ)}': has unexpected type\n"
+             "     [expected_type] TYPE"
+            f"     [received_type] {_name(TYPE(typ))}"
+        )
+
+    class NULL(TYPE(typ)):
+        def __instancecheck__(cls, instance):
+            return instance != _null(typ)
+        def __repr__(cls):
+            return f"<NotNull({_name(typ)})>"
+
+    class_name = f"NotNull({_name(typ)})"
+    return NULL(class_name, (typ,), {
+        "__display__": class_name,
+        "__null__": None
     })
 
 @cache
@@ -284,11 +329,12 @@ def Enum(typ, *values):
     """
     if typ and not values:
         try:
-            from typed.mods.factories.base import Null
             return Null(typ)
         except Exception as e:
             from typed.mods.types.base import Nill
             return Nill
+
+    from typed.mods.types.base import TYPE
     if typ and values:
         if not isinstance(typ, TYPE):
             raise TypeError(
@@ -331,6 +377,7 @@ def Single(x):
         > the only object of 'Single(x)' is 'x'
         > 'Single(x)' is a subclass of 'TYPE(x)'
     """
+    from typed.mods.types.base import TYPE
     t = TYPE(x)
 
     class SINGLE(TYPE(t)):
@@ -348,37 +395,6 @@ def Single(x):
     })
 Singleton = Single
 
-def Null(typ):
-    if not isinstance(typ, TYPE):
-        raise TypeError(
-            "Wrong type in 'Null' factory: \n"
-            f" ==> '{_name(typ)}': has unexpected type\n"
-             "     [expected_type] TYPE"
-            f"     [received_type] {_name(TYPE(typ))}"
-        )
-    if typ is TYPE(None):
-        return None
-
-    if _null(typ) is None:
-        raise TypeError(
-            "Wrong type in 'Null' factory: \n"
-            f" ==> '{_name(typ)}': has unexpected type\n"
-             "     [expected_type] a type for which 'null(typ)' is defined\n"
-            f"     [received_type] {_name(TYPE(typ))}"
-        )
-
-    class NULL(TYPE(typ)):
-        def __instancecheck__(cls, instance):
-            return instance == _null(typ)
-        def __repr__(cls):
-            return f"<Null({_name(typ)})>"
-
-    class_name = f"Null({_name(typ)})"
-    return NULL(class_name, (typ,), {
-        "__display__": class_name,
-        "__null__": _null(typ)
-    })
-
 @cache
 def Len(typ, size):
     """
@@ -388,6 +404,7 @@ def Len(typ, size):
         1. Valid only for sized types and size >= 0
         2. 'Len(typ, 0)' is 'Null(typ)'
     """
+    from typed.mods.types.base import TYPE
     if not isinstance(typ, TYPE):
         raise TypeError(
             "Wrong type in Len factory: \n"
