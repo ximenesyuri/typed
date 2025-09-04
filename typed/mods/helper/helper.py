@@ -2,9 +2,22 @@ import re
 import inspect
 from typing import get_type_hints
 
+def _from_typing(obj):
+    try:
+        if obj in (typing.Any, typing.NoReturn, typing.Final):
+            return True
+    except Exception:
+        pass
+    if hasattr(obj, "__module__") and obj.__module__ == "typing":
+        return True
+    if getattr(type(obj), "__module__", None) == "typing":
+        return True
+    return False
+
 def _runtime_domain(func):
     def wrapper(*args, **kwargs):
-        types_at_runtime = tuple(type(arg) for arg in args)
+        from typed.mods.types.base import TYPE
+        types_at_runtime = tuple(TYPE(arg) for arg in args)
         return tuple(*types_at_runtime)
     return wrapper
 
@@ -13,7 +26,8 @@ def _runtime_codomain(func):
     return_annotation = signature.return_annotation
     if return_annotation is not inspect.Signature.empty:
         return return_annotation
-    return type(None)
+    from typed.mods.types.base import Nill
+    return Nill
 
 def _is_domain_hinted(func):
     """Check if the function has type hints for all parameters if it has any parameters."""
@@ -143,7 +157,8 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
     expected_display_name = _name(expected_codomain)
     actual_display_name = _name(actual_codomain)
 
-    if callable(expected_codomain) and not isinstance(expected_codomain, type):
+    from typed.mods.types.base import TYPE
+    if callable(expected_codomain) and not isinstance(expected_codomain, TYPE):
         import inspect
         expected_sig = inspect.signature(expected_codomain)
         if param_value_map is None:
@@ -305,8 +320,9 @@ def _inner_union(*types):
 def _inner_dict_union(*types):
     class _union_meta(type):
         def __instancecheck__(cls, instance):
+            from typed.mods.types.base import TYPE
             for t in cls.__types__:
-                if isinstance(t, type) and hasattr(t, '__instancecheck__'):
+                if isinstance(t, TYPE) and hasattr(t, '__instancecheck__'):
                     result = t.__instancecheck__(instance)
                     if result:
                         return True
@@ -372,7 +388,7 @@ def _dependent_signature(func):
     sig = inspect.signature(func)
     for name, param in sig.parameters.items():
         ann = param.annotation
-        if hasattr(ann, '_is_dependent_type'):
+        if hasattr(ann, 'is_dependent_type'):
             _check_dependent_signature(ann, func)
     return func
 

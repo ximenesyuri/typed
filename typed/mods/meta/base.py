@@ -1,4 +1,9 @@
-from typed.mods.helper.helper import _inner_union, _inner_dict_union, _name
+from typed.mods.helper.helper import (
+    _inner_union,
+    _inner_dict_union,
+    _name,
+    _from_typing
+)
 
 class __UNIVERSE__(type):
     def __new__(mcls, name, bases, namespace, **kwds):
@@ -15,28 +20,68 @@ class __UNIVERSE__(type):
 
 class _TYPE_(type, metaclass=__UNIVERSE__):
     def __instancecheck__(cls, instance):
+        if _from_typing(type(instance)) or _from_typing(instance):
+            return False
         return isinstance(instance, type)
 
     def __eq__(cls, other):
-        return issubclass(cls, other) and issubclass(other, cls)
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return issubclass(cls, other) and issubclass(other, cls)
+        except TypeError:
+            return False
 
     def __ne__(cls, other):
-        return not (issubclass(cls, other) or issubclass(other, cls))
+        if _from_typing(cls) or _from_typing(other):
+            return True
+        try:
+            return not (issubclass(cls, other) or issubclass(other, cls))
+        except TypeError:
+            return True
 
     def __lt__(cls, other):
-        return issubclass(cls, other) and not issubclass(other, cls)
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return issubclass(cls, other) and not issubclass(other, cls)
+        except TypeError:
+            return False
 
     def __le__(cls, other):
-        return issubclass(cls, other)
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return issubclass(cls, other)
+        except TypeError:
+            return False
 
     def __gt__(cls, other):
-        return issubclass(other, cls) and not issubclass(cls, other)
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return issubclass(other, cls) and not issubclass(cls, other)
+        except TypeError:
+            return False
 
     def __ge__(cls, other):
-        return issubclass(other, cls)
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return issubclass(other, cls)
+        except TypeError:
+            return False
 
     def __hash__(cls):
         return id(cls)
+
+    def __subclasscheck__(cls, subclass):
+        if _from_typing(cls) or _from_typing(subclass):
+            return False
+        try:
+            return issubclass(subclass, cls)
+        except TypeError:
+            return False
 
     def __call__(cls, *args, **kwargs):
         if args and isinstance(args[0], str):
