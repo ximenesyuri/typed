@@ -5,24 +5,22 @@ from typed.mods.meta.base import (
     TUPLE, LIST, SET, DICT,
 )
 
-class Empty: pass
-class EMPTY(type): pass
-
+Nill  = NILL("Nill", (), {"__display__": "Nill", "__null__": None})
 TYPE  = _TYPE_("TYPE", (), {
     "__display__": "TYPE",
-    "__null__": Empty
+    "__null__": Nill
 })
 META = _META_("META", (TYPE,), {
     "__display__": "META",
-    "__null__": EMPTY
+    "__null__": NILL
 })
 DISCOURSE = _DISCOURSE_("DISCOURSE", (TYPE,), {
     "__display__": "DISCOURSE",
-    "__null__": EMPTY
+    "__null__": NILL
 })
 PARAMETRIC = _PARAMETRIC_("PARAMETRIC", (TYPE,), {
     "__display__": "PARAMETRIC",
-    "__null__": EMPTY
+    "__null__": NILL
 })
 
 Nill  = NILL("Nill", (), {"__display__": "Nill", "__null__": None})
@@ -30,7 +28,7 @@ Int   = INT("Int", (), {"__display__": "Int", "__null__": 0})
 Float = FLOAT("Int", (), {"__display__": "Float", "__null__": 0.0})
 Bool  = BOOL("Bool", (), {"__display__": "Bool", "__null__": False})
 Str   = STR("Str", (), {"__display__": "Str", "__null__": ""})
-Any        = ANY("Any", (), {"__display__": "Any", "__null__": None})
+Any   = ANY("Any", (), {"__display__": "Any", "__null__": None})
 
 Tuple = TUPLE("Tuple", (), {"__display__": "Tuple", "__null__": ()})
 List  = LIST("List", (), {"__display__": "List", "__null__": []})

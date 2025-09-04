@@ -7,6 +7,3 @@ from typed.mods.factories.generics import (
 from typed.mods.factories.meta import (
     ATTR, SUBTYPES, NOT
 )
-from typed.mods.factories.specifics import (
-    Extension, Date, Time, Datetime, Url
-)

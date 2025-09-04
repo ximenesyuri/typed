@@ -1,7 +1,7 @@
 import os
 from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Regex, Null, Filter
-from typed.mods.factories.specifics import Url
+from typed.mods.factories.extra import Url
 from typed.mods.types.base import Any, Str, Bool
 from typed.mods.types.func import Condition
 

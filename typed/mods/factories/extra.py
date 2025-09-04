@@ -127,7 +127,7 @@ def Datetime(datetime_format):
 
 @cache
 def Url(*protocols, pattern=None):
-    from typed.mods.types.specifics import Protocol
+    from typed.mods.types.extra import Protocol
     from typed.mods.types.base import TYPE, Str
     wrong_type = []
     for prot in protocols:
