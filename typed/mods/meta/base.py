@@ -1,4 +1,3 @@
-import re
 from typed.mods.helper.helper import _inner_union, _inner_dict_union, _name
 
 class __UNIVERSE__(type):
@@ -82,11 +81,20 @@ class _META_(_TYPE_):
 
 class _DISCOURSE_(_TYPE_):
     def __instancecheck__(cls, instance):
-        from typed.mods.types.attr import ATTR
+        from typed.mods.factories.meta import ATTR
         from typed.mods.types.func import Generator
         return (
             isinstance(type(instance), ATTR("__iter__"))
             and isinstance(type(instance).__iter__, Generator)
+        )
+
+class _PARAMETRIC_(_TYPE_):
+    def __instancecheck__(cls, instance):
+        from typed.mods.factories.meta import ATTR
+        from typed.mods.types.func import Factory
+        return (
+            isinstance(type(instance), ATTR("__call__"))
+            and isinstance(instance.__call__, Factory)
         )
 
 class NILL(_TYPE_):
@@ -143,19 +151,6 @@ class ANY(_TYPE_):
 
     def __subclasscheck__(cls, subclass):
         return True
-
-class PATTERN(STR):
-    def __instancecheck__(cls, instance):
-        if not isinstance(instance, str):
-            return False
-        try:
-            re.compile(instance)
-            return True
-        except re.error:
-            return False
-
-    def __subclasscheck__(cls, subclass):
-        return issubclass(subclass, cls)
 
 class TUPLE(_TYPE_):
     """

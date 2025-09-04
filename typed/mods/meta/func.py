@@ -205,7 +205,7 @@ class TYPED_DOM(HINTED_DOM):
 
 class TYPED_COD(HINTED_COD):
     def __instancecheck__(cls, instance):
-        return super().__instancecheck__(instance) 
+        return super().__instancecheck__(instance)
 
     def __call__(cls, *args, **kwargs):
         from typed.mods.types.base  import TYPE, Int
@@ -272,3 +272,23 @@ class CONDITION(TYPED):
         if all(isinstance(t, TYPE) for t in args):
             from typed.mods.parametric.func  import _Condition_
             return _Condition_(*args)
+
+class FACTORY(TYPED):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import Typed
+        if instance == Typed.__call__:
+            return True
+        return super().__instancecheck__(instance) and issubclass(instance.cod, TYPE)
+
+class OPERATION(FACTORY):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE, Tuple
+        return super().__instancecheck__(instance) and issubclass(instance.dom, Tuple(TYPE))
+
+class DEPENDENT(FACTORY):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE, Tuple
+        if super().__instancecheck__(instance) and hasattr(instance, "is_dependent_type"):
+            return instance.is_dependent_type
+        return False

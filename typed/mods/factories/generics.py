@@ -166,7 +166,7 @@ def Regex(regex):
         > that matches the regex r'some_regex'
     """
 
-    from typed.mods.types.base import Pattern
+    from typed.mods.types.other import Pattern
     if not isinstance(regex, Pattern):
         raise TypeError(
             "Wrong type in Regex factory: \n"
@@ -175,7 +175,7 @@ def Regex(regex):
             f"     [received_type] {_name(TYPE(regex))}"
         )
 
-    from typed.mods.types.base import Str
+    from typed.mods.types.base import Str, TYPE
     class REGEX(TYPE(Str)):
         def __new__(cls, name, bases, dct):
             dct['_regex_pattern'] = re.compile(regex)
@@ -184,10 +184,10 @@ def Regex(regex):
 
         def __instancecheck__(cls, instance):
             x = re.compile(regex)
-            return isinstance(instance, str) and x.match(instance) is not None
+            return isinstance(instance, Str) and x.match(instance) is not None
 
         def __subclasscheck__(cls, subclass):
-            return issubclass(subclass, str)
+            return issubclass(subclass, Str)
 
     class_name = f"Regex({regex})"
     Regex_ = REGEX(class_name, (Str,), {
@@ -203,7 +203,7 @@ def Range(x, y):
         > an object 'z' of Range(x, y) is an integer
         > such that x <= z <= y
     """
-    from typed.mods.types.base import Int
+    from typed.mods.types.base import Int, TYPE
     if not isinstance(x, Int):
         raise TypeError(
             "Wrong type in Range factory: \n"

@@ -1,7 +1,6 @@
 import re
 from functools import lru_cache as cache
 from datetime import datetime
-from typed.mods.types.base import Pattern
 from typed.mods.helper.helper import _name
 from typed.mods.helper.null import _null
 

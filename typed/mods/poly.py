@@ -2,7 +2,6 @@ import re
 import inspect
 import ast
 from functools  import wraps
-from typed.mods.types.attr import ATTR
 
 def poly(arg, num_args=-1):
     """
@@ -11,6 +10,7 @@ def poly(arg, num_args=-1):
     """
     from typed.mods.helper.helper import _name
     from typed.mods.types.base import TYPE
+    from typed.mods.factories.meta import ATTR
 
     if callable(arg):
         from typed.mods.types.func import Typed

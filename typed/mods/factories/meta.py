@@ -4,55 +4,31 @@ from typed.mods.meta.base import _TYPE_
 from typed.mods.helper.helper import _name, _name_list
 
 @cache
-def PARAMETRIC(*types, factory):
-    from typed.mods.types.base import TYPE
-    from typed.mods.types.func import Factory
+def ATTR(attributes):
+    if isinstance(attributes, str):
+        attributes = (attributes,)
+    elif not isinstance(attributes, list):
+        raise TypeError("attributes must be a string or a list of strings")
 
-    if not factory:
-        raise ValueError(
-            "Missing value in 'PARAMETRIC' factory\n"
-            f" ==> 'factory': required argument were not set."
-        )
+    class _ATTR_(_TYPE_):
+        def __init__(cls, name, bases, dct, attributes=None):
+            super().__init__(name, bases, dct)
+            if attributes:
+                setattr(cls, '__attrs__', attributes)
 
-    if not types:
-        return factory
-
-    if not isinstance(factory, Factory):
-        raise TypeError(
-            "Wrong type in PARAMETRIC factory: \n"
-            f" ==> {_name(factory)}: has unexpected type\n"
-            f"     [expected_type] a subtype of Factory\n"
-            f"     [received_type] {_name(type(factory))}"
-        )
-
-    for typ in types:
-        if not isinstance(typ, TYPE):
-            raise TypeError(
-                "Wrong type in PARAMETRIC factory: \n"
-                f" ==> {_name(typ)}: has unexpected type\n"
-                f"     [expected_type] a subtype of TYPE\n"
-                f"     [received_type] {_name(type(typ))}"
-            )
-
-    TYPES = (TYPE(typ) for typ in types)
-    class _PARAMETRIC_(*TYPES):
         def __instancecheck__(cls, instance):
-            return all(isinstance(instance, typ) for typ in types)
-        def __subclasscheck__(cls, subclass):
-            return all(issubclass(subclass, typ) for typ in types)
-        def __call__(self, *args, **kwargs):
-            if not args and not kwargs:
-                return self._type()
-            elif args and isinstance(args[0], type):
-                return self._factory(*args, **kwargs)
-            else:
-                return self._type(*args, **kwargs)
+            attrs = getattr(cls, '__attrs__', None)
+            if attrs:
+                return all(hasattr(instance, attr) for attr in attrs)
+            return False
 
-    class_name = _name(base_type)
-    return _PARAMETRIC_(class_name, (base_type,), {
-        "__display__": class_name,
-        "base_type": base_type,
-        "factory": factory
+    class_name = f'ATTR({_name_list(*attributes)})'
+
+    from typed.mods.types.base import Nill
+    return _ATTR_(class_name, (), {
+        '__attrs__': tuple(attributes),
+        "__null__": Nill,
+        "__display__": class_name
     })
 
 @cache

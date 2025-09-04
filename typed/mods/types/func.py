@@ -26,7 +26,10 @@ from typed.mods.meta.func import (
     TYPED_DOM,
     TYPED_COD,
     TYPED,
-    CONDITION
+    CONDITION,
+    FACTORY,
+    OPERATION,
+    DEPENDENT
 )
 
 Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
@@ -164,8 +167,21 @@ class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
         cs = self.codomain.__name__
         return f"{self.__name__}({ds})! -> {cs}!"
 
-class Condition(Typed, metaclass=CONDITION):
-    pass
+Condition = CONDITION("Condition", (Typed,), {
+    "__display__": "Condition"
+})
+
+Factory = FACTORY("Factory", (Typed,), {
+    "__display__": "Factory"
+})
+
+Operation = OPERATION("Operation", (Factory,), {
+    "__display__": "Operation"
+})
+
+Dependent = DEPENDENT("Dependent", (Factory,), {
+    "__display__": "Dependent"
+})
 
 from typed.mods.factories.generics import Filter
 from typed.mods.types.base import Any, Bool, TYPE, META
@@ -184,14 +200,12 @@ def _has_var_kwarg(func: Function) -> Bool:
             return True
     return False
 
-Factory        = Typed(Any, cod=TYPE)
 MetaFactory    = Typed(Any, cod=META)
 Decorator      = Typed(Function, cod=Function)
 TypedDecorator = Typed(Typed, cod=Typed)
 VariableFunc   = Filter(Function, Condition(_has_var_arg))
 KeywordFunc    = Filter(Function, Condition(_has_var_kwarg))
 
-Factory.__display__        = "Factory"
 MetaFactory.__display__    = "MetaFactory"
 Decorator.__diplay__       = "Decorator"
 TypedDecorator.__display__ = "TypedDecorator"
