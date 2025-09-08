@@ -417,7 +417,7 @@ def Len(typ, size):
         raise TypeError(
             "Wrong type in Len factory: \n"
             f" ==> {_name(typ)}: has unexpected type\n"
-            f"     [expected_type] TYPE\n"
+            f"     [expected_type] ATTR('__len__')\n"
             f"     [received_type] {_name(TYPE(typ))}"
         )
     from typed.mods.types.base import Int
