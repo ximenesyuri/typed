@@ -2,6 +2,7 @@ from typed.mods.decorators import typed
 from typed.mods.types.base import Any, TYPE, Str, Tuple, Dict, META, PARAMETRIC
 from typed.mods.types.func import Function, Factory
 from typed.mods.helper.helper import _name
+from typed.mods.helper.null import _null
 
 @typed
 def typeof(obj: Any) -> TYPE:
@@ -13,6 +14,8 @@ def declare(name, value=None):
 @typed
 def name(obj: Any) -> Str:
     return _name(obj)
+
+null = _null
 
 class new:
     @typed
