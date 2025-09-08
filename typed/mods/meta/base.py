@@ -84,8 +84,6 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return False
 
     def __call__(cls, *args, **kwargs):
-        if args and isinstance(args[0], str):
-            return type.__call__(cls, *args, **kwargs)
         if len(args) != 1:
             raise TypeError(
                 f"{cls.__name__} expected 1 argument (object to type-convert), "
