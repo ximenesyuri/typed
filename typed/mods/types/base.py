@@ -27,7 +27,13 @@ Nill  = NILL("Nill", (), {"__display__": "Nill", "__null__": None})
 Int   = INT("Int", (), {"__display__": "Int", "__null__": 0})
 Float = FLOAT("Int", (), {"__display__": "Float", "__null__": 0.0})
 Bool  = BOOL("Bool", (), {"__display__": "Bool", "__null__": False})
-Str   = STR("Str", (), {"__display__": "Str", "__null__": ""})
+
+class Str(metaclass=STR):
+    def __len__(self, obj):
+        return len(obj)
+    __display__ = "Str"
+    __null__ = ""
+
 Any   = ANY("Any", (), {"__display__": "Any", "__null__": None})
 
 Tuple = TUPLE("Tuple", (), {"__display__": "Tuple", "__null__": ()})
