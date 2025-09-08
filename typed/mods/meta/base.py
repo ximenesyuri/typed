@@ -177,7 +177,7 @@ class FLOAT(_TYPE_):
             return float(obj)
         raise TypeError(
             "Wrong type in Float function.\n"
-            f" ==> '{obj}': has an unexpected type."
+            f" ==> '{_name(obj)}': has an unexpected type."
             f"     [expected_type] an instance of {_name(ATTR('__int__'))}"
             f"     [received_type] {_name(TYPE(obj))}"
         )
@@ -185,6 +185,16 @@ class FLOAT(_TYPE_):
 class STR(_TYPE_):
     def __instancecheck__(cls, instance):
         return isinstance(instance, str)
+
+    def __len__(self, obj):
+        from typed.mods.helper.helper import _name
+        if not isinstance(obj, cls):
+            raise TypeError(
+                "Wrong type in 'len' function.\n"
+                f" ==> '{_name(obj)}': has an unexpected type."
+                f"     [expected_type] an instance of {_name(cls)}"
+                f"     [received_type] {_name(TYPE(obj))}"
+            )
 
 class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
