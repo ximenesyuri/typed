@@ -412,7 +412,7 @@ def Len(typ, size):
             f"     [expected_type] TYPE\n"
             f"     [received_type] {_name(TYPE(typ))}"
         )
-    from typed.mods.types.attr import ATTR
+    from typed.mods.factories.meta import ATTR
     if not isinstance(typ, ATTR('__len__')):
         raise TypeError(
             "Wrong type in Len factory: \n"
