@@ -188,13 +188,14 @@ class STR(_TYPE_):
 
     def __len__(self, obj):
         from typed.mods.helper.helper import _name
-        if not isinstance(obj, cls):
+        if not isinstance(obj, str):
             raise TypeError(
                 "Wrong type in 'len' function.\n"
                 f" ==> '{_name(obj)}': has an unexpected type."
-                f"     [expected_type] an instance of {_name(cls)}"
+                f"     [expected_type] Str"
                 f"     [received_type] {_name(TYPE(obj))}"
             )
+        return obj.__len__()
 
 class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
