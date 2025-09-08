@@ -459,9 +459,23 @@ def Maybe(*types):
         > An object of `Maybe(X, Y, ..)`
         > is `None` or an object of `X`, `Y`, ...
     """
-    from typed.mods.factories.base import Union
-    from typed.mods.types.base import Nill
-    Maybe_ = Union(*types, Nill)
-    Maybe_.__display__ = f"Maybe({_name_list(*types)})"
-    Maybe_.__null__ = _null_from_list(*types)
-    return Maybe_
+    from typed.mods.types.base import TYPE
+    for typ in types:
+        if not isinstance(typ, TYPE):
+            raise TypeError(
+                "Wrong type in Len factory: \n"
+                f" ==> {_name(typ)}: has unexpected type\n"
+                f"     [expected_type] TYPE\n"
+                f"     [received_type] {_name(TYPE(typ))}"
+            )
+    types_ = (TYPE(typ) for typ in types)
+    class MAYBE(*types_):
+        def __instancecheck__(cls, instance):
+            if any(isinstance(instance, typ) for typ in types) or instance is None:
+                return True
+            return False
+    class_name = f"Maybe({_name_list(*types)})"
+    return MAYBE(class_name, types, {
+        "__display__": class_name,
+        "__null__": _null_from_list(*types)
+    })
