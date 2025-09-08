@@ -79,7 +79,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(subclass):
             return False
         try:
-            return issubclass(subclass, cls)
+            return type.__subclasscheck__(cls, subclass)
         except TypeError:
             return False
 
