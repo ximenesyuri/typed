@@ -64,8 +64,8 @@ predicate = condition
 def factory(func):
     """Decorator that creates a factory with cache"""
     if isinstance(func, Function):
-        from typed.mods.types.func import Factory
-        typed_func = typed(func)
+        from typed.mods.types.func import Factory, Typed
+        typed_func = Typed(func)
         if not issubclass(typed_func.codomain, TYPE):
             raise TypeError(
                 "Factories should create types:\n"
@@ -86,8 +86,8 @@ def factory(func):
 def operation(func):
     if isinstance(func, Function):
         from typed.mods.types.base import Tuple
-        from typed.mods.types.func import Operation
-        typed_func = typed(func)
+        from typed.mods.types.func import Operation, Typed
+        typed_func = Typed(func)
         if not isinstance(typed_func.domain, Tuple(TYPE)):
             raise TypeError(
                 "Operations should operate on types:\n"
@@ -113,8 +113,8 @@ def operation(func):
 
 def dependent(func):
     if isinstance(func, Function):
-        typed_func = typed(func)
-        from typed.mods.types.func import Dependent
+        from typed.mods.types.func import Dependent, Typed
+        typed_func = Typed(func)
         if not issubclass(typed_func.codomain, TYPE):
             raise TypeError(
                 "Factories should create types:\n"
