@@ -1,6 +1,6 @@
 from typed.mods.types.base import TYPE
 from typed.mods.types.func import Function
-from functools import wraps, lru_cache
+from functools import wraps, lru_cache, update_wrapper
 from typed.mods.helper.helper import _name
 
 def hinted(func):
@@ -74,8 +74,13 @@ def factory(func):
                 f"     [received_type]: '{_name(typed_func.codomain)}'"
             )
         wrapped_func = lru_cache(maxsize=None)(typed_func)
-        wrapped_func.__class__ = Factory
-        return wraps(func)(wrapped_func)
+        class FactoryWrapper:
+            def __init__(self, original):
+                self._original = original
+
+            def __call__(self, *a, **kw):
+                return self._original(*a, **kw)
+        return update_wrapper(FactoryWrapper(func), func)
     raise TypeError(
         "Wrong type in 'factory' decorator\n"
         f" ==> '{func}': has an unexpected type\n"
