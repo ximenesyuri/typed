@@ -210,7 +210,7 @@ class TUPLE(_TYPE_):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, tuple):
             return False
-        return all(isinstance(x, _inner_union(*types)) for x in instance)
+        return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
 
     def __subclasscheck__(cls, subclass):
         from typed.mods.types.base import Any
@@ -248,7 +248,7 @@ class LIST(_TYPE_):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, list):
             return False
-        return all(isinstance(x, _inner_union(*types)) for x in instance)
+        return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
 
     def __subclasscheck__(cls, subclass):
         from typed.mods.types.base import Any
