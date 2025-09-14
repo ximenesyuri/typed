@@ -78,8 +78,6 @@ def _List_(*args):
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
         sorted_types = tuple(sorted(unique, key=_key))
-        if len(sorted_types) == 1:
-            return sorted_types[0]
         if sorted_types != args:
             return _List_(*sorted_types)
     if not args:
