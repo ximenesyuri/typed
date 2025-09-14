@@ -251,7 +251,7 @@ class LIST(_TYPE_):
         if not isinstance(instance, list):
             return False
         if hasattr(cls, '__types__'):
-            return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
+            return all(isinstance(x, cls.__types__) for x in instance)
         return True
 
     def __subclasscheck__(cls, subclass):
