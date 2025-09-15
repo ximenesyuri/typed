@@ -342,11 +342,13 @@ class DICT(_TYPE_):
     def __instancecheck__(cls, instance):
         if not isinstance(instance, dict):
             return False
-        if not all(isinstance(v, _inner_dict_union(cls.__types__)) for v in instance.values()):
-            return False
-        if cls.__key_type__ is not None:
-            if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
+        if hasattr(cls, "__types__"):
+            if not all(isinstance(v, _inner_dict_union(cls.__types__)) for v in instance.values()):
                 return False
+        if hasattr(cls, "__key_type__"):
+            if cls.__key_type__ is not None:
+                if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
+                    return False
         return True
 
     def __subclasscheck__(cls, subclass):
