@@ -228,6 +228,7 @@ class TYPED(HINTED, TYPED_DOM, TYPED_COD):
     def check(self, instance):
         if not callable(instance):
             return False
+        from typed.mods.helper.helper import _hinted_domain, _hinted_codomain
         domain_hints = set(_hinted_domain(instance))
         return_hint = _hinted_codomain(instance)
         return domain_hints == set(self.__types__) and return_hint == self.__codomain___
