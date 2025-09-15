@@ -231,7 +231,9 @@ class TYPED(HINTED, TYPED_DOM, TYPED_COD):
         from typed.mods.helper.helper import _hinted_domain, _hinted_codomain
         domain_hints = set(_hinted_domain(instance))
         return_hint = _hinted_codomain(instance)
-        return domain_hints == set(self.__types__) and return_hint == self.__codomain___
+        if hasattr(self, "__types__"):
+            return domain_hints == set(self.__types__) and return_hint == self.__codomain__
+        return True
 
     def __call__(cls, *args, **kwargs):
         from typed.mods.types.func import Typed
