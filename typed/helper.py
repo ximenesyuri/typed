@@ -16,8 +16,8 @@ def name(obj: Any) -> Str:
     return _name(obj)
 
 @typed
-def names(obj: Union(List, Tuple)) -> Str:
-    return _name_list(*obj)
+def names(*objs: Tuple) -> Str:
+    return _name_list(*objs)
 
 null = _null
 
