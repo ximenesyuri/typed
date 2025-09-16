@@ -1,7 +1,7 @@
 from typed.mods.decorators import typed
-from typed.mods.types.base import Any, TYPE, Str, Tuple, Dict, META, PARAMETRIC
+from typed.mods.types.base import Any, TYPE, Str, Set, List, Tuple, Dict, META, PARAMETRIC
 from typed.mods.types.func import Function, Factory
-from typed.mods.helper.helper import _name
+from typed.mods.helper.helper import _name, _name_list
 from typed.mods.helper.null import _null
 
 @typed
@@ -14,6 +14,10 @@ def declare(name, value=None):
 @typed
 def name(obj: Any) -> Str:
     return _name(obj)
+
+@typed
+def names(obj: Union(List, Tuple)) -> Str:
+    return _name_list(*obj)
 
 null = _null
 

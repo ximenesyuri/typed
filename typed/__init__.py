@@ -11,3 +11,6 @@ from typed.meta       import (
 from typed.decorators import *
 from typed.poly       import *
 from typed.extra      import *
+
+print(isinstance("x", List(Str)))
+print(List(Str).__types__)

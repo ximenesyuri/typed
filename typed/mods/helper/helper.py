@@ -307,8 +307,8 @@ def _get_num_pos_args(func):
             num_args += 1
     return num_args
 
-def _name_list(*types):
-    return ', '.join(_name(t) for t in types)
+def _name_list(*objs):
+    return ', '.join(_name(t) for t in objs)
 
 def _inner_union(*types):
     class _union_meta(type):
