@@ -32,6 +32,9 @@ class __UNIVERSE__(type):
     def __gt__(cls, other):
         return _TYPE_.__gt__(cls, other)
 
+    def __hash__(cls):
+        return _TYPE_.__hash__(cls)
+
 class _TYPE_(type, metaclass=__UNIVERSE__):
     def __instancecheck__(cls, instance):
         if _from_typing(type(instance)) or _from_typing(instance):

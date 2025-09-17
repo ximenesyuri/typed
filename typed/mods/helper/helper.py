@@ -352,6 +352,9 @@ def _type(obj):
             return v
     return type(obj)
 
+def _issubtype(typ1, typ2):
+    return any(base is typ2 for base in typ1.__mro__)
+
 def _check_dependent_signature(dep_type, using_func):
     """
     Checks that, for each argument of using_func annotated with dep_type,

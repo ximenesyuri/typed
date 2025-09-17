@@ -1,12 +1,16 @@
 from typed.mods.decorators import typed
-from typed.mods.types.base import Any, TYPE, Str, Set, List, Tuple, Dict, META, PARAMETRIC
+from typed.mods.types.base import Any, Bool, TYPE, Str, Set, List, Tuple, Dict, META, PARAMETRIC
 from typed.mods.types.func import Function, Factory
-from typed.mods.helper.helper import _name, _name_list
+from typed.mods.helper.helper import _name, _name_list, _issubtype
 from typed.mods.helper.null import _null
 
 @typed
 def typeof(obj: Any) -> TYPE:
     return TYPE(obj)
+
+@typed
+def issubtype(typ_1: TYPE, typ_2: TYPE) -> Bool:
+    return _issubtype(typ_1, typ_2)
 
 def declare(name, value=None):
     globals()[name] = value

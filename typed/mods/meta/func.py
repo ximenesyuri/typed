@@ -286,12 +286,12 @@ class FACTORY(TYPED):
         from typed.mods.types.func import Typed
         if instance == Typed.__call__:
             return True
-        return isinstance(instance, Typed) and issubclass(instance.cod, TYPE)
+        return isinstance(instance, Typed) and _issubtype(instance.cod, TYPE)
 
 class OPERATION(FACTORY):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE, Tuple
-        return super().__instancecheck__(instance) and issubclass(instance.dom, Tuple(TYPE))
+        return super().__instancecheck__(instance) and _issubtype(instance.dom, Tuple(TYPE))
 
 class DEPENDENT(FACTORY):
     def __instancecheck__(cls, instance):

@@ -39,4 +39,13 @@ Any   = ANY("Any", (), {"__display__": "Any", "__null__": None})
 Tuple = TUPLE("Tuple", (), {"__display__": "Tuple", "__null__": ()})
 List  = LIST("List", (), {"__display__": "List", "__null__": []})
 Set   = SET("Set", (), {"__display__": "Set", "__null__": set()})
-Dict  = DICT("Dict", (), {"__display__": "Dict", "__null__": {}})
+
+class Dict(metaclass=DICT):
+    __display__ = "Dict"
+    __null__    = {}
+    def __getitem__(self, key):
+        return self.__dict__[key]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __contains__(self, key):
+        return key in self.__dict__

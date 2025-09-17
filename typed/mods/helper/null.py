@@ -1,21 +1,34 @@
 def _null_model(typ):
-    """
-    Build the null (empty) instance of a Model‐type:
-      – for each required field, take _null(field_type)
-      – for each optional field, take wrapper.default_value
-        (or fall back to _null(wrapper.type))
-    """
     required = dict(getattr(typ, '_required_attributes_and_types', {}))
     optional = getattr(typ, '_optional_attributes_and_defaults', {})
+    ordered_keys = getattr(typ, '_ordered_keys', None)
+    all_keys = []
     data = {}
-    for name, field_type in required.items():
-        data[name] = _null(field_type)
-    for name, wrapper in optional.items():
-        if wrapper.default_value is not None:
-            data[name] = wrapper.default_value
-        else:
-            data[name] = _null(wrapper.type)
-    return typ(**data)
+    if ordered_keys:
+        for name in ordered_keys:
+            if name in required:
+                val = _null(required[name])
+                data[name] = val
+            elif name in optional:
+                wrapper = optional[name]
+                if wrapper.default_value is not None:
+                    data[name] = wrapper.default_value
+                else:
+                    data[name] = _null(wrapper.type)
+            else:
+                pass
+    else:
+        for name, field_type in required.items():
+            data[name] = _null(field_type)
+        for name, wrapper in optional.items():
+            if wrapper.default_value is not None:
+                data[name] = wrapper.default_value
+            else:
+                data[name] = _null(wrapper.type)
+    try:
+        return typ(**data)
+    except Exception as e:
+        return None
 
 def _null(typ):
     if hasattr(typ, '__null__'):
