@@ -2,7 +2,8 @@ from typed.mods.helper.helper import (
     _inner_union,
     _inner_dict_union,
     _name,
-    _from_typing
+    _from_typing,
+    _issubtype
 )
 
 class __UNIVERSE__(type):
@@ -18,6 +19,19 @@ class __UNIVERSE__(type):
         namespace['__contains__'] = __contains__
         return super().__new__(mcls, name, bases, namespace, **kwds)
 
+    def __eq__(cls, other):
+        return _TYPE_.__eq__(cls, other)
+    def __ne__(cls, other):
+        return _TYPE_.__ne__(cls, other)
+    def __le__(cls, other):
+        return _TYPE_.__le__(cls, other)
+    def __lt__(cls, other):
+        return _TYPE_.__lt__(cls, other)
+    def __ge__(cls, other):
+        return _TYPE_.__ge__(cls, other)
+    def __gt__(cls, other):
+        return _TYPE_.__gt__(cls, other)
+
 class _TYPE_(type, metaclass=__UNIVERSE__):
     def __instancecheck__(cls, instance):
         if _from_typing(type(instance)) or _from_typing(instance):
@@ -28,7 +42,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
-            return issubclass(cls, other) and issubclass(other, cls)
+            return _issubtype(cls, other) and _issubtype(other, cls)
         except TypeError:
             return False
 
@@ -36,7 +50,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return True
         try:
-            return not (issubclass(cls, other) or issubclass(other, cls))
+            return not (_issubtype(cls, other) or _issubtype(other, cls))
         except TypeError:
             return True
 
@@ -44,7 +58,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
-            return issubclass(cls, other) and not issubclass(other, cls)
+            return _issubtype(cls, other) and not _issubtype(other, cls)
         except TypeError:
             return False
 
@@ -52,7 +66,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
-            return issubclass(cls, other)
+            return _issubtype(cls, other)
         except TypeError:
             return False
 
@@ -60,7 +74,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
-            return issubclass(other, cls) and not issubclass(cls, other)
+            return _issubtype(other, cls) and not _issubtype(cls, other)
         except TypeError:
             return False
 
@@ -68,7 +82,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
-            return issubclass(other, cls)
+            return _issubtype(other, cls)
         except TypeError:
             return False
 
@@ -79,7 +93,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
         if _from_typing(cls) or _from_typing(subclass):
             return False
         try:
-            return type.__subclasscheck__(cls, subclass)
+            return _issubtype(cls, subclass)
         except TypeError:
             return False
 
@@ -113,31 +127,35 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
 
 class _META_(_TYPE_):
     def __instancecheck__(cls, instance):
-        return isinstance(instance, type) and issubclass(instance, type)
+        from typed.mods.types.base import TYPE
+        return instance in TYPE and _issubtype(instance, _TYPE_)
 
     def __subclasscheck__(cls, subclass):
+        from typed.mods.types.base import TYPE
         return (
-                isinstance(subclass, type)
-                and issubclass(instance, type)
-                and issubclass(subclass, cls)
+                subclass in TYPE
+                and _issubtype(instance, TYPE)
+                and _issubtype(subclass, cls)
             )
 
 class _DISCOURSE_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.factories.meta import ATTR
         from typed.mods.types.func import Generator
+        from typed.mods.types.base import TYPE
         return (
-            isinstance(type(instance), ATTR("__iter__"))
-            and isinstance(type(instance).__iter__, Generator)
+            TYPE(instance) in ATTR("__iter__")
+            and TYPE(instance).__iter__ in Generator
         )
 
 class _PARAMETRIC_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.factories.meta import ATTR
         from typed.mods.types.func import Factory
+        from typed.mods.types.base import TYPE
         return (
-            isinstance(type(instance), ATTR("__call__"))
-            and isinstance(instance.__call__, Factory)
+            TYPE(instance) in ATTR("__call__")
+            and instance.__call__ in Factory
         )
 
 class NILL(_TYPE_):
@@ -148,13 +166,14 @@ class NILL(_TYPE_):
 
 class INT(_TYPE_):
     def __instancecheck__(cls, instance):
-        return isinstance(instance, int)
+        from typed.mods.types.base import Int, TYPE
+        return isinstance(instance, int) or _issubtype(TYPE(instance), Int)
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
         from typed.mods.types.attr import ATTR
         from typed.mods.helper.helper import _name
-        if isinstance(TYPE(obj), ATTR('__int__')):
+        if TYPE(obj) in ATTR('__int__'):
             return int(obj)
         raise TypeError(
             "Wrong type in Int function.\n"
@@ -165,13 +184,14 @@ class INT(_TYPE_):
 
 class FLOAT(_TYPE_):
     def __instancecheck__(cls, instance):
-        return isinstance(instance, float)
+        from typed.mods.types.base import Float, TYPE
+        return isinstance(instance, float) or _issubtype(TYPE(instance), Float)
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
         from typed.mods.types.attr import ATTR
         from typed.mods.helper.helper import _name
-        if isinstance(TYPE(obj), ATTR('__float__')):
+        if TYPE(obj) in ATTR('__float__'):
             return float(obj)
         raise TypeError(
             "Wrong type in Float function.\n"
@@ -182,11 +202,13 @@ class FLOAT(_TYPE_):
 
 class STR(_TYPE_):
     def __instancecheck__(cls, instance):
-        return isinstance(instance, str)
+        from typed.mods.types.base import Str, TYPE
+        return isinstance(instance, str) or _issubtype(TYPE(instance), Str)
 
 class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
-        return isinstance(instance, bool)
+        from typed.mods.types.base import Bool, TYPE
+        return isinstance(instance, bool) or _issubtype(TYPE(instance), Bool)
 
 class ANY(_TYPE_):
     def __instancecheck__(cls, instance):
@@ -208,19 +230,20 @@ class TUPLE(_TYPE_):
         > 'Tuple(f): Tuple(f.domain) -> Tuple(f.codomain)'
     """
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, tuple):
+        from typed.mods.types.base import Tuple, TYPE
+        if not isinstance(instance, tuple) or _issubtype(TYPE(instance), Tuple):
             return False
         if hasattr(cls, '__types__'):
             return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
         return True
 
     def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import Any
-        if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+        from typed.mods.types.base import Any, Tuple
+        if subclass is cls or subclass is Any or _issubtype(subclass, Tuple):
             return True
-        if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__'):
+        if hasattr(subclass, '__bases__') and (Tuple in subclass.__bases__) and hasattr(subclass, '__types__'):
             subclass_element_types = subclass.__types__
-            return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
         return False
 
     def __call__(cls, *args, **kwargs):
@@ -230,7 +253,7 @@ class TUPLE(_TYPE_):
     @staticmethod
     def __convert__(obj):
         if isinstance(obj, tuple):
-            return tuple(obj)
+            return obj
         if hasattr(obj, "__iter__") or hasattr(obj, "__getitem__"):
             try: return tuple(obj)
             except Exception: pass
@@ -248,19 +271,20 @@ class LIST(_TYPE_):
         > 'List(f): List(f.domain) -> List(f.codomain)'
     """
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, list):
+        from typed.mods.types.base import List, TYPE
+        if not isinstance(instance, list) or _issubtype(TYPE(instance), List):
             return False
         if hasattr(cls, '__types__'):
             return all(isinstance(x, cls.__types__) for x in instance)
         return True
 
     def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import Any
-        if subclass is cls or subclass is Any or issubclass(subclass, list):
+        from typed.mods.types.base import Any, List
+        if subclass is cls or subclass is Any or _issubtype(subclass, List):
             return True
-        if hasattr(subclass, '__bases__') and list in subclass.__bases__ and hasattr(subclass, '__types__'):
+        if hasattr(subclass, '__bases__') and List in subclass.__bases__ and hasattr(subclass, '__types__'):
             subclass_element_types = subclass.__types__
-            return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
         return False
 
     def __call__(cls, *args, **kwargs):
@@ -270,7 +294,7 @@ class LIST(_TYPE_):
     @staticmethod
     def __convert__(obj):
         if isinstance(obj, list):
-            return list(obj)
+            return obj
         if hasattr(obj, "__iter__") or hasattr(obj, "__getitem__"):
             try: return list(obj)
             except Exception: pass
@@ -290,7 +314,8 @@ class SET(_TYPE_):
         > 'Set(f): Set(f.domain) -> Set(f.codomain)'
     """
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, set):
+        from typed.mods.types.base import Set, TYPE
+        if not isinstance(instance, set) or _issubtype(TYPE(instance), Set):
             return False
         from typed.mods.types.base import Any
         if Any is args:
@@ -298,13 +323,12 @@ class SET(_TYPE_):
         return all(isinstance(x, _inner_union(types)) for x in instance)
 
     def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import Any
-
-        if subclass is cls or subclass is Any or issubclass(subclass, set):
+        from typed.mods.types.base import Any, Set
+        if subclass is cls or subclass is Any or _issubtype(subclass, Set):
             return True
-        if hasattr(subclass, '__bases__') and set in subclass.__bases__ and hasattr(subclass, '__types__'):
+        if hasattr(subclass, '__bases__') and Set in subclass.__bases__ and hasattr(subclass, '__types__'):
             subclass_element_types = subclass.__types__
-            return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
         return False
 
     def __call__(cls, *args, **kwargs):
@@ -314,7 +338,7 @@ class SET(_TYPE_):
     @staticmethod
     def __convert__(obj):
         if isinstance(obj, set):
-            return set(obj)
+            return obj
         if hasattr(obj, "__iter__"):
             try: return set(obj)
             except Exception: pass
@@ -340,7 +364,8 @@ class DICT(_TYPE_):
             1. 'f({k: v}) = {k: f(v)}'
     """
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, dict):
+        from typed.mods.types.base import Dict, TYPE
+        if not isinstance(instance, dict) and not _issubtype(TYPE(instance), Dict):
             return False
         if hasattr(cls, "__types__"):
             if not all(isinstance(v, _inner_dict_union(cls.__types__)) for v in instance.values()):
@@ -352,16 +377,16 @@ class DICT(_TYPE_):
         return True
 
     def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import Any
-        if subclass is cls or subclass is Any or issubclass(subclass, dict):
+        from typed.mods.types.base import Any, Dict
+        if subclass is cls or subclass is Any or _issubtype(subclass, Dict):
             return True
-        if hasattr(subclass, '__bases__') and dict in subclass.__bases__ and hasattr(subclass, '__types__'):
+        if hasattr(subclass, '__bases__') and Dict in subclass.__bases__ and hasattr(subclass, '__types__'):
             subclass_value_union_types = subclass.__types__
             keys_match = True
             if hasattr(subclass, '__key_type__') and cls.__key_type__ is not None:
-                keys_match = issubclass(getattr(subclass, '__key_type__'), cls.__key_type__)
+                keys_match = _issubtype(getattr(subclass, '__key_type__'), cls.__key_type__)
             return (
-                all(any(issubclass(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
+                all(any(_issubtype(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
                 and keys_match
             )
         return False
@@ -373,7 +398,7 @@ class DICT(_TYPE_):
     @staticmethod
     def __convert__(obj):
         if isinstance(obj, dict):
-            return dict(obj)
+            return obj
         if hasattr(obj, "__iter__"):
             try: return dict(obj)
             except Exception: pass
