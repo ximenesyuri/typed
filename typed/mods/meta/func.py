@@ -1,10 +1,11 @@
 import inspect
 from typed.mods.meta.base import _TYPE_
-from typed.mods.helper.helper import _name
+from typed.mods.helper.helper import _name, _issubtype
 
 class CALLABLE(_TYPE_):
     def __instancecheck__(cls, instance):
-        if issubclass(type(instance), cls):
+        from typed.mods.types.base import TYPE
+        if _issubtype(TYPE(instance), cls):
             return True
         unwrapped = instance
         while hasattr(unwrapped, 'func') and unwrapped.func is not unwrapped:
@@ -26,7 +27,8 @@ class GENERATOR(_TYPE_):
 class BUILTIN(CALLABLE):
     def __instancecheck__(cls, instance):
         if super().__instancecheck__(instance):
-            if issubclass(type(instance), cls):
+            from typed.mods.types.base import TYPE
+            if _issubtype(TYPE(instance), cls):
                 return True
             unwrapped = instance.func if hasattr(instance, 'func') else instance
             return inspect.isbuiltin(unwrapped)
@@ -66,7 +68,8 @@ class FUNCTION(CALLABLE):
     """
     def __instancecheck__(cls, instance):
         if super().__instancecheck__(instance):
-            if issubclass(type(instance), cls):
+            from typed.mods.types.base import TYPE
+            if _issubtype(TYPE(instance), cls):
                 return True
             unwrapped = instance.func if hasattr(instance, 'func') else instance
             return (
@@ -143,7 +146,8 @@ class HINTED_DOM(COMPOSABLE):
 
 class HINTED_COD(COMPOSABLE):
     def __instancecheck__(cls, instance):
-        if issubclass(type(instance), cls):
+        from typed.mods.types.base import TYPE
+        if _issubtype(TYPE(instance), cls):
             return True
         if not super().__instancecheck__(instance):
             return False
@@ -282,7 +286,7 @@ class FACTORY(TYPED):
         from typed.mods.types.func import Typed
         if instance == Typed.__call__:
             return True
-        return super().__instancecheck__(instance) and issubclass(instance.cod, TYPE)
+        return isinstance(instance, Typed) and issubclass(instance.cod, TYPE)
 
 class OPERATION(FACTORY):
     def __instancecheck__(cls, instance):
