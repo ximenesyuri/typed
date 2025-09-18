@@ -1,13 +1,13 @@
 from functools import lru_cache as cache
-from typed.mods.types.base import TYPE, Nill
+from typed.mods.types.base import TYPE, Nill, Str, List
 from typed.mods.meta.base import _TYPE_
 from typed.mods.helper.helper import _name, _name_list
 
 @cache
 def ATTR(attributes):
-    if isinstance(attributes, str):
+    if isinstance(attributes, Str):
         attributes = (attributes,)
-    elif not isinstance(attributes, list):
+    elif not isinstance(attributes, List):
         raise TypeError("attributes must be a string or a list of strings")
 
     class _ATTR_(_TYPE_):
@@ -25,7 +25,7 @@ def ATTR(attributes):
     class_name = f'ATTR({_name_list(*attributes)})'
 
     from typed.mods.types.base import Nill
-    return _ATTR_(class_name, (), {
+    return _ATTR_(class_name, (TYPE,), {
         '__attrs__': tuple(attributes),
         "__null__": Nill,
         "__display__": class_name

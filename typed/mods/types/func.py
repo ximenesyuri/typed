@@ -15,6 +15,7 @@ from typed.mods.meta.func import (
     GENERATOR,
     BUILTIN,
     LAMBDA,
+    CLASS,
     BOUND_METHOD,
     UNBOUND_METHOD,
     METHOD,
@@ -37,6 +38,7 @@ Generator     = GENERATOR('Generator', (), {"__display__": "Generator"})
 Builtin       = BUILTIN('Builtin', (Callable,), {"__display__": "Builtin"})
 Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
 Function      = FUNCTION('Function', (Callable,), {"__display__": "Function"})
+Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
 BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
 UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
 Method        = METHOD('Method', (Callable,), {"__display__": "Method"})

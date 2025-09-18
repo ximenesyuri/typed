@@ -1,7 +1,7 @@
 from typed.mods.decorators import typed
 from typed.mods.types.base import Any, Bool, TYPE, Str, Set, List, Tuple, Dict, META, PARAMETRIC
 from typed.mods.types.func import Function, Factory
-from typed.mods.helper.helper import _name, _name_list, _issubtype
+from typed.mods.helper.helper import _name, _name_list
 from typed.mods.helper.null import _null
 
 @typed
@@ -9,8 +9,32 @@ def typeof(obj: Any) -> TYPE:
     return TYPE(obj)
 
 @typed
+def istype(obj: Any) -> Bool:
+    return obj in TYPE
+
+@typed
 def issubtype(typ_1: TYPE, typ_2: TYPE) -> Bool:
-    return _issubtype(typ_1, typ_2)
+    return typ_1 <= typ_2
+
+@typed
+def issame(typ_1: TYPE, typ_2: TYPE) -> Bool:
+    return typ_1 is typ_2
+
+@typed
+def isequiv(typ_1: TYPE, typ2: TYPE) -> Bool:
+    return typ_1 == typ_2
+
+@typed
+def isweaksubtype(typ_1: TYPE, typ_2: TYPE) -> Bool:
+    return typ_1 << typ_2
+
+@typed
+def isweakequiv(typ_1: TYPE, typ_2: TYPE) -> Bool:
+    return typ_1 ==~ typ_2
+
+@typed
+def isterm(obj: Any, typ: TYPE) -> Bool:
+    return obj in typ
 
 def declare(name, value=None):
     globals()[name] = value
@@ -61,24 +85,3 @@ class new:
             "base_type": base_type,
             "factory": factory
         })
-
-def symmetrize(func=None, *, key=None):
-    def _decorate(f):
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            if key is not None:
-                try:
-                    ordered = tuple(sorted(args, key=key))
-                except Exception as e:
-                    raise ValueError(f"symmetric: can't sort args with key={key!r}: {e}")
-            else:
-                try:
-                    ordered = tuple(sorted(args))
-                except TypeError:
-                    ordered = tuple(sorted(args, key=lambda x: repr(x)))
-            return f(*ordered, **kwargs)
-        return wrapper
-    if func is None:
-        return _decorate
-    else:
-        return _decorate(func)

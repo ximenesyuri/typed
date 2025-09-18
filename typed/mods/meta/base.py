@@ -3,7 +3,8 @@ from typed.mods.helper.helper import (
     _inner_dict_union,
     _name,
     _from_typing,
-    _issubtype
+    _issubtype,
+    _isweaksubtype
 )
 
 class __UNIVERSE__(type):
@@ -17,7 +18,7 @@ class __UNIVERSE__(type):
         def __contains__(cls, obj):
             return isinstance(obj, cls)
         namespace['__contains__'] = __contains__
-        return super().__new__(mcls, name, bases, namespace, **kwds)
+        return type.__new__(mcls, name, bases, namespace, **kwds)
 
     def __eq__(cls, other):
         return _TYPE_.__eq__(cls, other)
@@ -31,22 +32,34 @@ class __UNIVERSE__(type):
         return _TYPE_.__ge__(cls, other)
     def __gt__(cls, other):
         return _TYPE_.__gt__(cls, other)
-
+    def __lshift__(cls, other):
+        return _TYPE_.__lshift__(cls, other)
+    def __rshift__(cls, other):
+        return _TYPE_.__rshift__(cls, other)
     def __hash__(cls):
         return _TYPE_.__hash__(cls)
 
 class _TYPE_(type, metaclass=__UNIVERSE__):
+
     def __instancecheck__(cls, instance):
         if _from_typing(type(instance)) or _from_typing(instance):
             return False
-        return isinstance(instance, type)
+        from typed.mods.types.base import TYPE
+        return _issubtype(type(instance), _TYPE_)
+
+    def __invert__(cls):
+        cls.__tilde__=True
+        return cls
 
     def __eq__(cls, other):
         if _from_typing(cls) or _from_typing(other):
             return False
         try:
+            if hasattr(other, "__tilde__"):
+                if other.__tilde__:
+                    return _isweaksubtype(cls, other) and _isweaksubtype(other, cls)
             return _issubtype(cls, other) and _issubtype(other, cls)
-        except TypeError:
+        except:
             return False
 
     def __ne__(cls, other):
@@ -54,7 +67,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return True
         try:
             return not (_issubtype(cls, other) or _issubtype(other, cls))
-        except TypeError:
+        except:
             return True
 
     def __lt__(cls, other):
@@ -62,7 +75,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return False
         try:
             return _issubtype(cls, other) and not _issubtype(other, cls)
-        except TypeError:
+        except:
             return False
 
     def __le__(cls, other):
@@ -70,7 +83,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return False
         try:
             return _issubtype(cls, other)
-        except TypeError:
+        except:
             return False
 
     def __gt__(cls, other):
@@ -78,7 +91,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return False
         try:
             return _issubtype(other, cls) and not _issubtype(cls, other)
-        except TypeError:
+        except:
             return False
 
     def __ge__(cls, other):
@@ -86,7 +99,23 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
             return False
         try:
             return _issubtype(other, cls)
-        except TypeError:
+        except:
+            return False
+
+    def __lshift__(cls, other):
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return _isweaksubtype(cls, other)
+        except:
+            return False
+
+    def __rshift__(cls, other):
+        if _from_typing(cls) or _from_typing(other):
+            return False
+        try:
+            return _isweaksubtype(other, cls)
+        except:
             return False
 
     def __hash__(cls):
@@ -234,7 +263,7 @@ class TUPLE(_TYPE_):
     """
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Tuple, TYPE
-        if not isinstance(instance, tuple) or _issubtype(TYPE(instance), Tuple):
+        if not isinstance(instance, tuple) and not _issubtype(TYPE(instance), Tuple):
             return False
         if hasattr(cls, '__types__'):
             return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
@@ -275,7 +304,7 @@ class LIST(_TYPE_):
     """
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import List, TYPE
-        if not isinstance(instance, list) or _issubtype(TYPE(instance), List):
+        if not isinstance(instance, list) and not _issubtype(TYPE(instance), List):
             return False
         if hasattr(cls, '__types__'):
             return all(isinstance(x, cls.__types__) for x in instance)
@@ -318,7 +347,7 @@ class SET(_TYPE_):
     """
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Set, TYPE
-        if not isinstance(instance, set) or _issubtype(TYPE(instance), Set):
+        if not isinstance(instance, set) and not _issubtype(TYPE(instance), Set):
             return False
         from typed.mods.types.base import Any
         if Any is args:

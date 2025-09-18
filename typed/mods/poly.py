@@ -93,45 +93,17 @@ def poly(arg, num_args=-1):
             def _poly(typ):
                 if not isinstance(typ, base_type):
                     return TypeError
-                return getattr(type, special_method)
+                return getattr(typ, special_method)
             return _poly
 
         def _poly(*args):
-            if not args:
-                return None
-
-            if len(args) > 0:
-                if not len(args) == num_args:
-                    return ValueError
-
-            from typed.mods.types.base import TYPE
-            for arg in args:
-                if not isinstance(TYPE(arg), base_type):
-                    raise TypeError(
-                        f"Wrong type in polymorphism '{special_method.replace('_', '')}'\n"
-                        f" ==> {_name(arg)}: has an unexpected type.\n"
-                        f"     [expected_type]: an instance of {_name()}\n"
-                        f"     [received_type]: {_name(TYPE(arg))}"
-                    )
-
-                if not issubclass(TYPE(arg), TYPE(arg[0])):
-                    raise TypeError(
-                        f"Wrong type in polymorphism {special_method.replace('_', '')}\n"
-                        f" ==> {_name(arg)}: has an unexpected type.\n"
-                        f"     [expected_type]: a subtype of {_name(TYPE(arg[0]))}\n"
-                        f"     [received_type]: {_name(TYPE(arg))}"
-                    )
-            try:
-                method = getattr(TYPE(args[0]), special_method)
-                try:
-                    return method(*args)
-                except Exception as e:
-                    Exception(e)
-            except:
-                raise AttributeError(
-                    f"Attribute error in {_name(args[0])}:"
-                    f" ==> its type '{_name(TYPE(args[0]))}' has no attribute '{special_method}'"
-                )
+            if args[-1] in TYPE:
+                if not args[-1] in base_type:
+                    raise TypeError
+                method = getattr(args[-1], special_method)
+            else:
+                method = getattr(TYPE(args[-1]), special_method)
+            return method(*args)
         return _poly
 
     raise TypeError(
@@ -140,4 +112,6 @@ def poly(arg, num_args=-1):
          "     [expected_type] Typed or Str\n"
         f"     [received_type] {_name(TYPE(arg))}"
     )
+
 join = poly("__join__")
+convert = poly("__convert__")

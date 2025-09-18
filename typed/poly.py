@@ -1,3 +1,5 @@
 from typed.mods.poly import (
-    poly, join
+    poly, join, convert
 )
+
+cvt = convert

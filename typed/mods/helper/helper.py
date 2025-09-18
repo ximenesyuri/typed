@@ -352,8 +352,14 @@ def _type(obj):
             return v
     return type(obj)
 
-def _issubtype(typ1, typ2):
-    return any(base is typ2 for base in typ1.__mro__)
+def _issubtype(typ_1, typ_2):
+    return any(base is typ_2 for base in typ_1.__mro__)
+
+def _isweaksubtype(typ_1, typ_2):
+    for base in typ_1.__mro__:
+        if _name(base) == _name(typ_2) and base.__module__ == typ_2.__module__:
+            return True
+    return False
 
 def _check_dependent_signature(dep_type, using_func):
     """

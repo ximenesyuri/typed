@@ -34,6 +34,15 @@ class BUILTIN(CALLABLE):
             return inspect.isbuiltin(unwrapped)
         return False
 
+class CLASS(CALLABLE):
+    def __instancecheck__(cls, instance):
+        if super().__instancecheck__(instance):
+            from typed.mods.types.base import TYPE
+            if _issubtype(TYPE(instance), cls):
+                return True
+            return inspect.isclass(instance)
+        return False
+
 class BOUND_METHOD(CALLABLE):
     def __instancecheck__(cls, instance):
         return inspect.ismethod(obj) and obj.__self__ is not None

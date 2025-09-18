@@ -6,8 +6,8 @@ from typed.mods.types.base import (
 )
 from typed.mods.types.func import (
     Callable, Builtin, Lambda, Function, Composable,
+    Class, BoundMethod, UnboundMethod, Method,
     HintedDom, HintedCod, Hinted,
     TypedDom, TypedCod, Typed,
-    BoundMethod, UnboundMethod, Method,
-    Factory, Condition, Operation, Dependent,
+    Factory, Condition, Operation, Dependent
 )
