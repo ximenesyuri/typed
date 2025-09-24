@@ -18,10 +18,11 @@ def Union(*args):
     Can be applied to typed functions:
         > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    from typed.mods.types.base import TYPE
-    from typed.mods.meta.base  import __UNIVERSE__
-    T = (Typed, TYPE, __UNIVERSE__)
-    if args and all(isinstance(f, TYPE) for f in args):
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+
+    T = (Typed, TYPE, ABSTRACT)
+    if args and all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         unique_types = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -32,17 +33,18 @@ def Union(*args):
             return Union(*sorted_types)
 
     if not args:
-        return TYPE(None)
-    if all((not isinstance(f, TYPE)) and isinstance(f, Typed) for f in args):
+        from typed.mods.types.base import Nill
+        return Nill
+    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
         funcs = args
         domains = [f.domain for f in funcs]
         codomains = [f.codomain for f in funcs]
         dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        if any(not (isinstance(f, Typed) and not isinstance(f, TYPE)) for f in funcs):
+        if any(not (isinstance(f, Typed) and not isinstance(f, (TYPE, ABSTRACT)) for f in funcs)):
             raise TypeError(
                 "Wrong type in Union factory: \n"
                 f" ==> {_name(f)}: has unexpected type\n"
-                 "     [expected_type] Typed"
+                 "     [expected_type] subtype of Typed"
                 f"     [received_type] {_name(TYPE(f))}"
             )
 
@@ -83,7 +85,7 @@ def Union(*args):
         }
         return Typed(union_dispatcher)
 
-    elif all(isinstance(f, (TYPE, __UNIVERSE__)) for f in args):
+    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         types = tuple(dict.fromkeys(args))
         if len(types) == 1:
             return types[0]
@@ -142,10 +144,13 @@ def Prod(*args):
         > 'Prod(f, g, ...): Prod(f.domain, g.domain, ...) -> Prod(f.codomain, g.codomain, ...)'
     """
 
-    T = (Typed, type)
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+    T = (Typed, TYPE, ABSTRACT)
     if not args:
-        return type(None)
-    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
+        from typed.mods.types.base import Nill
+        return Nill
+    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
         in_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         out_types = [f.codomain for f in args]
         domain_type = Prod(*in_types)
@@ -166,28 +171,36 @@ def Prod(*args):
         prod_mapper.__name__ = f"Prod({_name_list(*args)})"
         return Typed(prod_mapper)
 
-    elif len(args) == 2 and isinstance(args[0], type) and isinstance(args[1], int) and args[1] > 0:
+    elif len(args) == 2 and isinstance(args[0], (TYPE, ABSTRACT)) and isinstance(args[1], int) and args[1] > 0:
         types = (args[0],) * args[1]
-    elif all(isinstance(t, type) for t in args):
+
+    elif all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
         types = args
+
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'Prod' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Prod factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'Prod' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
-            )
+                    "Wrong type in Prod factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
-    class PROD(type):
+    from typed.mods.meta.base import _TYPE_
+    from typed.mods.types.base import Tuple
+    class PROD(_TYPE_):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, tuple):
+            if not isinstance(instance, Tuple):
                 return False
             if len(instance) != len(cls.__types__):
                 return False
@@ -197,12 +210,12 @@ def Prod(*args):
             from typed.mods.types.base import Any
             if subclass is cls or subclass is Any or issubclass(subclass, tuple):
                 return True
-            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
+            if hasattr(subclass, '__bases__') and Tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
                 return all(issubclass(st, ct) for st, ct in zip(subclass.__types__, cls.__types__))
             return False
 
     def prod_new(cls, *args):
-        if len(args) == 1 and isinstance(args[0], tuple):
+        if len(args) == 1 and isinstance(args[0], Tuple):
             return tuple.__new__(cls, args[0])
         else:
             return tuple.__new__(cls, args)
@@ -216,27 +229,31 @@ def Prod(*args):
     })
 
 @cache
-def UProd(*args):
+def Unprod(*args):
     """
     Build the 'unordered product' of types:
-        > the objects of 'UProd(X, Y, ...)'
+        > the objects of 'Unprod(X, Y, ...)'
         > are the tuples '(x, y, ...)' such that:
             1. 'len(x, y, ...) == len(X, Y, ...)'
             2. 'x, y, ... are in Union(X, Y, ...)'
     Can be applied to typed functions:
-        > 'UProd(f, g, ...): UProd(f.domain, g.domain, ...) -> UProd(f.codomain, g.codomain, ...)'
+        > 'Unprod(f, g, ...): Unprod(f.domain, g.domain, ...) -> Unprod(f.codomain, g.codomain, ...)'
     """
-    T = (Typed, type)
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+    T = (Typed, TYPE, ABSTRACT)
     if not args:
-        return type(None)
-    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
+        from typed.mods.types.base import Nill
+        return Nill
+    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
         dom_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         cod_types = [f.codomain for f in args]
         domain_type = UProd(*dom_types)
         codomain_type = UProd(*cod_types)
 
         def uprod_mapper(*xs):
-            if len(xs) == 1 and isinstance(xs[0], tuple):
+            from typed.mods.types.base import Tuple
+            if len(xs) == 1 and isinstance(xs[0], Tuple):
                 xs = xs[0]
             outs = []
             for f, x in zip(args, xs):
@@ -252,26 +269,30 @@ def UProd(*args):
         uprod_mapper.__name__ = f"UProd({_name_list(*args)})"
         return Typed(uprod_mapper)
 
-    elif all(isinstance(t, type) for t in args):
-        types = args
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'Prod' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Unprod factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'Prod' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed"
-                f"     [received_type] {_name(type(t))}"
-            )
+                    "Wrong type in Unprod factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
-    class UPROD(type):
+    from typed.mods.meta.base import _TYPE_
+    class UNPROD(_TYPE_):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, tuple):
+            from typed.mods.types.base import Tuple
+            if not isinstance(instance, Tuple):
                 return False
             if len(instance) != len(cls.__types__):
                 return False
@@ -286,20 +307,21 @@ def UProd(*args):
             return all(count == 0 for count in type_counts.values())
 
         def check(self, instance):
-            if not isinstance(instance, set):
+            from typed.mods.types.base import Set
+            if not isinstance(instance, Set):
                 return False
             return all(any(isinstance(elem, typ) for typ in self.__types__) for elem in instance)
 
         def __subclasscheck__(cls, subclass):
-            from typed.mods.types.base import Any
-            if subclass is cls or subclass is Any or issubclass(subclass, tuple):
+            from typed.mods.types.base import Any, Tuple
+            if subclass is cls or subclass is Any or issubclass(subclass, Tuple):
                 return True
-            if hasattr(subclass, '__bases__') and tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
+            if hasattr(subclass, '__bases__') and Tuple in subclass.__bases__ and hasattr(subclass, '__types__') and len(subclass.__types__) == len(cls.__types__):
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
             return False
 
-    class_name = f"UProd({_name_list(*types)})"
-    return UPROD(class_name, (tuple,), {
+    class_name = f"Unprod({_name_list(*types)})"
+    return UNPROD(class_name, (Tuple,), {
         "__display__": class_name,
         '__types__': types,
         "__null__": set(_null(t) for t in types)

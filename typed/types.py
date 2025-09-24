@@ -1,5 +1,5 @@
 from typed.mods.types.base import (
-    TYPE, META, DISCOURSE, PARAMETRIC,
+    TYPE, ABSTRACT, META, DISCOURSE, PARAMETRIC,
     Nill, Any,
     Int, Str, Float, Bool,
     Tuple, List, Set, Dict

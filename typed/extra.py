@@ -9,7 +9,7 @@ from typed.mods.types.number import Nat, Pos, Neg, Num, PosNum, NegNum
 from typed.mods.types.extra import (
     Env,
     RGB, HEX, HSL,
-    #Char,
+    Char,
     Email,
     Protocol, Hostname, IPv4,
     UUID

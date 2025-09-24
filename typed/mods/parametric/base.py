@@ -10,8 +10,12 @@ from typed.mods.helper.helper import (
 
 @cache
 def _Tuple_(*args):
-    from typed.mods.types.base import TYPE
-    if args and all(isinstance(t, TYPE) for t in args):
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+
+    T = (Typed, TYPE, ABSTRACT)
+
+    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -22,7 +26,7 @@ def _Tuple_(*args):
             return _Tuple_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Tuple_(*f.domain)
@@ -42,22 +46,27 @@ def _Tuple_(*args):
              "     [expected_type] Typed\n"
             f"     [received_type] {_name(TYPE(f))}"
         )
-    elif all(isinstance(f, TYPE) for f in args):
+    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         types = args
+
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'Tuple' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Tuple factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'Tuple' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed\n"
-                f"     [received_type] {_name(TYPE(t))}"
-            )
+                    "Wrong type in Tuple factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
     from typed.mods.meta.base import TUPLE
     from typed.mods.types.base import Tuple
@@ -66,14 +75,15 @@ def _Tuple_(*args):
     return TUPLE(class_name, (Tuple,), {
         '__display__': class_name,
         '__types__': types,
-        '__convert__': staticmethod(TUPLE.__convert__),
         '__null__': (__null__,) if __null__ is not None else None
     })
 
 @cache
 def _List_(*args):
-    from typed.mods.types.base import TYPE
-    if args and all(isinstance(t, TYPE) for t in args):
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+    T = (Typed, TYPE, ABSTRACT)
+    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -82,7 +92,7 @@ def _List_(*args):
             return _List_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _List_(*f.domain)
@@ -100,23 +110,27 @@ def _List_(*args):
             f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, TYPE) for f in args):
+    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'List' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in List factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'List' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed\n"
-                f"     [received_type] {_name(TYPE(t))}"
-            )
+                    "Wrong type in List factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
     __null__ = _null_from_list(*types)
     from typed.mods.meta.base import LIST
@@ -125,14 +139,15 @@ def _List_(*args):
     return LIST(class_name, (List,), {
         '__display__': class_name,
         '__types__': types,
-        '__convert__': staticmethod(LIST.__convert__),
         '__null__': [__null__,] if __null__ is not None else None
     })
 
 @cache
 def _Set_(*args):
-    from typed.mods.types.base import TYPE
-    if args and all(isinstance(t, TYPE) for t in args):
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+    T = (Typed, TYPE, ABSTRACT)
+    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -144,7 +159,7 @@ def _Set_(*args):
 
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Set_(*f.domain)
@@ -158,27 +173,29 @@ def _Set_(*args):
         raise TypeError(
             "Wrong type in Union factory: \n"
             f" ==> {_name(f)}: has unexpected type\n"
-             "     [expected_type] Typed\n"
+             "     [expected_type] subtype of Typed\n"
             f"     [received_type] {_name(TYPE(f))}"
         )
-
-    elif all(isinstance(f, TYPE) for f in args):
+    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         types = args
-
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'Set' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Set factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'Set' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed\n"
-                f"     [received_type] {_name(TYPE(t))}"
-            )
+                    "Wrong type in Set factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] subtype of TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
     __null__ = _null_from_list(*types)
     from typed.mods.meta.base import SET
@@ -193,8 +210,10 @@ def _Set_(*args):
 
 @cache
 def _Dict_(*args, keys=None):
-    from typed.mods.types.base import TYPE
-    if args and all(isinstance(t, TYPE) for t in args):
+    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.func import Typed
+    T = (Typed, TYPE, ABSTRACT)
+    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -205,7 +224,7 @@ def _Dict_(*args, keys=None):
     if not args:
         return type(None)
 
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], TYPE):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Dict_(f.domain, keys=keys)
@@ -219,34 +238,37 @@ def _Dict_(*args, keys=None):
         raise TypeError(
             "Wrong type in Dict factory: \n"
             f" ==> {_name(f)}: has unexpected type\n"
-             "     [expected_type] Typed\n"
+             "     [expected_type] subtype of Typed\n"
             f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, TYPE) for f in args):
+    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
         types = args
-
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> 'Dict' factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Dict factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
-                "Wrong type in 'Dict' factory: \n"
-                f" ==> '{_name(t)}': has unexpected type\n"
-                 "     [expected_type] TYPE or Typed\n"
-                f"     [received_type] {_name(TYPE(t))}"
-            )
+                    "Wrong type in Dict factory: \n"
+                    f" ==> {_name(t)}: has unexpected type\n"
+                     "     [expected_type] subtype of TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
+                )
 
     if keys:
         if not isinstance(keys, TYPE):
             raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
-                 "     [expected_type] TYPE\n"
+                 "     [expected_type] subtype of TYPE\n"
                 f"     [received_type] {_name(TYPE(keys))}"
             )
         from typed.mods.types.attr import HASHABLE
@@ -254,7 +276,7 @@ def _Dict_(*args, keys=None):
             raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"
-                 "     [expected_type] HASHABLE\n"
+                 "     [expected_type] subtype of HASHABLE\n"
                 f"     [received_type] {_name(TYPE(keys))}"
             )
     else:
@@ -270,7 +292,6 @@ def _Dict_(*args, keys=None):
         "__display__": class_name,
         '__types__': types,
         '__key_type__': keys,
-        '__convert__': staticmethod(DICT.__convert__),
         '__null__': {_null(keys): __null__} if keys else {'': __null__},
         '__doc__': DICT.__doc__
     })
