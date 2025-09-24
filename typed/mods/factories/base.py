@@ -18,9 +18,10 @@ def Union(*args):
     Can be applied to typed functions:
         > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    T = (Typed, type)
-
-    if args and all(isinstance(f, type) for f in args):
+    from typed.mods.types.base import TYPE
+    from typed.mods.meta.base  import __UNIVERSE__
+    T = (Typed, TYPE, __UNIVERSE__)
+    if args and all(isinstance(f, TYPE) for f in args):
         unique_types = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -31,18 +32,18 @@ def Union(*args):
             return Union(*sorted_types)
 
     if not args:
-        return type(None)
-    if all((not isinstance(f, type)) and isinstance(f, Typed) for f in args):
+        return TYPE(None)
+    if all((not isinstance(f, TYPE)) and isinstance(f, Typed) for f in args):
         funcs = args
         domains = [f.domain for f in funcs]
         codomains = [f.codomain for f in funcs]
         dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        if any(not (isinstance(f, Typed) and not isinstance(f, type)) for f in funcs):
+        if any(not (isinstance(f, Typed) and not isinstance(f, TYPE)) for f in funcs):
             raise TypeError(
                 "Wrong type in Union factory: \n"
                 f" ==> {_name(f)}: has unexpected type\n"
                  "     [expected_type] Typed"
-                f"     [received_type] {_name(type(f))}"
+                f"     [received_type] {_name(TYPE(f))}"
             )
 
         def union_dispatcher(x):
@@ -82,26 +83,31 @@ def Union(*args):
         }
         return Typed(union_dispatcher)
 
-    elif all(isinstance(f, type) for f in args):
+    elif all(isinstance(f, (TYPE, __UNIVERSE__)) for f in args):
         types = tuple(dict.fromkeys(args))
         if len(types) == 1:
             return types[0]
     elif all(isinstance(t, T) for t in args):
-        raise TypeError(
-            "Mixed argument types: \n"
-            " ==> Union factory cannot receive both typed functions and types as arguments."
-        )
+        for t in args:
+            if isinstance(t, Typed):
+                raise TypeError(
+                    "Mixed types in Union factory:\n"
+                    f" ==> '{_name(t)}': it is a typed function."
+                     "     [received_type] subtype of Typed\n"
+                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
+                )
     else:
         for t in args:
             if not isinstance(t, T):
                 raise TypeError(
                     "Wrong type in Union factory: \n"
                     f" ==> {_name(t)}: has unexpected type\n"
-                     "     [expected_type] TYPE or Typed"
-                    f"     [received_type] {_name(type(t))}"
+                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
+                    f"     [received_type] {_name(TYPE(t))}"
                 )
 
-    class UNION(type):
+    from typed.mods.meta.base import _TYPE_
+    class UNION(_TYPE_):
         def __instancecheck__(cls, instance):
             return any(isinstance(instance, t) for t in cls.__types__)
         def __subclasscheck__(cls, subclass):
