@@ -40,7 +40,6 @@ class __UNIVERSE__(type):
         return _TYPE_.__hash__(cls)
 
 class _TYPE_(type, metaclass=__UNIVERSE__):
-
     def __instancecheck__(cls, instance):
         if _from_typing(type(instance)) or _from_typing(instance):
             return False
@@ -157,12 +156,14 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
                 return v
         return type(obj)
 
+class _ABSTRACT_(_TYPE_):
+    def __instancecheck__(cls, instance):
+        return _issubtype(instance, _TYPE_)
+
 class _UNIVERSAL_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE
-        if TYPE(instance) == __UNIVERSE__:
-            return True
-        return False
+        return TYPE(instance) == __UNIVERSE__
 
 class _META_(_TYPE_):
     def __instancecheck__(cls, instance):

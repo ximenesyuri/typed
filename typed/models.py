@@ -4,3 +4,7 @@ from typed.mods.models import (
     model, optional, mandatory, exact, ordered, rigid,
     Forget, Validate
 )
+from typed.mods.meta.models import (
+    _MODEL_, _OPTIONAL_, _MANDATORY_, _EXACT_, _ORDERED_, _RIGID_,
+    _MODEL_FACTORY_, _MODEL_INSTANCE_
+)

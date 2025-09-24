@@ -1,5 +1,8 @@
 from typed.mods.decorators import typed
-from typed.mods.types.base import Any, Bool, TYPE, Str, Set, List, Tuple, Dict, META, PARAMETRIC
+from typed.mods.types.base import (
+    Any, Bool, TYPE, UNIVERSAL, Str, Set, List, Tuple, Dict, META, PARAMETRIC
+)
+from typed.mods.factories.base import Union
 from typed.mods.types.func import Function, Factory
 from typed.mods.helper.helper import _name, _name_list
 from typed.mods.helper.null import _null
@@ -13,7 +16,7 @@ def istype(obj: Any) -> Bool:
     return obj in TYPE
 
 @typed
-def issubtype(typ_1: TYPE, typ_2: TYPE) -> Bool:
+def issubtype(typ_1: Union(TYPE, UNIVERSAL), typ_2: Union(TYPE, UNIVERSAL)) -> Bool:
     return typ_1 <= typ_2
 
 @typed

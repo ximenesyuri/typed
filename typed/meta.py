@@ -1,6 +1,7 @@
 from typed.mods.meta.base import (
     __UNIVERSE__,
-    _TYPE_, _UNIVERSAL_, _META_, _DISCOURSE_, _PARAMETRIC_,
+    _TYPE_, _ABSTRACT_, _UNIVERSAL_,
+    _META_, _DISCOURSE_, _PARAMETRIC_,
     NILL, ANY,
     INT, BOOL, STR, FLOAT,
     TUPLE, LIST, DICT, SET
