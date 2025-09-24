@@ -342,7 +342,9 @@ class SET(_TYPE_):
         from typed.mods.types.base import Any
         if Any is cls.__bases__:
             return True
-        return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
+        if hasattr(cls, "__types__"):
+            return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
+        return True
 
     def __subclasscheck__(cls, subclass):
         from typed.mods.types.base import Any, Set
