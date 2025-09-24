@@ -6,7 +6,7 @@ from typed.helper     import *
 from typed.meta       import *
 from typed.meta       import (
     __UNIVERSE__,
-    _TYPE_, _ABSTRACT_, _META_,
+    _TYPE_, _UNIVERSAL_, _META_,
     _DISCOURSE_, _PARAMETRIC_
 )
 from typed.decorators import *

@@ -1,6 +1,6 @@
 from inspect import isclass
 from typed.mods.meta.base import (
-    _TYPE_, _ABSTRACT_, _META_, _DISCOURSE_, _PARAMETRIC_,
+    _TYPE_, _UNIVERSAL_, _META_, _DISCOURSE_, _PARAMETRIC_,
     NILL, ANY,
     STR, INT, FLOAT, BOOL,
     TUPLE, LIST, SET, DICT,
@@ -111,8 +111,8 @@ class TYPE(metaclass=_TYPE_):
         _cls_cache[obj] = new_cls
         return new_cls
 
-ABSTRACT = _ABSTRACT_("ABSTRACT", (TYPE,), {
-    "__display__": "ABSTRACT",
+UNIVERSAL = _UNIVERSAL_("UNIVERSAL", (TYPE,), {
+    "__display__": "UNIVERSAL",
     "__null__": NILL
 })
 
