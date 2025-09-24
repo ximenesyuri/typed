@@ -1,6 +1,6 @@
 from inspect import isclass
 from typed.mods.meta.base import (
-    _TYPE_, _META_, _DISCOURSE_, _PARAMETRIC_,
+    _TYPE_, _ABSTRACT_, _META_, _DISCOURSE_, _PARAMETRIC_,
     NILL, ANY,
     STR, INT, FLOAT, BOOL,
     TUPLE, LIST, SET, DICT,
@@ -47,7 +47,7 @@ class TYPE(metaclass=_TYPE_):
                     TYPE.__convert__(b, t, _cls_cache, _meta_cache)
                     for b in orig_meta.__bases__
                 ) or (_TYPE_,)
-            meta_name = f"_CONVERTED_({_name(obj)})"
+            meta_name = f"CONVERTED({_name(obj)})"
 
             meta_attrs = {}
             for name in dir(orig_meta):
@@ -110,6 +110,11 @@ class TYPE(metaclass=_TYPE_):
         new_cls = meta_in_type(class_name, converted_bases, orig_attrs)
         _cls_cache[obj] = new_cls
         return new_cls
+
+ABSTRACT = _ABSTRACT_("ABSTRACT", (TYPE,), {
+    "__display__": "ABSTRACT",
+    "__null__": NILL
+})
 
 META = _META_("META", (TYPE,), {
     "__display__": "META",
