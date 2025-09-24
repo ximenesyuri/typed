@@ -14,7 +14,7 @@ from typed.mods.meta.models import (
     _MANDATORY_
 )
 from typed.mods.helper.models import (
-    OPTIONAL,
+    _Optional,
     MODEL_FACTORY,
     _ordered_keys,
     _attach_model_attrs,
@@ -37,7 +37,7 @@ def Optional(typ, default_value=None):
         raise TypeError(f"'{_name(typ)}' is not a type.")
     from typed.mods.types.base import Any
     if default_value is None:
-        return OPTIONAL(typ, None)
+        return _Optional(typ, None)
     if not isinstance(default_value, typ):
         raise TypeError(
             f"Error while defining optional type:\n"
@@ -45,7 +45,7 @@ def Optional(typ, default_value=None):
             f"     [expected_type]: '{_name(typ)}'\n"
             f"     [received_type]: '{_name(TYPE(default_value))}'"
         )
-    return OPTIONAL(typ, default_value)
+    return _Optional(typ, default_value)
 
 @typed
 def Model(
@@ -923,19 +923,17 @@ def Forget(model, entries):
 
 def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
-        annotations = cls.__annotations__
+        annotations = getattr(cls, '__annotations__', {})
         is_nullable = getattr(cls, '__nullable__', nullable)
         kwargs = {}
         for name, type_hint in annotations.items():
-            if hasattr(cls, name):
-                default = getattr(cls, name)
-            else:
-                default = None
-            from typed.mods.helper.models import OPTIONAL
-            if isinstance(type_hint, OPTIONAL):
+            if isinstance(type_hint, _Optional):
                 kwargs[name] = type_hint
+            elif hasattr(cls, name):
+                default = getattr(cls, name)
+                kwargs[name] = Optional(type_hint, default)
             else:
-                kwargs[name] = type_hint if not isinstance(type_hint, type(Optional)) else _optional(type_hint, default, is_nullable)
+                kwargs[name] = type_hint
         return_model = Model(
             __extends__=extends,
             __conditions__=conditions,
@@ -1047,8 +1045,6 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
         return wrap(_cls)
 
 def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
-    from typed.mods.helper.models import OPTIONAL as _Opt
-
     def wrap(cls):
         if getattr(cls, 'is_model', False):
             old_req = getattr(cls, '_required_attributes_and_types', ())
@@ -1079,7 +1075,7 @@ def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=
         ann = getattr(cls, '__annotations__', {})
         kwargs = {}
         for name, hint in ann.items():
-            if isinstance(hint, _Opt):
+            if isinstance(hint, _Optional):
                 base = hint.type
             else:
                 base = hint

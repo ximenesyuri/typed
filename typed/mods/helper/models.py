@@ -2,7 +2,7 @@ import sys
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
 
-class OPTIONAL:
+class _Optional:
     def __init__(self, typ, default_value):
         self.type = typ
         self.default_value = default_value
@@ -52,10 +52,10 @@ def _attrs(kwargs):
     required_attribute_keys = set()
     optional_attributes_and_defaults = {}
     for key, value in kwargs.items():
-        if isinstance(value, OPTIONAL):
+        if isinstance(value, _Optional):
             processed_attributes_and_types.append((key, value.type))
             optional_attributes_and_defaults[key] = value
-        elif isinstance(value, type) or hasattr(value, '__instancecheck__'):
+        elif isinstance(value, TYPE) or hasattr(value, '__instancecheck__'):
             processed_attributes_and_types.append((key, value))
             required_attribute_keys.add(key)
         else:
@@ -66,8 +66,7 @@ def _attrs(kwargs):
 
 def _optional(type_hint, default, is_nullable):
     from typed.mods.factories.generics import Maybe
-    from typed.mods.helper.models import OPTIONAL
-    if isinstance(type_hint, OPTIONAL):
+    if isinstance(type_hint, _Optional):
         return type_hint
 
     from typed.models import Optional

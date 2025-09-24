@@ -27,6 +27,11 @@ class _MODEL_FACTORY_(FACTORY):
             entity_dict = entity.copy()
         else:
             entity_dict = kwargs
+        optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
+        for attr, wrapper in optional_defaults.items():
+            if attr not in entity_dict:
+                entity_dict[attr] = wrapper.default_value
+
         if not cls.__instancecheck__(entity_dict):
             from typed.models import Validate
             Validate(entity_dict, cls)
