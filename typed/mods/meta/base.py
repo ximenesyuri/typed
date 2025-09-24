@@ -157,7 +157,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
                 return v
         return type(obj)
 
-class _ABSTRACT_(_TYPE_):
+class _UNIVERSAL_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE
         if TYPE(instance) == __UNIVERSE__:
@@ -311,7 +311,7 @@ class LIST(_TYPE_):
     """
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import List, TYPE
-        if not isinstance(instance, List) and not _issubtype(TYPE(instance), List):
+        if not isinstance(instance, list) and not _issubtype(TYPE(instance), List):
             return False
         if hasattr(cls, '__types__'):
             return all(isinstance(x, cls.__types__) for x in instance)
@@ -354,7 +354,7 @@ class SET(_TYPE_):
     """
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Set, TYPE
-        if not isinstance(instance, Set) and not _issubtype(TYPE(instance), Set):
+        if not isinstance(instance, set) and not _issubtype(TYPE(instance), Set):
             return False
         from typed.mods.types.base import Any
         if Any is cls.__bases__:
