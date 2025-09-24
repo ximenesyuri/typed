@@ -290,15 +290,6 @@ class TUPLE(_TYPE_):
         from typed.mods.parametric.base import _Tuple_
         return _Tuple_(*args, **kwargs)
 
-    @staticmethod
-    def __convert__(obj):
-        if isinstance(obj, tuple):
-            return obj
-        if hasattr(obj, "__iter__") or hasattr(obj, "__getitem__"):
-            try: return tuple(obj)
-            except Exception: pass
-        raise TypeError(f"Cannot convert {obj!r} to Tuple.")
-
 class LIST(_TYPE_):
     """
     Build the typed 'List' parametric type:
@@ -331,15 +322,6 @@ class LIST(_TYPE_):
         from typed.mods.parametric.base import _List_
         return _List_(*args, **kwargs)
 
-    @staticmethod
-    def __convert__(obj):
-        if isinstance(obj, list):
-            return obj
-        if hasattr(obj, "__iter__") or hasattr(obj, "__getitem__"):
-            try: return list(obj)
-            except Exception: pass
-        raise TypeError(f"Cannot convert {obj!r} to List.")
-
 class SET(_TYPE_):
     """
     The typed 'Set' of parametric type:
@@ -360,7 +342,7 @@ class SET(_TYPE_):
         from typed.mods.types.base import Any
         if Any is cls.__bases__:
             return True
-        return all(isinstance(x, _inner_union(types)) for x in instance)
+        return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
 
     def __subclasscheck__(cls, subclass):
         from typed.mods.types.base import Any, Set
@@ -374,15 +356,6 @@ class SET(_TYPE_):
     def __call__(cls, *args, **kwargs):
         from typed.mods.parametric.base import _Set_
         return _Set_(*args, **kwargs)
-
-    @staticmethod
-    def __convert__(obj):
-        if isinstance(obj, set):
-            return obj
-        if hasattr(obj, "__iter__"):
-            try: return set(obj)
-            except Exception: pass
-        raise TypeError(f"Cannot convert {obj!r} to Set.")
 
 class DICT(_TYPE_):
     """
@@ -434,14 +407,3 @@ class DICT(_TYPE_):
     def __call__(cls, *args, **kwargs):
         from typed.mods.parametric.base import _Dict_
         return _Dict_(*args, **kwargs)
-
-    @staticmethod
-    def __convert__(obj):
-        if isinstance(obj, dict):
-            return obj
-        if hasattr(obj, "__iter__"):
-            try: return dict(obj)
-            except Exception: pass
-        if hasattr(obj, "__dict__"):
-            return dict(obj.__dict__)
-        raise TypeError(f"Cannot convert {obj!r} to Dict.")
