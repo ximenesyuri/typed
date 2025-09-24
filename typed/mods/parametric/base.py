@@ -10,12 +10,12 @@ from typed.mods.helper.helper import (
 
 @cache
 def _Tuple_(*args):
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
 
-    T = (Typed, TYPE, ABSTRACT)
+    T = (Typed, TYPE, UNIVERSAL)
 
-    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
+    if args and all(isinstance(t, (TYPE, UNIVERSAL)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -26,7 +26,7 @@ def _Tuple_(*args):
             return _Tuple_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, UNIVERSAL)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Tuple_(*f.domain)
@@ -46,7 +46,7 @@ def _Tuple_(*args):
              "     [expected_type] Typed\n"
             f"     [received_type] {_name(TYPE(f))}"
         )
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    elif all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -80,10 +80,10 @@ def _Tuple_(*args):
 
 @cache
 def _List_(*args):
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
-    T = (Typed, TYPE, ABSTRACT)
-    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
+    T = (Typed, TYPE, UNIVERSAL)
+    if args and all(isinstance(t, (TYPE, UNIVERSAL)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -92,7 +92,7 @@ def _List_(*args):
             return _List_(*sorted_types)
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, UNIVERSAL)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _List_(*f.domain)
@@ -110,7 +110,7 @@ def _List_(*args):
             f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    elif all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -144,10 +144,10 @@ def _List_(*args):
 
 @cache
 def _Set_(*args):
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
-    T = (Typed, TYPE, ABSTRACT)
-    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
+    T = (Typed, TYPE, UNIVERSAL)
+    if args and all(isinstance(t, (TYPE, UNIVERSAL)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -159,7 +159,7 @@ def _Set_(*args):
 
     if not args:
         return type(None)
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, UNIVERSAL)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Set_(*f.domain)
@@ -176,7 +176,7 @@ def _Set_(*args):
              "     [expected_type] subtype of Typed\n"
             f"     [received_type] {_name(TYPE(f))}"
         )
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    elif all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         types = args
     elif all(isinstance(t, T) for t in args):
         for t in args:
@@ -210,10 +210,10 @@ def _Set_(*args):
 
 @cache
 def _Dict_(*args, keys=None):
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
-    T = (Typed, TYPE, ABSTRACT)
-    if args and all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
+    T = (Typed, TYPE, UNIVERSAL)
+    if args and all(isinstance(t, (TYPE, UNIVERSAL)) for t in args):
         unique = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -224,7 +224,7 @@ def _Dict_(*args, keys=None):
     if not args:
         return type(None)
 
-    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, ABSTRACT)):
+    if len(args) == 1 and (callable(args[0]) or hasattr(args[0], 'func')) and not isinstance(args[0], (TYPE, UNIVERSAL)):
         f = args[0]
         if isinstance(f, Typed):
             domain_type = _Dict_(f.domain, keys=keys)
@@ -242,7 +242,7 @@ def _Dict_(*args, keys=None):
             f"     [received_type] {_name(TYPE(f))}"
         )
 
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    elif all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         types = args
     elif all(isinstance(t, T) for t in args):
         for t in args:

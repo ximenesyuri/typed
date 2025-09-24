@@ -18,11 +18,11 @@ def Union(*args):
     Can be applied to typed functions:
         > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
 
-    T = (Typed, TYPE, ABSTRACT)
-    if args and all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    T = (Typed, TYPE, UNIVERSAL)
+    if args and all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         unique_types = set(args)
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
@@ -35,12 +35,12 @@ def Union(*args):
     if not args:
         from typed.mods.types.base import Nill
         return Nill
-    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
+    if all((not isinstance(f, (TYPE, UNIVERSAL))) and isinstance(f, Typed) for f in args):
         funcs = args
         domains = [f.domain for f in funcs]
         codomains = [f.codomain for f in funcs]
         dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        if any(not (isinstance(f, Typed) and not isinstance(f, (TYPE, ABSTRACT)) for f in funcs)):
+        if any(not (isinstance(f, Typed) and not isinstance(f, (TYPE, UNIVERSAL)) for f in funcs)):
             raise TypeError(
                 "Wrong type in Union factory: \n"
                 f" ==> {_name(f)}: has unexpected type\n"
@@ -85,7 +85,7 @@ def Union(*args):
         }
         return Typed(union_dispatcher)
 
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
+    elif all(isinstance(f, (TYPE, UNIVERSAL)) for f in args):
         types = tuple(dict.fromkeys(args))
         if len(types) == 1:
             return types[0]
@@ -144,13 +144,13 @@ def Prod(*args):
         > 'Prod(f, g, ...): Prod(f.domain, g.domain, ...) -> Prod(f.codomain, g.codomain, ...)'
     """
 
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
-    T = (Typed, TYPE, ABSTRACT)
+    T = (Typed, TYPE, UNIVERSAL)
     if not args:
         from typed.mods.types.base import Nill
         return Nill
-    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
+    if all((not isinstance(f, (TYPE, UNIVERSAL))) and isinstance(f, Typed) for f in args):
         in_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         out_types = [f.codomain for f in args]
         domain_type = Prod(*in_types)
@@ -171,10 +171,10 @@ def Prod(*args):
         prod_mapper.__name__ = f"Prod({_name_list(*args)})"
         return Typed(prod_mapper)
 
-    elif len(args) == 2 and isinstance(args[0], (TYPE, ABSTRACT)) and isinstance(args[1], int) and args[1] > 0:
+    elif len(args) == 2 and isinstance(args[0], (TYPE, UNIVERSAL)) and isinstance(args[1], int) and args[1] > 0:
         types = (args[0],) * args[1]
 
-    elif all(isinstance(t, (TYPE, ABSTRACT)) for t in args):
+    elif all(isinstance(t, (TYPE, UNIVERSAL)) for t in args):
         types = args
 
     elif all(isinstance(t, T) for t in args):
@@ -239,13 +239,13 @@ def Unprod(*args):
     Can be applied to typed functions:
         > 'Unprod(f, g, ...): Unprod(f.domain, g.domain, ...) -> Unprod(f.codomain, g.codomain, ...)'
     """
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, UNIVERSAL
     from typed.mods.types.func import Typed
-    T = (Typed, TYPE, ABSTRACT)
+    T = (Typed, TYPE, UNIVERSAL)
     if not args:
         from typed.mods.types.base import Nill
         return Nill
-    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
+    if all((not isinstance(f, (TYPE, UNIVERSAL))) and isinstance(f, Typed) for f in args):
         dom_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         cod_types = [f.codomain for f in args]
         domain_type = UProd(*dom_types)
