@@ -111,7 +111,7 @@ def Model(
             try:
                 return object.__getattribute__(self, name)
             except AttributeError:
-                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+                raise AttributeError(f"'{_name(self.__class__)}' object has no attribute '{name}'")
 
         def __setattr__(self, name, value):
             if name in self._defined_required_attributes:
@@ -119,7 +119,7 @@ def Model(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(TYPE(value))}', "
                         f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
@@ -128,7 +128,7 @@ def Model(
                 if not (isinstance(value, expected_type) or
                         (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                     raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
+                        f"Attempted to set '{name}' to value '{value}' with type '{_name(TYPE(value))}', "
                         f"but expected type '{_name(expected_type)}'."
                     )
                 self[name] = value
@@ -142,7 +142,7 @@ def Model(
                 if name in self:
                     del self[name]
                 else:
-                    raise AttributeError(f"'{name}' not found in '{self.__class__.__name__}' object.")
+                    raise AttributeError(f"'{name}' not found in '{name(self.__class__)}' object.")
             else:
                 object.__delattr__(self, name)
 
@@ -600,7 +600,6 @@ def Ordered(
 
         def __instancecheck__(cls, instance):
             if not instance in Dict:
-                print("aaaaa")
                 return False
             instance_keys = list(instance.keys())
             model_keys = getattr(cls, '_ordered_keys', [])
@@ -994,7 +993,7 @@ def rigid(_cls=None, *, extends=None, conditions=None):
 def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         is_null = getattr(cls, '__nullable__', nullable)
-
+        from typed.mods.helper.models import _optional
         if getattr(cls, 'is_model', False):
             old_req = getattr(cls, '_required_attributes_and_types', ())
             old_opt = getattr(cls, '_optional_attributes_and_defaults', {})
