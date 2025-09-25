@@ -119,13 +119,14 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
     mismatches = []
     param_value_map = dict(zip(param_names, args))
 
+    from typed.mods.types.base import TYPE
     for i, (name, expected_type) in enumerate(zip(param_names, expected_domain)):
         actual_value = args[i]
-        actual_type = type(actual_value)
+        actual_type = TYPE(actual_value)
         expected_display_name = _name(expected_type)
         actual_display_name = _name(actual_type)
 
-        if callable(expected_type) and not isinstance(expected_type, type):
+        if callable(expected_type) and not isinstance(expected_type, TYPE):
             original = getattr(expected_type, "_dependent_func", expected_type)
             expected_sig = inspect.signature(original)
             dep_args = [
@@ -173,7 +174,7 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
         expected_codomain_resolved = expected_codomain
 
     if (
-        isinstance(expected_codomain_resolved, type)
+        isinstance(expected_codomain_resolved, TYPE)
         and hasattr(expected_codomain_resolved, '__types__')
         and isinstance(expected_codomain_resolved.__types__, tuple)
         and expected_codomain_resolved.__name__.startswith('Union')
@@ -219,11 +220,12 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
 def _variable_checker(typ):
     def wrapper(x):
         if not isinstance(x, typ):
+            from typed.mods.types.base import TYPE
             raise TypeError(
                 f"Mismatch type in variable value.\n"
                 f" ==> received value '{x}':\n"
                 f"     [expected_type]: '{_name(typ)}'\n"
-                f"     [received_type]: '{_name(type(x))}'"
+                f"     [received_type]: '{_name(TYPE(x))}'"
             )
         return x
     return wrapper
@@ -250,20 +252,20 @@ def _get_args(self):
 
 def _get_kwargs(self):
     all_args = _get_args(self)
-    from typed.mods.types.base import Empty
+    from typed.mods.types.base import Nill
     return {
         name: info
         for name, info in all_args.items()
-        if info['default'] is not Empty
+        if info['default'] is not Nill
     }
 
 def _get_pos_args(self):
     all_args = _get_args(self)
-    from typed.mods.types.base import Empty
+    from typed.mods.types.base import Nill
     return {
         name: info
         for name, info in all_args.items()
-        if info['default'] is Empty
+        if info['default'] is Nill
     }
 def _get_num_args(func):
     """
