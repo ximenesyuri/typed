@@ -239,12 +239,10 @@ class TYPED(HINTED, TYPED_DOM, TYPED_COD):
         return super().__instancecheck__(instance)
 
     def check(self, instance):
-        if not callable(instance):
-            return False
-        from typed.mods.helper.helper import _hinted_domain, _hinted_codomain
-        domain_hints = set(_hinted_domain(instance))
-        return_hint = _hinted_codomain(instance)
         if hasattr(self, "__types__"):
+            from typed.mods.helper.helper import _hinted_domain, _hinted_codomain
+            domain_hints = set(_hinted_domain(instance))
+            return_hint = _hinted_codomain(instance)
             return domain_hints == set(self.__types__) and return_hint == self.__codomain__
         return True
 
