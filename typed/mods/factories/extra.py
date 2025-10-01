@@ -151,7 +151,7 @@ def Url(*protocols, pattern=None):
             full_protocols = [f"{prot}://" for prot in protocols]
             str_protocols = "|".join(map(re.escape, full_protocols))
             if not pattern:
-                pattern_str = rf"^({str_protocols})(?:[a-z0-9./?#=%&@:-]+)?$"
+                pattern_str = rf"^({str_protocols})(?:[a-zA-Z0-9./?#=%&@:-]+)?$"
                 regex = re.compile(pattern_str)
             else:
                 pattern_str = rf"^({str_protocols}){pattern.pattern}$"
