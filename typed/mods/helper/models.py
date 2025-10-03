@@ -18,7 +18,7 @@ def _ensure_iterable_conditions(conditions):
     raise TypeError("__conditions__ must be a callable or a list/tuple of callables")
 
 def _ordered_keys(attributes_and_types, optional_defaults):
-    return [k for k, _ in attributes_and_types] + list(optional_defaults.keys())
+    return [k for k, _ in attributes_and_types]
 
 def _process_extends(__extends__):
     extended_models = []
@@ -85,15 +85,24 @@ def _optional(type_hint, default, is_nullable):
         return Optional(Maybe(type_hint), None)
 
 def _attach_model_attrs(child_model, parent_models):
-    child_model.extends     = tuple(parent_models)
-    child_model.extended_by = ()
+    if not hasattr(child_model, 'extends'):
+        child_model.extends = tuple(parent_models)
+        child_model.extended_by = ()
+        child_model.is_model = True
+        child_model.is_exact = False
+        child_model.is_ordered = False
+        child_model.is_rigid = False
+        child_model.is_optional = False
+        child_model.is_mandatory = False
 
-    child_model.is_model     = True
-    child_model.is_exact     = False
-    child_model.is_ordered   = False
-    child_model.is_rigid     = False
-    child_model.is_optional  = False
-    child_model.is_mandatory = False
+        for parent in parent_models:
+            try:
+                prev = getattr(parent, 'extended_by', ())
+                if not isinstance(prev, tuple):
+                    prev = tuple(prev)
+                parent.extended_by = prev + (child_model,)
+            except Exception:
+                pass
 
     reqs = getattr(child_model, '_defined_required_attributes', {})
     opts = getattr(child_model, '_defined_optional_attributes', {})
@@ -126,11 +135,38 @@ def _attach_model_attrs(child_model, parent_models):
         if not meta['optional']
     }
 
-    for parent in parent_models:
-        try:
-            prev = getattr(parent, 'extended_by', ())
-            if not isinstance(prev, tuple):
-                prev = tuple(prev)
-            parent.extended_by = prev + (child_model,)
-        except Exception:
-            pass
+def _update_model_attr(cls, name, value):
+    current_kwargs = {}
+    ordered_keys_list = list(getattr(cls, '_ordered_keys', []))
+    req_attrs = getattr(cls, '_defined_required_attributes', {})
+    opt_attrs = getattr(cls, '_defined_optional_attributes', {})
+
+    current_keys = set(ordered_keys_list)
+
+    if name not in current_keys:
+        ordered_keys_list.append(name)
+    for k in ordered_keys_list:
+        if k == name:
+            current_kwargs[k] = value
+        elif k in req_attrs:
+            current_kwargs[k] = req_attrs[k]
+        elif k in opt_attrs:
+            current_kwargs[k] = opt_attrs[k]
+
+    new_attrs_tuple, new_req_keys, new_opt_attrs = _attrs(current_kwargs)
+    new_ordered_keys = _ordered_keys(new_attrs_tuple, new_opt_attrs)
+
+    type.__setattr__(cls, '_required_attributes_and_types', new_attrs_tuple)
+    type.__setattr__(cls, '_required_attribute_keys', new_req_keys)
+    type.__setattr__(cls, '_optional_attributes_and_defaults', new_opt_attrs)
+    type.__setattr__(cls, '_ordered_keys', new_ordered_keys)
+
+    new_req_attrs_dict = {k: v for k, v in new_attrs_tuple if k in new_req_keys}
+    type.__setattr__(cls, '_defined_required_attributes', new_req_attrs_dict)
+    type.__setattr__(cls, '_defined_optional_attributes', new_opt_attrs)
+    type.__setattr__(cls, '_defined_keys', set(new_ordered_keys))
+
+    if hasattr(cls, '_all_possible_keys'):
+        type.__setattr__(cls, '_all_possible_keys', set(new_ordered_keys))
+
+    _attach_model_attrs(cls, getattr(cls, 'extends', ()))
