@@ -68,7 +68,7 @@ def Model(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
     if not kwargs:
-        return dict
+        return Dict
 
     for key in kwargs.keys():
         if not key in Str:
@@ -656,7 +656,7 @@ def Rigid(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
     if not kwargs:
-        return dict
+        return Dict
 
     for key in kwargs.keys():
         if not key in Str:
