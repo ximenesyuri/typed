@@ -503,33 +503,27 @@ def rigid(_cls=None, *, extends=None, conditions=None):
 
 def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
-        # Find model parents from Python base classes (ignore plain object, etc)
         parent_models = []
         for base in cls.__bases__:
             if getattr(base, 'is_model', False):
                 parent_models.append(base)
-        # If explicit extends provided, use it
         if extends:
             if isinstance(extends, (list, tuple)):
                 parent_models += list(extends)
             else:
                 parent_models.append(extends)
 
-        # Make sure unique, preserve order.
         seen = set()
         parent_models = [b for b in parent_models if not (b in seen or seen.add(b))]
 
-        # Gather fields from type hints and class
         ann = getattr(cls, '__annotations__', {})
-        from typed.mods.helper.models import _optional  # for constructing optionals
+        from typed.mods.helper.models import _optional
         is_null = getattr(cls, '__nullable__', nullable)
         kwargs = {}
         for name, hint in ann.items():
-            # Use Optional logic for default values
             default = getattr(cls, name, None)
             kwargs[name] = _optional(hint, default, is_null)
 
-        # Build the model
         model_cls = Model(
             __extends__=parent_models,
             __conditions__=conditions,
@@ -539,7 +533,6 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
             **kwargs
         )
 
-        # Copy Python class props for clarity
         for a in ('__name__', '__qualname__', '__module__', '__doc__'):
             setattr(model_cls, a, getattr(cls, a, None))
         model_cls.is_optional = True
@@ -553,31 +546,25 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
 
 def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
     def wrap(cls):
-        # Find model parents from Python base classes (ignore plain object, etc)
         parent_models = []
         for base in cls.__bases__:
             if getattr(base, 'is_model', False):
                 parent_models.append(base)
-        # If explicit extends provided, use it
         if extends:
             if isinstance(extends, (list, tuple)):
                 parent_models += list(extends)
             else:
                 parent_models.append(extends)
 
-        # Make sure unique, preserve order.
         seen = set()
         parent_models = [b for b in parent_models if not (b in seen or seen.add(b))]
 
-        # Gather fields from type hints
         ann = getattr(cls, '__annotations__', {})
         kwargs = {}
         for name, hint in ann.items():
-            # If it's an Optional, extract base type, else it's required
             base = getattr(hint, 'type', hint)
             kwargs[name] = base
 
-        # Build the model
         model_cls = Model(
             __extends__=parent_models,
             __conditions__=conditions,
