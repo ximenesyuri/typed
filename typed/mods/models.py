@@ -67,7 +67,8 @@ def Model(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
     if not kwargs:
-        return Dict
+        if not extended_models:
+            return Dict
 
     for key in kwargs.keys():
         if not key in Str:
@@ -168,7 +169,9 @@ def Model(
             super().__init__(name, bases, dct)
 
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, dict):
+            if hasattr(instance, '__class__') and cls in getattr(instance, '__mro__', getattr(instance.__class__, '__mro__', [])):
+                return True
+            if not isinstance(instance, Dict):
                 return False
             required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
             required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
@@ -207,6 +210,9 @@ def Model(
             return True
 
         def __subclasscheck__(cls, subclass):
+            if not isinstance(subclass, type): return False
+            if cls in getattr(subclass, '__mro__', []):
+                return True
             if not hasattr(subclass, '_required_attributes_and_types') or \
                not hasattr(subclass, '_required_attribute_keys') or \
                not hasattr(subclass, '_optional_attributes_and_defaults'):
@@ -262,9 +268,11 @@ def Model(
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
     class_name = f"Model({args_str})"
 
+    bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL,)
+    
     new_model = _MODEL(
         class_name,
-        (MODEL_INSTANCE, MODEL_FACTORY, MODEL),
+        bases,
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
@@ -388,7 +396,7 @@ def Exact(
             super().__init__(name, bases, dct)
 
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, dict):
+            if not isinstance(instance, Dict):
                 return False
 
             required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
