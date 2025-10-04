@@ -4,14 +4,13 @@ from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
 from typed.mods.helper.helper import _name
 from typed.mods.meta.models import (
-    _MODEL_INSTANCE_,
-    _MODEL_FACTORY_,
-    _MODEL_,
-    _EXACT_,
-    _ORDERED_,
-    _RIGID_,
-    _OPTIONAL_,
-    _MANDATORY_
+    _MODEL_INSTANCE_, _MODEL_FACTORY_,
+    _MODEL_, _EXACT_, _ORDERED_, _RIGID_,
+    _OPTIONAL_, _MANDATORY_,
+    MODEL_INSTANCE, MODEL_META,
+    EXACT_INSTANCE, EXACT_META,
+    ORDERED_INSTANCE, ORDERED_META,
+    RIGID_INSTANCE, RIGID_META
 )
 from typed.mods.helper.models import (
     _Optional,
@@ -58,219 +57,31 @@ def Model(
 
     if __rigid__:
         return Rigid(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
-    elif __exact__:
+    if __exact__:
         return Exact(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
-    elif __ordered__:
+    if __ordered__:
         return Ordered(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
 
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
-    if not kwargs:
-        if not extended_models:
-            return Dict
+    if not kwargs and not extended_models:
+        return Dict
 
     for key in kwargs.keys():
-        if not key in Str:
-            raise TypeError(
-                "Wrong type while creating model:\n"
-                f" ==> '{_name(key)}': has unexpected type\n"
-                 "     [expected_type] subtype of 'Str'\n"
-                f"     [received_type] '{_name(TYPE(key))}'"
-            )
+        if not isinstance(key, Str):
+            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
 
     attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
-    conditions = []
-    if __conditions__:
-        conditions = list(__conditions__) if isinstance(__conditions__, (List, Tuple)) else [__conditions__]
-
-    class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
-        _defined_required_attributes = {}
-        _defined_optional_attributes = {}
-        _defined_keys: set = set()
-        _ordered_keys: list = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
-
-        def __init__(self, **data):
-            super().__init__()
-            for key, wrapper in self.__class__._defined_optional_attributes.items():
-                super().__setitem__(key, wrapper.default_value)
-            for key, value in data.items():
-                self.__setattr__(key, value)
-            for req_key in self.__class__._defined_required_attributes.keys():
-                if req_key not in self:
-                    raise TypeError(
-                        f"Missing required attribute '{req_key}' during {self.__class__.__name__} initialization."
-                    )
-
-        def __getattr__(self, name):
-            if name in self._defined_keys:
-                if name in self:
-                    return self[name]
-                elif name in self._defined_optional_attributes:
-                    return self._defined_optional_attributes[name].default_value
-            try:
-                return object.__getattribute__(self, name)
-            except AttributeError:
-                raise AttributeError(f"'{_name(self.__class__)}' object has no attribute '{name}'")
-
-        def __setattr__(self, name, value):
-            if name in self._defined_required_attributes:
-                expected_type = self._defined_required_attributes[name]
-                if not (isinstance(value, expected_type) or
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(TYPE(value))}', "
-                        f"but expected type '{_name(expected_type)}'."
-                    )
-                self[name] = value
-            elif name in self._defined_optional_attributes:
-                expected_type = self._defined_optional_attributes[name].type
-                if not (isinstance(value, expected_type) or
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(TYPE(value))}', "
-                        f"but expected type '{_name(expected_type)}'."
-                    )
-                self[name] = value
-            else:
-                object.__setattr__(self, name, value)
-
-        def __delattr__(self, name):
-            if name in self._defined_required_attributes:
-                raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
-            elif name in self._defined_optional_attributes:
-                if name in self:
-                    del self[name]
-                else:
-                    raise AttributeError(f"'{name}' not found in '{name(self.__class__)}' object.")
-            else:
-                object.__delattr__(self, name)
-
-    class _MODEL(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
-        def __new__(cls, name, bases, dct):
-            new_type = super().__new__(cls, name, bases, dct)
-            setattr(new_type, '_defined_required_attributes', dict(dct.get('_initial_attributes_and_types', ())))
-            setattr(new_type, '_defined_optional_attributes', dct.get('_initial_optional_attributes_and_defaults', {}))
-            setattr(new_type, '_defined_keys',
-                    set(dict(dct.get('_initial_attributes_and_types', ())).keys()) |
-                    set(dct.get('_initial_optional_attributes_and_defaults', {}).keys()))
-            setattr(new_type, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
-            setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
-            setattr(new_type, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
-            setattr(new_type, '__conditions_list', dct.get('_initial_conditions', []))
-            setattr(new_type, '_ordered_keys', dct.get('_initial_ordered_keys', []))
-            return new_type
-
-        def __init__(cls, name, bases, dct):
-            for key in ['_initial_attributes_and_types', '_initial_required_attribute_keys',
-                        '_initial_optional_attributes_and_defaults', '_initial_conditions', '_initial_ordered_keys']:
-                if key in dct:
-                    del dct[key]
-            super().__init__(name, bases, dct)
-
-        def __instancecheck__(cls, instance):
-            if hasattr(instance, '__class__') and cls in getattr(instance, '__mro__', getattr(instance.__class__, '__mro__', [])):
-                return True
-            if not isinstance(instance, Dict):
-                return False
-            required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
-            required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
-            optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-            for req_key, expected_type in required_attributes_and_types_dict.items():
-                if req_key not in instance:
-                    return False
-                attr_value = instance[req_key]
-                type_is_correct = False
-                if isinstance(attr_value, expected_type):
-                    type_is_correct = True
-                else:
-                    checker = getattr(expected_type, '__instancecheck__', None)
-                    if callable(checker):
-                        if checker(attr_value):
-                            type_is_correct = True
-                if not type_is_correct:
-                    return False
-            for attr_name, wrapper in optional_attributes_and_defaults.items():
-                if attr_name in instance:
-                    attr_value = instance[attr_name]
-                    expected_type = wrapper.type
-                    type_is_correct = False
-                    if isinstance(attr_value, expected_type):
-                        type_is_correct = True
-                    else:
-                        checker = getattr(expected_type, '__instancecheck__', None)
-                        if callable(checker):
-                            if checker(attr_value):
-                                type_is_correct = True
-                    if not type_is_correct:
-                        return False
-            for cond in getattr(cls, '__conditions_list', []):
-                if not cond(instance):
-                    return False
-            return True
-
-        def __subclasscheck__(cls, subclass):
-            if not isinstance(subclass, type): return False
-            if cls in getattr(subclass, '__mro__', []):
-                return True
-            if not hasattr(subclass, '_required_attributes_and_types') or \
-               not hasattr(subclass, '_required_attribute_keys') or \
-               not hasattr(subclass, '_optional_attributes_and_defaults'):
-                return False
-            if not isinstance(subclass, TYPE):
-                return False
-            cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
-            subclass_required_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
-            cls_required_keys = getattr(cls, '_required_attribute_keys', set())
-            subclass_required_keys = getattr(subclass, '_required_attribute_keys', set())
-            cls_optional_attrs_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-            subclass_optional_attrs_defaults = getattr(subclass, '_optional_attributes_and_defaults', {})
-            cls_optional_keys = set(cls_optional_attrs_defaults.keys())
-
-            if not cls_required_keys.issubset(subclass_required_keys):
-                return False
-            if not (cls_required_keys | cls_optional_keys).issubset(subclass_required_keys | set(subclass_optional_attrs_defaults.keys())):
-                return False
-            for attr_name, parent_type in cls_required_attrs.items():
-                if attr_name in subclass_required_attrs:
-                    subclass_type = subclass_required_attrs[attr_name]
-                    if not (isinstance(subclass_type, TYPE) and issubclass(subclass_type, parent_type)) and \
-                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
-                        return False
-                elif attr_name in subclass_optional_attrs_defaults:
-                    return False
-            for attr_name, parent_wrapper in cls_optional_attrs_defaults.items():
-                parent_type = parent_wrapper.type
-                if attr_name in subclass_required_attrs:
-                    subclass_type = subclass_required_attrs[attr_name]
-                    if not (isinstance(subclass_type, TYPE) and issubclass(subclass_type, parent_type)) and \
-                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
-                        return False
-                elif attr_name in subclass_optional_attrs_defaults:
-                    subclass_wrapper = subclass_optional_attrs_defaults[attr_name]
-                    subclass_type = subclass_wrapper.type
-                    subclass_default_value = subclass_wrapper.default_value
-                    if not (isinstance(subclass_type, TYPE) and issubclass(subclass_type, parent_type)) and \
-                       not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
-                        return False
-                    if not (isinstance(subclass_default_value, parent_type) or
-                            (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value))):
-                        return False
-                else:
-                    return False
-            parent_conds = set(getattr(cls, '__conditions_list', []))
-            child_conds = set(getattr(subclass, '__conditions_list', []))
-            if not parent_conds.issubset(child_conds):
-                return False
-            return True
-
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, OPTIONAL) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    conditions = list(__conditions__) if __conditions__ else []
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
+
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
 
-    bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL,)
-    
-    new_model = _MODEL(
+    bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
+
+    new_model = MODEL_META(
         class_name,
         bases,
         {
@@ -300,210 +111,17 @@ def Exact(
         kwargs = _merge_attrs(extended_models, kwargs)
 
     for key in kwargs.keys():
-        if not key in Str:
-            raise TypeError(
-                "Wrong type while creating model:\n"
-                f" ==> '{_name(key)}': has unexpected type\n"
-                 "     [expected_type] subtype of 'Str'\n"
-                f"     [received_type] '{_name(TYPE(key))}'"
-            )
+        if not isinstance(key, Str):
+            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
+
     attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
+    all_possible_keys = set(kwargs.keys())
+    conditions = list(__conditions__) if __conditions__ else []
 
-    all_possible_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
-    conditions = []
-    if __conditions__:
-        conditions = list(__conditions__) if isinstance(__conditions__, (List, Tuple)) else [__conditions__]
-
-    class EXACT_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
-        _defined_required_attributes = {}
-        _defined_optional_attributes = {}
-        _defined_keys = set()
-        _all_possible_keys = set()
-
-        def __init__(self, **data):
-            super().__init__()
-            for key, wrapper in self.__class__._defined_optional_attributes.items():
-                self[key] = wrapper.default_value
-
-            for key, value in data.items():
-                self.__setattr__(key, value)
-
-        def __getattr__(self, name: str):
-            if name in self._defined_keys:
-                if name in self:
-                    return self[name]
-                elif name in self._defined_optional_attributes:
-                    return self._defined_optional_attributes[name].default_value
-            try:
-                return object.__getattribute__(self, name)
-            except AttributeError:
-                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-
-        def __setattr__(self, name, value):
-            if name in self._defined_required_attributes:
-                expected_type = self._defined_required_attributes[name]
-                if not (value in expected_type) or (
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
-                        f"but expected type '{_name(expected_type)}'."
-                    )
-                self[name] = value
-            elif name in self._defined_optional_attributes:
-                expected_type = self._defined_optional_attributes[name].type
-                if not (value in expected_type) or (
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(
-                        f"Attempted to set '{name}' to value '{value}' with type '{_name(type(value))}', "
-                        f"but expected type '{_name(expected_type)}'."
-                    )
-                self[name] = value
-            else:
-                object.__setattr__(self, name, value)
-
-        def __delattr__(self, name):
-            if name in self._defined_required_attributes:
-                raise AttributeError(f"Cannot delete required attribute '{name}' from a '{self.__class__.__name__}' object.")
-            elif name in self._defined_optional_attributes:
-                if name in self:
-                    del self[name]
-                else:
-                    raise AttributeError(f"'{name}' not found in '{self.__class__.__name__}' object.")
-            else:
-                object.__delattr__(self, name)
-
-    class _EXACT(_MODEL_FACTORY_, _EXACT_, _MODEL_INSTANCE_):
-        def __new__(cls, name, bases, dct):
-            new_type = super().__new__(cls, name, bases, dct)
-            setattr(new_type, '_defined_required_attributes', dict(dct.get('_initial_attributes_and_types', ())))
-            setattr(new_type, '_defined_optional_attributes', dct.get('_initial_optional_attributes_and_defaults', {}))
-            setattr(new_type, '_defined_keys',
-                    set(dict(dct.get('_initial_attributes_and_types', ())).keys()) |
-                    set(dct.get('_initial_optional_attributes_and_defaults', {}).keys()))
-            setattr(new_type, '_all_possible_keys', dct.get('_initial_all_possible_keys', set()))
-
-            setattr(new_type, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
-            setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
-            setattr(new_type, '_optional_attributes_and_defaults', dct.get('_initial_optional_attributes_and_defaults', {}))
-            setattr(new_type, '__conditions_list', dct.get('_initial_conditions', []))
-            return new_type
-
-        def __init__(cls, name, bases, dct):
-            for key in ['_initial_attributes_and_types', '_initial_required_attribute_keys',
-                        '_initial_optional_attributes_and_defaults', '_initial_all_possible_keys', '_initial_conditions']:
-                if key in dct:
-                    del dct[key]
-            super().__init__(name, bases, dct)
-
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, Dict):
-                return False
-
-            required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
-            required_attribute_keys = getattr(cls, '_required_attribute_keys', set())
-            optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-            instance_keys = set(instance.keys())
-            all_possible_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
-
-            if instance_keys != all_possible_keys:
-                return False
-
-            if not required_attribute_keys.issubset(instance_keys):
-                return False
-
-            for attr_name, attr_value in instance.items():
-                if attr_name in required_attributes_and_types_dict:
-                    expected_type = required_attributes_and_types_dict[attr_name]
-                    type_is_correct = False
-                    if isinstance(attr_value, expected_type):
-                        type_is_correct = True
-                    else:
-                        checker = getattr(expected_type, '__instancecheck__', None)
-                        if callable(checker):
-                            if checker(attr_value):
-                                type_is_correct = True
-                    if not type_is_correct:
-                        return False
-                elif attr_name in optional_attributes_and_defaults:
-                    expected_type = optional_attributes_and_defaults[attr_name].type
-                    type_is_correct = False
-                    if isinstance(attr_value, expected_type):
-                        type_is_correct = True
-                    else:
-                        checker = getattr(expected_type, '__instancecheck__', None)
-                        if callable(checker):
-                            if checker(attr_value):
-                                type_is_correct = True
-                    if not type_is_correct:
-                        return False
-                else:
-                    return False
-
-            for cond in getattr(cls, '__conditions_list', []):
-                if not cond(instance):
-                    return False
-
-            return True
-
-        def __subclasscheck__(cls, subclass):
-            if not hasattr(subclass, '_required_attributes_and_types') or not hasattr(subclass, '_required_attribute_keys') or not hasattr(subclass, '_optional_attributes_and_defaults'):
-                return False
-            if not isinstance(subclass, type):
-                return False
-
-            cls_required_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
-            subclass_required_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))
-            cls_required_keys = getattr(cls, '_required_attribute_keys', set())
-            subclass_required_keys = getattr(subclass, '_required_attribute_keys', set())
-            cls_optional_attrs_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-            subclass_optional_attrs_defaults = getattr(subclass, '_optional_attributes_and_defaults', {})
-            cls_optional_keys = set(cls_optional_attrs_defaults.keys())
-            subclass_optional_keys = set(subclass_optional_attrs_defaults.keys())
-
-            if (cls_required_keys | cls_optional_keys) != (subclass_required_keys | subclass_optional_keys):
-                return False
-
-            if not cls_required_keys.issubset(subclass_required_keys):
-                return False
-
-            for attr_name in cls_optional_keys:
-                if attr_name not in subclass_optional_keys:
-                    return False
-
-                parent_wrapper = cls_optional_attrs_defaults[attr_name]
-                parent_type = parent_wrapper.type
-                subclass_wrapper = subclass_optional_attrs_defaults[attr_name]
-                subclass_type = subclass_wrapper.type
-                subclass_default_value = subclass_wrapper.default_value
-
-                if not (subclass_type in TYPE) and _issubtype(subclass_type, parent_type) and \
-                   not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
-                    return False
-
-                if not (subclass_default_value in parent_type) or (
-                        (hasattr(parent_type, '__instancecheck__') and parent_type.__instancecheck__(subclass_default_value))):
-                    return False
-
-            for attr_name in cls_required_keys:
-                parent_type = cls_required_attrs[attr_name]
-                if attr_name not in subclass_required_attrs:
-                    return False
-
-                subclass_type = subclass_required_attrs[attr_name]
-
-                if not (subclass_type in TYPE) and _issubtype(subclass_type, parent_type) and \
-                   not (hasattr(parent_type, '__subclasscheck__') and parent_type.__subclasscheck__(subclass_type)):
-                    return False
-            parent_conds = set(getattr(cls, '__conditions_list', []))
-            child_conds = set(getattr(subclass, '__conditions_list', []))
-            if not parent_conds.issubset(child_conds):
-                return False
-            return True
-
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, OPTIONAL) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
 
-    new_model = _EXACT(
+    new_model = EXACT_META(
         class_name,
         (EXACT_INSTANCE, MODEL_FACTORY, EXACT),
         {
@@ -534,112 +152,22 @@ def Ordered(
         kwargs = _merge_attrs(extended_models, kwargs)
 
     for key in kwargs.keys():
-        if not key in Str:
-            raise TypeError(
-                "Wrong type while creating model:\n"
-                f" ==> '{_name(key)}': has unexpected type\n"
-                 "     [expected_type] subtype of 'Str'\n"
-                f"     [received_type] '{_name(TYPE(key))}'"
-            )
+        if not isinstance(key, Str):
+            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
 
     attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
-    conditions = []
-    if __conditions__:
-        conditions = list(__conditions__) if isinstance(__conditions__, (List, Tuple)) else [__conditions__]
+    conditions = list(__conditions__) if __conditions__ else []
 
-    class ORDERED_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
-        _ordered_keys = ordered_keys
-        _defined_required_attributes = dict(attributes_and_types)
-        _defined_optional_attributes = optional_attributes_and_defaults
-        _defined_keys = set(_ordered_keys)
-
-        def __init__(self, **data):
-            super().__init__()
-            print(data)
-            if list(data.keys()) != self._ordered_keys:
-                raise TypeError(
-                    f"Input keys order {list(data.keys())} does not match order in model: {self._ordered_keys}"
-                )
-            for key, wrapper in self._defined_optional_attributes.items():
-                super().__setitem__(key, wrapper.default_value)
-            for key, value in data.items():
-                self.__setattr__(key, value)
-            for req_key in self._defined_required_attributes.keys():
-                if req_key not in self:
-                    raise TypeError(
-                        f"Missing required attribute '{req_key}' during {self.__class__.__name__} initialization."
-                    )
-
-        def __getattr__(self, name):
-            if name in self._defined_keys:
-                if name in self:
-                    return self[name]
-                elif name in self._defined_optional_attributes:
-                    return self._defined_optional_attributes[name].default_value
-            try:
-                return object.__getattribute__(self, name)
-            except AttributeError:
-                raise AttributeError(f"{self.__class__.__name__} has no attribute {name}")
-
-        def __setattr__(self, name, value):
-            if name in self._defined_required_attributes:
-                expected_type = self._defined_required_attributes[name]
-                if not (value in expected_type) or (
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(f"{name} type mismatch: {TYPE(value)} vs {expected_type}")
-                self[name] = value
-            elif name in self._defined_optional_attributes:
-                expected_type = self._defined_optional_attributes[name].type
-                if not (value in expected_type) or (
-                        (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
-                    raise TypeError(f"{name} type mismatch: {TYPE(value)} vs {expected_type}")
-                self[name] = value
-            else:
-                object.__setattr__(self, name, value)
-
-    class _ORDERED(_MODEL_FACTORY_, _MODEL_INSTANCE_, _ORDERED_):
-        def __new__(cls, name, bases, dct):
-            new_type = super().__new__(cls, name, bases, dct)
-            setattr(new_type, '_ordered_keys', dct.get('_initial_ordered_keys'))
-            setattr(new_type, '__conditions_list', dct.get('_initial_conditions', []))
-            return new_type
-
-        def __instancecheck__(cls, instance):
-            if not instance in Dict:
-                return False
-            instance_keys = list(instance.keys())
-            model_keys = getattr(cls, '_ordered_keys', [])
-            i = 0
-            for k in model_keys:
-                if k in instance:
-                    if i >= len(instance_keys) or instance_keys[i] != k:
-                        return False
-                    v = instance[k]
-                    if k in cls._defined_required_attributes:
-                        typ = cls._defined_required_attributes[k]
-                    else:
-                        typ = cls._defined_optional_attributes[k].type
-                    if not (v in typ) or (hasattr(typ, '__instancecheck__') and not typ.__instancecheck__(v)):
-                        return False
-                    i += 1
-            for cond in getattr(cls, '__conditions_list', []):
-                if not cond(instance):
-                    return False
-            return True
-
-        def __subclasscheck__(cls, subclass):
-            if not hasattr(subclass, '_ordered_keys'):
-                return False
-            return list(getattr(cls, '_ordered_keys')) == list(getattr(subclass, '_ordered_keys'))
-
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not isinstance(value, OPTIONAL) else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Ordered({args_str})"
 
-    new_model = _ORDERED(
+    new_model = ORDERED_META(
         class_name,
         (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED),
         {
+            '_initial_attributes_and_types': attributes_and_types,
+            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
             '_initial_ordered_keys': ordered_keys,
             '_initial_conditions': conditions,
         }
@@ -666,93 +194,23 @@ def Rigid(
         return Dict
 
     for key in kwargs.keys():
-        if not key in Str:
-            raise TypeError(
-                "Wrong type while creating model:\n"
-                f" ==> '{_name(key)}': has unexpected type\n"
-                 "     [expected_type] subtype of 'Str'\n"
-                f"     [received_type] '{_name(TYPE(key))}'"
-            )
+        if not isinstance(key, Str):
+            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
 
     attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
-    all_possible_keys = required_attribute_keys | set(optional_attributes_and_defaults.keys())
-    conditions = []
-    if __conditions__:
-        conditions = list(__conditions__) if isinstance(__conditions__, (list, tuple)) else [__conditions__]
+    conditions = list(__conditions__) if __conditions__ else []
 
-    class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
-        _ordered_keys = ordered_keys
-        _required_attribute_keys = required_attribute_keys
-        _defined_required_attributes = dict(attributes_and_types)
-        _defined_optional_attributes = optional_attributes_and_defaults
-        _defined_keys = set(_ordered_keys)
-
-        def __init__(self, **data):
-            super().__init__()
-            if list(data.keys()) != self._ordered_keys:
-                raise TypeError(
-                    f"Input keys order {list(data.keys())} does not match order in model: {self._ordered_keys}"
-                )
-            for key in self._ordered_keys:
-                if key in data:
-                    self[key] = data[key]
-                elif key in self._defined_optional_attributes:
-                    self[key] = self._defined_optional_attributes[key].default_value
-            for req_key in self._defined_required_attributes:
-                if req_key not in self:
-                    raise TypeError(
-                        f"Missing required attribute '{req_key}' during {self.__class__.__name__} initialization."
-                    )
-
-    class _RIGID(_MODEL_FACTORY_, _MODEL_INSTANCE_, _RIGID_):
-        def __new__(cls, name, bases, dct):
-            new_type = super().__new__(cls, name, bases, dct)
-            setattr(new_type, '_ordered_keys', dct.get('_initial_ordered_keys'))
-            setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
-            setattr(new_type, '_defined_required_attributes', dict(attributes_and_types))
-            setattr(new_type, '_defined_optional_attributes', optional_attributes_and_defaults)
-            setattr(new_type, '__conditions_list', dct.get('_initial_conditions', []))
-            setattr(new_type, '_all_possible_keys', set(required_attribute_keys | set(optional_attributes_and_defaults.keys())))
-            return new_type
-
-        def __instancecheck__(cls, instance):
-            if not instance in Dict:
-                return False
-            instance_keys = list(instance.keys())
-            model_keys = getattr(cls, '_ordered_keys', [])
-            if instance_keys != model_keys:
-                return False
-            exp_keys = set(model_keys)
-            if set(instance_keys) != exp_keys:
-                return False
-            for k in model_keys:
-                v = instance[k]
-                if k in cls._defined_required_attributes:
-                    typ = cls._defined_required_attributes[k]
-                else:
-                    typ = cls._defined_optional_attributes[k].type
-                if not (v in typ) or (hasattr(typ, '__instancecheck__') and typ.__instancecheck__(v)):
-                    return False
-            for cond in getattr(cls, '__conditions_list', []):
-                if not cond(instance):
-                    return False
-            return True
-
-        def __subclasscheck__(cls, subclass):
-            return (
-                hasattr(subclass, '_ordered_keys')
-                and list(getattr(cls, '_ordered_keys')) == list(getattr(subclass, '_ordered_keys'))
-            )
-
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" if not value in OPTIONAL else f"{key}: {getattr(value.type, '__name__', str(value.type))} = {repr(value.default_value)}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Rigid({args_str})"
 
-    new_model = _RIGID(
+    new_model = RIGID_META(
         class_name,
         (RIGID_INSTANCE, MODEL_FACTORY, RIGID),
         {
+            '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
+            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
             '_initial_ordered_keys': ordered_keys,
             '_initial_conditions': conditions,
         }
@@ -760,9 +218,11 @@ def Rigid(
 
     _attach_model_attrs(new_model, extended_models)
     new_model.is_rigid = True
+    new_model.is_ordered = True
+    new_model.is_exact = True
     from typed.mods.helper.null import _null_model
     new_model.__null__ = _null_model(new_model)
-    new_model.__display___ = class_name
+    new_model.__display__ = class_name
     return new_model
 
 @typed
