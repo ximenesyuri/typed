@@ -2,6 +2,7 @@ from typed.mods.types.base import TYPE
 from typed.mods.types.func import Function
 from functools import wraps, lru_cache, update_wrapper
 from typed.mods.helper.helper import _name
+from typed.mods.err import TypedErr
 
 def hinted(func):
     if isinstance(func, Function):
@@ -23,20 +24,23 @@ def typed(arg):
     if isinstance(arg, TYPE):
         return _variable_checker(arg)
     elif isinstance(arg, Function):
-        from typed.mods.helper.helper import _dependent_signature
-        from typed.mods.types.base import Bool
-        from typed.mods.types.func import Typed, Condition
-        _dependent_signature(arg)
-        if isinstance(arg, Typed):
-            return arg
-        typed_arg = Typed(arg)
-        dom = typed_arg.dom
-        cod = typed_arg.cod
-        if cod is Bool:
-            typed_arg.__class__ = Condition
-        else:
-            typed_arg.__class__ = Typed
-        return typed_arg
+        try:
+            from typed.mods.helper.helper import _dependent_signature
+            from typed.mods.types.base import Bool
+            from typed.mods.types.func import Typed, Condition
+            _dependent_signature(arg)
+            if isinstance(arg, Typed):
+                return arg
+            typed_arg = Typed(arg)
+            dom = typed_arg.dom
+            cod = typed_arg.cod
+            if cod is Bool:
+                typed_arg.__class__ = Condition
+            else:
+                typed_arg.__class__ = Typed
+            return typed_arg
+        except Exception as e:
+            raise TypedErr(f"Error in the typed function '{_name(arg)}':\n {e}")
     raise TypeError(
         "Wrong type in 'typed' decorator\n"
         f" ==> '{_name(arg)}': has an unexpected type\n"
