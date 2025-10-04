@@ -138,7 +138,7 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         else:
             expected_type_resolved = expected_type
 
-        if not isinstance(actual_value, expected_type_resolved) or not _issubtype(actual_value, expected_type_resolved):
+        if not isinstance(actual_value, expected_type_resolved) and not _issubtype(TYPE(actual_value), expected_type_resolved):
             if getattr(TYPE(actual_value), 'is_model', False) and getattr(expected_type_resolved, 'is_model', False):
                 if not _issubmodel(TYPE(actual_value), expected_type_resolved):
                     mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
