@@ -1,0 +1,1 @@
+class TypedErr(Exception): pass
