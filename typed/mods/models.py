@@ -79,7 +79,7 @@ def Model(
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
 
-    bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
+    bases = tuple(extended_models) + (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
 
     new_model = MODEL_META(
         class_name,
@@ -121,8 +121,10 @@ def Exact(
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Exact({args_str})"
 
+    bases = tuple(extended_models) + (EXACT_INSTANCE, MODEL_FACTORY, EXACT)
     new_model = EXACT_META(
         class_name,
+        bases,
         (EXACT_INSTANCE, MODEL_FACTORY, EXACT),
         {
             '_initial_attributes_and_types': attributes_and_types,
@@ -162,8 +164,10 @@ def Ordered(
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Ordered({args_str})"
 
+    bases = tuple(extended_models) + (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED)
     new_model = ORDERED_META(
         class_name,
+        bases,
         (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED),
         {
             '_initial_attributes_and_types': attributes_and_types,
@@ -203,9 +207,11 @@ def Rigid(
 
     args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
     class_name = f"Rigid({args_str})"
+    bases = tuple(extended_models) + (RIGID_INSTANCE, MODEL_FACTORY, RIGID)
 
     new_model = RIGID_META(
         class_name,
+        bases,
         (RIGID_INSTANCE, MODEL_FACTORY, RIGID),
         {
             '_initial_attributes_and_types': attributes_and_types,
