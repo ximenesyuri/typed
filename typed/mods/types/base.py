@@ -19,11 +19,30 @@ class TYPE(metaclass=_TYPE_):
     @staticmethod
     def __convert__(obj, t, _cls_cache=None, _meta_cache=None):
         from typed.mods.helper.helper import _name
+        from inspect import isclass
+
+        def _convert_property(prop, t, _cls_cache, _meta_cache):
+            def getter(self):
+                value = prop.fget(self)
+                try:
+                    return TYPE.__convert__(value, t, _cls_cache, _meta_cache)
+                except Exception:
+                    return value
+            setter = None
+            deleter = None
+            if prop.fset:
+                def setter(self, val):
+                    prop.fset(self, val)
+            if prop.fdel:
+                def deleter(self):
+                    prop.fdel(self)
+            return property(getter, setter, deleter, prop.__doc__)
+
         if t is not TYPE:
             raise TypeError(
                 "Wrong type in TYPE.__convert__:\n"
                 f" ==> '{_name(t)}': has an unexpected type\n"
-                 "     [expected_type] subtype of 'TYPE'\n"
+                "     [expected_type] subtype of 'TYPE'\n"
                 f"     [received_type] '{_name(TYPE(t))}'"
             )
 
@@ -98,7 +117,11 @@ class TYPE(metaclass=_TYPE_):
                         orig_attrs[name] = val
                 continue
             try:
-                orig_attrs[name] = getattr(obj, name)
+                attr = getattr(obj, name)
+                if isinstance(attr, property):
+                    orig_attrs[name] = _convert_property(attr, t, _cls_cache, _meta_cache)
+                else:
+                    orig_attrs[name] = attr
             except Exception:
                 pass
 
