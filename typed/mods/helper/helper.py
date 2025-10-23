@@ -242,7 +242,6 @@ def _get_args(self):
     sig = inspect.signature(func)
     hints = get_type_hints(func)
     result = {}
-    from typed.mods.types.base import Empty
     for name, param in sig.parameters.items():
         if param.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
@@ -250,10 +249,9 @@ def _get_args(self):
             inspect.Parameter.KEYWORD_ONLY,
         ):
             ann = hints.get(name, None)
-            default = Empty if param.default is inspect._empty else param.default
             result[name] = {
                 "type": ann,
-                "default": default
+                "default": param.default
             }
     return result
 
