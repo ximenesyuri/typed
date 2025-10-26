@@ -5,6 +5,8 @@ from typed.mods.helper.helper import (
     _is_codomain_hinted,
     _hinted_domain,
     _hinted_codomain,
+    _check_domain,
+    _check_codomain,
     _get_args,
     _get_kwargs,
     _get_pos_args,
@@ -127,12 +129,9 @@ class Hinted(HintedDom, HintedCod, metaclass=HINTED):
     def cod(self):
         return self.codomain
 
-import inspect as _ins
-from typed.mods.helper.helper import _check_domain, _check_codomain
-
 class TypedDom(HintedDom, metaclass=TYPED_DOM):
     def __call__(self, *args, **kwargs):
-        sig = _ins.signature(self.func)
+        sig = inspect.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
         _check_domain(self.func, list(b.arguments.keys()), self.domain, None, list(b.arguments.values()))
         return self.func(*b.args, **b.kwargs)
@@ -145,10 +144,9 @@ class TypedDom(HintedDom, metaclass=TYPED_DOM):
 
 class TypedCod(HintedCod, metaclass=TYPED_COD):
     def __call__(self, *args, **kwargs):
-        sig = _ins.signature(self.func)
+        sig = inspect.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
         r = self.func(*b.args, **b.kwargs)
-        from typed.mods.helper.helper import _hinted_codomain
         from typed.mods.types.base import TYPE
         _check_codomain(self.func, _hinted_codomain(self.func), TYPE(r), r)
         return r
@@ -160,6 +158,14 @@ class TypedCod(HintedCod, metaclass=TYPED_COD):
         return f"{self.__name__} -> {c}!"
 
 class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
+    def __call__(self, *args, **kwargs):
+        sig = inspect.signature(self.func)
+        b = sig.bind(*args, **kwargs)
+        b.apply_defaults()
+        _check_domain(self.func, list(b.arguments.keys()), self.domain, None, list(b.arguments.values()))
+        result = self.func(*b.args, **b.kwargs)
+        _check_codomain(self.func, _hinted_codomain(self.func), TYPE(result), result)
+        return result
     def __repr__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         cs = self.codomain.__name__
