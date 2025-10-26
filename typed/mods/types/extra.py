@@ -1,5 +1,4 @@
 from typed.mods.types.base         import Str
-from typed.mods.types.func         import Typed
 from typed.mods.factories.base     import Prod
 from typed.mods.factories.generics import Regex, Range, Len, Enum
 
@@ -24,7 +23,7 @@ Char.__display__  = "Char"
 Email.__display__ = "Email"
 
 # Network
-Protocol = Enum(Str, "http", "https", "file", "ftp")
+Protocol = Enum(Str, "http", "https", "file", "ftp", "ssh", "smtp")
 Hostname = Regex(r"^(?:[a-zA-Z-1-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
 IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
 
