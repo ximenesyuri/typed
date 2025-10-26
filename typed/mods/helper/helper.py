@@ -123,7 +123,6 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
     for i, (name, expected_type) in enumerate(zip(param_names, expected_domain)):
         actual_value = args[i]
         actual_type = TYPE(actual_value)
-        expected_display_name = _name(expected_type)
         actual_display_name = _name(actual_type)
 
         if callable(expected_type) and not isinstance(expected_type, TYPE):
@@ -140,15 +139,16 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 
         if not isinstance(actual_value, expected_type_resolved) and not _issubtype(TYPE(actual_value), expected_type_resolved):
             if getattr(TYPE(actual_value), 'is_model', False) and getattr(expected_type_resolved, 'is_model', False):
-                if not _issubmodel(TYPE(actual_value), expected_type_resolved):
+                if not _issubtype(TYPE(actual_value), expected_type_resolved):
                     mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
                     mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
                     mismatches.append(f"     [received_type] '{actual_display_name}'\n")
+                else:
+                    return True
             else:
-                return True
-            mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
-            mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
-            mismatches.append(f"     [received_type] '{actual_display_name}'\n")
+                mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
+                mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
+                mismatches.append(f"     [received_type] '{actual_display_name}'\n")
         elif hasattr(expected_type_resolved, 'check'):
             if not expected_type_resolved.check(actual_value):
                 mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
