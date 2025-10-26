@@ -5,21 +5,21 @@ from typed.mods.helper.helper import _name
 from typed.mods.helper.null import _null
 
 @cache
-def Extension(ext):
-    from typed.mods.types.path import Path
+def Extension(*exts):
+    from typed.mods.types.path import PathUrl
     from typed.mods.types.base import TYPE
-    class EXTENSION(TYPE(Path)):
+    class EXTENSION(TYPE(PathUrl)):
         def __instancecheck__(cls, instance):
-            if not isinstance(instance, Path):
+            if not isinstance(instance, PathUrl):
                 return False
             if instance == '':
                 return True
             parts = instance.split('.')
-            return parts[-1] == ext
-    class_name = f'Extension({ext})'
-    return EXTENSION(class_name, (Path,), {
+            return any(parts[-1] == ext for ext in exts)
+    class_name = f'Extension({', '.join(exts)})'
+    return EXTENSION(class_name, (PathUrl,), {
         "__display__": class_name,
-        "__null__": _null(Path)
+        "__null__": _null(PathUrl)
     })
 
 @cache
