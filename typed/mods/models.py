@@ -66,7 +66,30 @@ def Model(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
     if not kwargs and not extended_models:
-        return Dict
+        bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
+        attributes_and_types = ()
+        required_attribute_keys = set()
+        optional_attributes_and_defaults = {}
+        conditions = []
+        ordered_keys = []
+        class_name = "Model()"
+        new_model = MODEL_META(
+            class_name,
+            bases,
+            {
+                '_initial_attributes_and_types': attributes_and_types,
+                '_initial_required_attribute_keys': required_attribute_keys,
+                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                '_initial_conditions': conditions,
+                '_initial_ordered_keys': ordered_keys,
+            }
+        )
+        _attach_model_attrs(new_model, ())
+        new_model.__display__ = class_name
+        from typed.mods.helper.null import _null_model
+        new_model.__null__ = _null_model(new_model)
+        new_model.is_model = True
+        return new_model
 
     for key in kwargs.keys():
         if not isinstance(key, Str):
@@ -194,8 +217,6 @@ def Rigid(
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
-    if not kwargs:
-        return Dict
 
     for key in kwargs.keys():
         if not isinstance(key, Str):
