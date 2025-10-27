@@ -82,6 +82,8 @@ def _optional(type_hint, default, is_nullable):
             except Exception:
                 return Optional(type_hint, None)
     else:
+        if default is not None:
+            return Optional(Maybe(type_hint), default)
         return Optional(Maybe(type_hint), None)
 
 def _attach_model_attrs(child_model, parent_models):

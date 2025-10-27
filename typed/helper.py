@@ -1,6 +1,6 @@
 from typed.mods.decorators import typed
 from typed.mods.types.base import (
-    Any, Bool, TYPE, UNIVERSAL, Str, Set, List, Tuple, Dict, META, PARAMETRIC
+    Any, Bool, TYPE, UNIVERSAL, Str, Tuple, Dict, META, PARAMETRIC
 )
 from typed.mods.factories.base import Union
 from typed.mods.types.func import Function, Factory
@@ -24,7 +24,7 @@ def issame(typ_1: TYPE, typ_2: TYPE) -> Bool:
     return typ_1 is typ_2
 
 @typed
-def isequiv(typ_1: TYPE, typ2: TYPE) -> Bool:
+def isequiv(typ_1: TYPE, typ_2: TYPE) -> Bool:
     return typ_1 == typ_2
 
 @typed
