@@ -200,7 +200,7 @@ class _PARAMETRIC_(_TYPE_):
 
 class NILL(_TYPE_):
     def __instancecheck__(cls, instance):
-        return False
+        return instance is None
     def __subclasscheck__(cls, subclass):
         return False
 
