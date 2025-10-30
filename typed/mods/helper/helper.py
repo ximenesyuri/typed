@@ -1,10 +1,13 @@
-import re
-import inspect
 from typing import get_type_hints
+from inspect import signature, Signature, Parameter, getsource, getsourcelines
+from ast import parse, walk, AnnAssign, Name, Assign, unparse, FunctionDef
+from textwrap import dedent
+from functools import update_wrapper
 
 def _from_typing(obj):
     try:
-        if obj in (typing.Any, typing.NoReturn, typing.Final):
+        from typing import Any as Any_, NoReturn, Final
+        if obj is Any_ or obj is NoReturn or obj is Final:
             return True
     except Exception:
         pass
@@ -22,16 +25,16 @@ def _runtime_domain(func):
     return wrapper
 
 def _runtime_codomain(func):
-    signature = inspect.signature(func)
+    signature = signature(func)
     return_annotation = signature.return_annotation
-    if return_annotation is not inspect.Signature.empty:
+    if return_annotation is not Signature.empty:
         return return_annotation
     from typed.mods.types.base import Nill
     return Nill
 
 def _is_domain_hinted(func):
     """Check if the function has type hints for all parameters if it has any parameters."""
-    sig = inspect.signature(func)
+    sig = signature(func)
     parameters = sig.parameters
 
     if not parameters:
@@ -59,28 +62,28 @@ def _is_codomain_hinted(func):
         )
     return True
 
-def _get_original_func(func):
+def _unwrap(func):
     """Recursively gets the original function if it's wrapped."""
     while hasattr(func, '__wrapped__'):
         func = func.__wrapped__
     if hasattr(func, 'func'):
-        return _get_original_func(func.func)
+        return _unwrap(func.func)
     return func
 
 def _hinted_domain(func):
-    original_func = _get_original_func(func)
+    original_func = _unwrap(func)
     type_hints = get_type_hints(original_func)
     if hasattr(original_func, '_composed_domain_hint'):
         return original_func._composed_domain_hint
     try:
-        sig = inspect.signature(original_func)
+        sig = signature(original_func)
         domain_types = []
         for param in sig.parameters.values():
-            if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                                     inspect.Parameter.POSITIONAL_ONLY,
-                                     inspect.Parameter.KEYWORD_ONLY):
-                hint = type_hints.get(param.name, inspect.Signature.empty)
-                if hint is not inspect.Signature.empty:
+            if param.kind in (Parameter.POSITIONAL_OR_KEYWORD,
+                                     Parameter.POSITIONAL_ONLY,
+                                     Parameter.KEYWORD_ONLY):
+                hint = type_hints.get(param.name, Signature.empty)
+                if hint is not Signature.empty:
                     domain_types.append(hint)
         return tuple(domain_types)
     except ValueError:
@@ -88,18 +91,18 @@ def _hinted_domain(func):
     return ()
 
 def _hinted_codomain(func):
-    original_func = _get_original_func(func)
+    original_func = _unwrap(func)
     type_hints = get_type_hints(original_func)
 
     if hasattr(original_func, '_composed_codomain_hint'):
         return original_func._composed_codomain_hint
 
     try:
-        sig = inspect.signature(original_func)
-        return type_hints.get('return', inspect.Signature.empty)
+        sig = signature(original_func)
+        return type_hints.get('return', Signature.empty)
     except ValueError:
         pass
-    return inspect.Signature.empty
+    return Signature.empty
 
 def _name(obj):
     if hasattr(obj, '__display__'):
@@ -127,7 +130,7 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
 
         if callable(expected_type) and not isinstance(expected_type, TYPE):
             original = getattr(expected_type, "_dependent_func", expected_type)
-            expected_sig = inspect.signature(original)
+            expected_sig = signature(original)
             dep_args = [
                 param_value_map[pname]
                 for pname in expected_sig.parameters
@@ -153,7 +156,7 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
             if not expected_type_resolved.check(actual_value):
                 mismatches.append(f" ==> '{name}': has value '{_name(actual_value)}'\n")
                 mismatches.append(f"     [expected_type] '{_name(expected_type_resolved)}'\n")
-                mismatches.append(f"     [received_type] '{actual_display_name}'") 
+                mismatches.append(f"     [received_type] '{actual_display_name}'")
 
     if mismatches:
         mismatch_str = "".join(mismatches)
@@ -239,14 +242,14 @@ def _variable_checker(typ):
 
 def _get_args(self):
     func = getattr(self, 'func', self)
-    sig = inspect.signature(func)
+    sig = signature(func)
     hints = get_type_hints(func)
     result = {}
     for name, param in sig.parameters.items():
         if param.kind in (
-            inspect.Parameter.POSITIONAL_ONLY,
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
+            Parameter.POSITIONAL_ONLY,
+            Parameter.POSITIONAL_OR_KEYWORD,
+            Parameter.KEYWORD_ONLY,
         ):
             ann = hints.get(name, None)
             result[name] = {
@@ -277,7 +280,7 @@ def _get_num_args(func):
     1. Returns the number of fixed arguments of a function.
     2. Returns -1 if the function contains *args or **kwargs.
     """
-    signature = inspect.signature(func)
+    signature = signature(func)
     num_args = 0
     for param in signature.parameters.values():
         if param.kind == param.VAR_POSITIONAL or param.kind == param.VAR_KEYWORD:
@@ -291,7 +294,7 @@ def _get_num_kwargs(func):
     1. Returns the number of keyword arguments of a function.
     2. Returns -1 if the function contains *args or **kwargs.
     """
-    sig = inspect.signature(func)
+    sig = signature(func)
     count = 0
     for param in sig.parameters.values():
         if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
@@ -305,7 +308,7 @@ def _get_num_pos_args(func):
     Returns the number of required positional arguments (no default).
     Returns -1 if the function contains *args or **kwargs.
     """
-    signature = inspect.signature(func)
+    signature = signature(func)
     num_args = 0
     for param in signature.parameters.values():
         if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
@@ -341,8 +344,8 @@ def _inner_dict_union(*types):
     return _union_meta("Inner Union", (), {'__types__': types})
 
 def _type(obj):
-    from typed.mods.types.base import Str, Int, Float, Bool, Nill, Any
-    from typed.mods.types.factories import List, Tuple, Set, Dict
+    from typed.mods.types.base import Str, Int, Float, Bool, Nill
+    from typed.mods.types.base import List, Tuple, Set, Dict
     types_map = {
         type(None): Nill,
         bool: Bool,
@@ -368,21 +371,26 @@ def _isweaksubtype(typ_1, typ_2):
             return True
     return False
 
+def _has_dependent_type(func):
+    sig = signature(func)
+    anns = get_type_hints(func)
+    for name, param in sig.parameters.items():
+        typ = anns.get(name, None)
+        if hasattr(typ, 'is_dependent_type') and getattr(typ, 'is_dependent_type'):
+            return True
+    return False
+
 def _check_dependent_signature(dep_type, using_func):
     """
     Checks that, for each argument of using_func annotated with dep_type,
     every parameter expected by dep_type exists in using_func with matching type annotation.
     """
-    def _unwrap(f):
-        while hasattr(f, '__wrapped__'):
-            f = f.__wrapped__
-        return getattr(f, 'func', f)
     dep_func   = _unwrap(dep_type)
     using_func = _unwrap(using_func)
 
-    dep_sig    = inspect.signature(dep_func)
+    dep_sig    = signature(dep_func)
     dep_anns   = dep_func.__annotations__
-    using_sig  = inspect.signature(using_func)
+    using_sig  = signature(using_func)
     using_anns = using_func.__annotations__
 
     for uname, param in using_sig.parameters.items():
@@ -401,12 +409,110 @@ def _check_dependent_signature(dep_type, using_func):
                     )
 
 def _dependent_signature(func):
-    sig = inspect.signature(func)
+    sig = signature(func)
     for name, param in sig.parameters.items():
         ann = param.annotation
         if hasattr(ann, 'is_dependent_type'):
             _check_dependent_signature(ann, func)
     return func
+
+def _check_defaults_match_hints(func):
+    """Ensure all default values of parameters match their type hints."""
+    sig = signature(func)
+    hints = get_type_hints(func)
+    mismatches = []
+    for name, param in sig.parameters.items():
+        if param.default is not Parameter.empty:
+            hint = hints.get(name)
+            default = param.default
+            if hint is not None and not isinstance(default, hint):
+                mismatches.append(
+                    f" ==> '{func.__name__}': parameter '{name}' default value {default!r} does not match hint '{hint.__name__}'."
+                )
+    if mismatches:
+        raise TypeError(
+            "Default values do not match annotations:\n" +
+            "\n".join(mismatches)
+        )
+
+def _instrument_locals_check(func, force_all_annotated=True):
+    """Wrap function to type check local variables at runtime. If `force_all_annotated`, require every local typed."""
+
+    try:
+        src = getsource(func)
+    except OSError:
+        return func
+    lines, start_idx = getsourcelines(func)
+    src = dedent("".join(lines))
+    tree = parse(src, type_comments=True)
+
+    fn_node = next((n for n in tree.body if isinstance(n, FunctionDef)), None)
+    if fn_node is None:
+        return func
+
+    annotated_locs = []
+    all_locs = set()
+    for node in walk(fn_node):
+        if isinstance(node, AnnAssign) and isinstance(node.target, Name):
+            annotated_locs.append((node.target.id, node.annotation))
+            all_locs.add(node.target.id)
+        elif isinstance(node, Assign):
+            for target in node.targets:
+                if isinstance(target, Name):
+                    all_locs.add(target.id)
+    if force_all_annotated:
+        not_annot = set(all_locs) - set(name for name, _ in annotated_locs)
+        if not_annot:
+            raise TypeError(
+                f"Missing type hints in local variables:"
+                f"  ==> '{func.__name__}': local var '{not_annot}' was not typed."
+            )
+    if not annotated_locs:
+        return func
+
+    src_lines = src.splitlines()
+    name_to_type = {name: unparse(typ) for name, typ in annotated_locs}
+    instrumented_lines = []
+    import re
+    for line in src_lines:
+        instrumented_lines.append(line)
+        for name, type_str in name_to_type.items():
+            print(type_str)
+            if re.match(rf'^\s*{re.escape(name)}\s*=.*', line):
+                check = (
+                    f"    if not isinstance({name}, {type_str}):\n"
+                    f"        raise TypeError(\n"
+                                  f"\"Wrong type in function '{func.__name__}'\\n\"\n"
+                                  f"\"  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n\"\n"
+                                  f"\"      [expected_type] {type_str}\\n\"\n"
+                                  f"f\"      [received_type] {{_type({name}).__name__}}\"\n"
+                            ")"
+                )
+                instrumented_lines.append(check)
+
+    for i, l in list(enumerate(instrumented_lines)):
+        if isinstance(l, str) and l.strip().startswith("return"):
+            for name, type_str in name_to_type.items():
+                check = (
+                    f"    if not isinstance({name}, {type_str}):\n"
+                    f"        raise TypeError(\n"
+                                  f"\"Wrong type in function '{func.__name__}'\\n\"\n"
+                                  f"\"  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n\"\n"
+                                  f"\"      [expected_type] {type_str}\\n\"\n"
+                                  f"f\"      [received_type] {{_type({name}).__name__}}\"\n"
+                            ")"
+                )
+                instrumented_lines.insert(i, check)
+
+    code_joined = "\n".join(instrumented_lines)
+    ns = func.__globals__.copy()
+    ns.update({'_type': _type})
+    locs = {}
+    exec(code_joined, ns, locs)
+    f2 = locs[func.__name__]
+    f2.__wrapped__ = func
+    update_wrapper(f2, func)
+    return f2
 
 def _META(name, bases, instancecheck, subclasscheck=None, **attrs):
     dct = {'__instancecheck__': staticmethod(instancecheck)}
