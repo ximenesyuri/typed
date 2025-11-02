@@ -1,5 +1,5 @@
 from typing import get_type_hints
-from inspect import signature, Signature, Parameter, getsource, getsourcelines
+from inspect import signature, Signature, Parameter, getsource, getsourcelines, isclass
 from ast import parse, walk, AnnAssign, Name, Assign, unparse, FunctionDef
 from textwrap import dedent
 from functools import update_wrapper
@@ -128,7 +128,7 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         actual_type = TYPE(actual_value)
         actual_display_name = _name(actual_type)
 
-        if callable(expected_type) and not isinstance(expected_type, TYPE):
+        if callable(expected_type) and not isinstance(expected_type, TYPE) and not isclass(expected_codomain):
             original = getattr(expected_type, "_dependent_func", expected_type)
             expected_sig = signature(original)
             dep_args = [
@@ -169,7 +169,7 @@ def _check_codomain(func, expected_codomain, actual_codomain, result, allow_subc
     actual_display_name = _name(actual_codomain)
 
     from typed.mods.types.base import TYPE
-    if callable(expected_codomain) and not isinstance(expected_codomain, TYPE):
+    if callable(expected_codomain) and not isinstance(expected_codomain, TYPE) and not isclass(expected_codomain):
         import inspect
         expected_sig = inspect.signature(expected_codomain)
         if param_value_map is None:
