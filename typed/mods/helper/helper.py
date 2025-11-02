@@ -128,7 +128,7 @@ def _check_domain(func, param_names, expected_domain, actual_domain, args, allow
         actual_type = TYPE(actual_value)
         actual_display_name = _name(actual_type)
 
-        if callable(expected_type) and not isinstance(expected_type, TYPE) and not isclass(expected_codomain):
+        if callable(expected_type) and not isinstance(expected_type, TYPE) and not isclass(expected_type):
             original = getattr(expected_type, "_dependent_func", expected_type)
             expected_sig = signature(original)
             dep_args = [
