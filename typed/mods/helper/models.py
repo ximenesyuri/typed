@@ -1,6 +1,7 @@
-import sys
+import json
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
+from inspect import isroutine, getmembers
 
 class _Optional:
     def __init__(self, typ, default_value):
@@ -172,3 +173,33 @@ def _update_model_attr(cls, name, value):
         type.__setattr__(cls, '_all_possible_keys', set(new_ordered_keys))
 
     _attach_model_attrs(cls, getattr(cls, 'extends', ()))
+
+def _to_json(obj):
+    """
+    Helper method to recursively convert an object to a JSON-serializable dictionary.
+    """
+    from typed.mods.models import MODEL
+    json_dict = {}
+    for key, value in obj.__dict__.items():
+        if key.startswith('_'):
+            continue
+        if isinstance(value, MODEL):
+            json_dict[key] = _to_json(value)
+        elif isinstance(value, list) and all(isinstance(item, MODEL) for item in value):
+            json_dict[key] = [_to_json(item) for item in value]
+        elif isinstance(value, dict) and any(isinstance(item, MODEL) for item in value.values()):
+            processed_dict = {}
+            for sub_key, sub_value in value.items():
+                if isinstance(sub_value, MODEL):
+                    processed_dict[sub_key] = _to_json(sub_value)
+                else:
+                    processed_dict[sub_key] = sub_value
+            json_dict[key] = processed_dict
+        else:
+            try:
+                json.dumps(value)
+                json_dict[key] = value
+            except TypeError:
+                json_dict[key] = str(value)
+
+    return json_dict

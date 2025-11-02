@@ -1,6 +1,6 @@
 from typed.mods.meta.base import _TYPE_, DICT
 from typed.mods.meta.func import FACTORY
-from typed.mods.types.base import TYPE, Str, Set, Dict
+from typed.mods.types.base import TYPE, Set, Dict
 from typed.mods.helper.helper import _issubtype, _name
 
 class _MODEL_INSTANCE_(DICT):
@@ -160,15 +160,18 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                 )
 
     def __getattr__(self, name):
+        # 1. Check if 'name' is a model-defined attribute
         if name in self._defined_keys:
-            if name in self:
+            if name in self: # check if it's already in the instance's dict
                 return self[name]
             elif name in self._defined_optional_attributes:
-                return self._defined_optional_attributes[name].default_value
+                return self._defined_optional_attributes[name].default_value 
         try:
             return object.__getattribute__(self, name)
         except AttributeError:
+             # If all else fails, raise the AttributeError
             raise AttributeError(f"'{_name(self.__class__)}' object has no attribute '{name}'")
+
 
     def __setattr__(self, name, value):
         if name in self._defined_required_attributes:
@@ -199,9 +202,14 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
             if name in self:
                 del self[name]
             else:
-                raise AttributeError(f"'{name}' not found in '{name(self.__class__)}' object.")
+                raise AttributeError(f"'{name}' not found in '{_name(self.__class__)}' object.")
         else:
             object.__delattr__(self, name)
+
+    @property
+    def json(self):
+        from typed.mods.helper.models import _to_json
+        return _to_json(self)
 
 class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
@@ -327,7 +335,12 @@ class EXACT_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                 raise TypeError(f"Attribute '{name}' requires type '{_name(expected_type)}', got '{_name(type(value))}'")
             self[name] = value
         else: # Should not happen due to the top check
-             object.__setattr__(self, name, value)
+            object.__setattr__(self, name, value)
+
+    @property
+    def json(self):
+        from typed.mods.helper.models import _to_json
+        return _to_json(self)
 
 
 class EXACT_META(_MODEL_FACTORY_, _EXACT_, _MODEL_INSTANCE_):
@@ -417,6 +430,11 @@ class ORDERED_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__setattr__(self, name, value)
 
+    @property
+    def json(self):
+        from typed.mods.helper.models import _to_json
+        return _to_json(self)
+
 class ORDERED_META(_MODEL_FACTORY_, _ORDERED_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
         new_type = super().__new__(cls, name, bases, dct)
@@ -500,6 +518,11 @@ class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
             raise TypeError(f"Attribute '{name}' type mismatch: expected {_name(expected_type)}, got {_name(type(value))}")
 
         self[name] = value
+
+    @property
+    def json(self):
+        from typed.mods.helper.models import _to_json
+        return _to_json(self)
 
 class RIGID_META(_MODEL_FACTORY_, _RIGID_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
