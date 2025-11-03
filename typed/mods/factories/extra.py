@@ -16,7 +16,7 @@ def Extension(*exts):
                 return True
             parts = instance.split('.')
             return any(parts[-1] == ext for ext in exts)
-    class_name = f'Extension({', '.join(exts)})'
+    class_name = f"Extension({', '.join(exts)})"
     return EXTENSION(class_name, (PathUrl,), {
         "__display__": class_name,
         "__null__": _null(PathUrl)
