@@ -622,15 +622,12 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
     if not getattr(model, 'is_model', False):
         raise TypeError(f"eval expects a Model-type. Got: {model}")
 
-    # Gather current model attribute definitions (preserves order from the tuple)
     attrs_tuple = tuple(getattr(model, '_required_attributes_and_types', ()))
     opt_wrappers = dict(getattr(model, '_optional_attributes_and_defaults', {}))
 
-    # Validate provided attributes exist and values match expected types
     for name, val in attrs.items():
         if name not in (k for k, _ in attrs_tuple):
             raise ValueError(f"Attribute '{name}' not present in model '{getattr(model, '__name__', str(model))}'")
-        # find expected type from attrs_tuple (it contains the base type even for optional entries)
         expected_type = next((t for k, t in attrs_tuple if k == name), None)
         if expected_type is None:
             raise ValueError(f"Could not determine expected type for attribute '{name}'")
@@ -640,7 +637,6 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
             if isinstance(val, expected_type):
                 ok = True
         except Exception:
-            # isinstance might raise if expected_type is not a class; fall through to __instancecheck__
             pass
         if not ok:
             checker = getattr(expected_type, '__instancecheck__', None)
@@ -653,11 +649,9 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
                     f"     [received_type]: '{_name(TYPE(val))}'"
                 )
 
-    # Build kwargs for the new model: preserve order from attrs_tuple
     new_kwargs = {}
     for key, typ in attrs_tuple:
         if key in attrs:
-            # turn into optional with the fixed default value
             new_kwargs[key] = Optional(typ, attrs[key])
         else:
             if key in opt_wrappers:
@@ -665,13 +659,11 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
             else:
                 new_kwargs[key] = typ
 
-    # Preserve extends and conditions
     extends = getattr(model, 'extends', None)
     conds = getattr(model, '__conditions_list', None)
     __extends__ = list(extends) if extends else None
     __conditions__ = list(conds) if conds else None
 
-    # Create new model of the same kind as the original
     if model in RIGID:
         return Rigid(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
     if model in EXACT:
