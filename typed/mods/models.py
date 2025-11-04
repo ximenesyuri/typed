@@ -1,4 +1,4 @@
-from typed.mods.types.base import TYPE, Str, Dict, List, Bool
+from typed.mods.types.base import TYPE, Str, Dict, List, Bool, Any
 from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
 from typed.mods.helper.helper import _name
@@ -672,3 +672,15 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
         return Ordered(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
 
     return Model(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
+
+
+@typed
+def value(model: MODEL, attr: Str) -> Any:
+    ###
+    # TODO: improve to allow inner attributes:
+    #       value(model, 'x.y.z')
+    ###
+    for k, v in model.optional_attrs.items():
+        if attr == k:
+            return v['default']
+
