@@ -81,8 +81,8 @@ class _MODEL_FACTORY_(FACTORY):
                 entity_dict[attr] = wrapper.default_value
 
         if not cls.__instancecheck__(entity_dict):
-            from typed.models import Validate
-            Validate(entity_dict, cls)
+            from typed.mods.models import validate
+            validate(entity_dict, cls)
         obj = cls.__new__(cls)
         obj.__init__(**entity_dict)
         return obj
@@ -160,16 +160,14 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                 )
 
     def __getattr__(self, name):
-        # 1. Check if 'name' is a model-defined attribute
         if name in self._defined_keys:
-            if name in self: # check if it's already in the instance's dict
+            if name in self:
                 return self[name]
             elif name in self._defined_optional_attributes:
-                return self._defined_optional_attributes[name].default_value 
+                return self._defined_optional_attributes[name].default_value
         try:
             return object.__getattribute__(self, name)
         except AttributeError:
-             # If all else fails, raise the AttributeError
             raise AttributeError(f"'{_name(self.__class__)}' object has no attribute '{name}'")
 
 

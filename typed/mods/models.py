@@ -1,10 +1,9 @@
-from typed.mods.meta.base import DICT
-from typed.mods.types.base import TYPE, Str, Dict, List, Tuple, Bool
+from typed.mods.types.base import TYPE, Str, Dict, List, Bool
 from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
 from typed.mods.helper.helper import _name
 from typed.mods.meta.models import (
-    _MODEL_INSTANCE_, _MODEL_FACTORY_,
+    _MODEL_FACTORY_,
     _MODEL_, _EXACT_, _ORDERED_, _RIGID_,
     _OPTIONAL_, _MANDATORY_,
     MODEL_INSTANCE, MODEL_META,
@@ -253,7 +252,7 @@ def Rigid(
     return new_model
 
 @typed
-def Validate(entity: Dict, model: MODEL) -> Dict:
+def validate(entity: Dict, model: MODEL) -> Dict:
     model_name = getattr(model, '__name__', str(model))
 
     if entity in model:
@@ -388,8 +387,8 @@ def Validate(entity: Dict, model: MODEL) -> Dict:
         raise TypeError(f"{repr(entity)} is not a {model_name}:\n" + "\n".join(errors))
     return entity
 
-def Forget(model, entries):
-    if not isinstance(model, type(_MODEL)):
+def drop(model, entries):
+    if not isinstance(model, MODEL):
         raise TypeError(f"forget expects a Model-type. Got: {model}")
 
     required_keys = set(getattr(model, '_required_attribute_keys', set()))
@@ -612,3 +611,72 @@ def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=
     else:
         return wrap(_cls)
 
+@typed
+def eval(model: MODEL, **attrs: Dict) -> MODEL:
+    """
+    Return a new model derived from `model` where attributes provided in `attrs`
+    are fixed to the given values (i.e. turned into optional attributes with
+    those values as defaults). The returned model Y behaves such that:
+      Y(x1, x2, ...) == X(x1, x2, ..., attr1=value1, ...)
+    """
+    if not getattr(model, 'is_model', False):
+        raise TypeError(f"eval expects a Model-type. Got: {model}")
+
+    # Gather current model attribute definitions (preserves order from the tuple)
+    attrs_tuple = tuple(getattr(model, '_required_attributes_and_types', ()))
+    opt_wrappers = dict(getattr(model, '_optional_attributes_and_defaults', {}))
+
+    # Validate provided attributes exist and values match expected types
+    for name, val in attrs.items():
+        if name not in (k for k, _ in attrs_tuple):
+            raise ValueError(f"Attribute '{name}' not present in model '{getattr(model, '__name__', str(model))}'")
+        # find expected type from attrs_tuple (it contains the base type even for optional entries)
+        expected_type = next((t for k, t in attrs_tuple if k == name), None)
+        if expected_type is None:
+            raise ValueError(f"Could not determine expected type for attribute '{name}'")
+
+        ok = False
+        try:
+            if isinstance(val, expected_type):
+                ok = True
+        except Exception:
+            # isinstance might raise if expected_type is not a class; fall through to __instancecheck__
+            pass
+        if not ok:
+            checker = getattr(expected_type, '__instancecheck__', None)
+            if not (callable(checker) and checker(val)):
+                raise TypeError(
+                    f"Error while evaluating model:\n"
+                    f" ==> '{name}': has wrong type\n"
+                    f"     [expected_type]: '{_name(expected_type)}'\n"
+                    f"     [received_value]: '{val}'\n"
+                    f"     [received_type]: '{_name(TYPE(val))}'"
+                )
+
+    # Build kwargs for the new model: preserve order from attrs_tuple
+    new_kwargs = {}
+    for key, typ in attrs_tuple:
+        if key in attrs:
+            # turn into optional with the fixed default value
+            new_kwargs[key] = Optional(typ, attrs[key])
+        else:
+            if key in opt_wrappers:
+                new_kwargs[key] = opt_wrappers[key]
+            else:
+                new_kwargs[key] = typ
+
+    # Preserve extends and conditions
+    extends = getattr(model, 'extends', None)
+    conds = getattr(model, '__conditions_list', None)
+    __extends__ = list(extends) if extends else None
+    __conditions__ = list(conds) if conds else None
+
+    # Create new model of the same kind as the original
+    if model in RIGID:
+        return Rigid(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
+    if model in EXACT:
+        return Exact(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
+    if model in ORDERED:
+        return Ordered(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
+
+    return Model(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
