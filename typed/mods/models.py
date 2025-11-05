@@ -291,7 +291,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a term of model {model_name}:\n" + "\n".join(errors))
         return entity
 
     elif model in ORDERED:
