@@ -204,6 +204,7 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__delattr__(self, name)
 
+    @property
     def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
@@ -334,6 +335,7 @@ class EXACT_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__setattr__(self, name, value)
 
+    @property
     def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
@@ -426,6 +428,7 @@ class ORDERED_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__setattr__(self, name, value)
 
+    @property
     def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
@@ -513,6 +516,7 @@ class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
 
         self[name] = value
 
+    @property
     def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
