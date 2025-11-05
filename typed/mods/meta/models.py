@@ -204,8 +204,7 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__delattr__(self, name)
 
-    @property
-    def json(self):
+    def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
@@ -332,11 +331,10 @@ class EXACT_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
             if not isinstance(value, expected_type):
                 raise TypeError(f"Attribute '{name}' requires type '{_name(expected_type)}', got '{_name(type(value))}'")
             self[name] = value
-        else: # Should not happen due to the top check
+        else:
             object.__setattr__(self, name, value)
 
-    @property
-    def json(self):
+    def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
@@ -428,8 +426,7 @@ class ORDERED_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         else:
             object.__setattr__(self, name, value)
 
-    @property
-    def json(self):
+    def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
@@ -498,7 +495,6 @@ class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                 self.__setattr__(key, data[key])
             elif key in self._defined_optional_attributes:
                 self.__setattr__(key, self._defined_optional_attributes[key].default_value)
-            # If required and not in data, __setattr__ with no value assignment will let checks handle it
 
         for req_key in self._defined_required_attributes:
             if req_key not in self:
