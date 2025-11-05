@@ -517,8 +517,7 @@ class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
 
         self[name] = value
 
-    @property
-    def json(self):
+    def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
