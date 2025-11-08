@@ -1,11 +1,8 @@
 from functools import lru_cache as cache
-from typed.mods.types.func import Typed
 from typed.mods.helper.null import  _null, _null_from_list
 from typed.mods.helper.helper import (
     _name,
     _name_list,
-    _inner_union,
-    _inner_dict_union
 )
 
 @cache
@@ -271,8 +268,8 @@ def _Dict_(*args, keys=None):
                  "     [expected_type] subtype of TYPE\n"
                 f"     [received_type] {_name(TYPE(keys))}"
             )
-        from typed.mods.types.attr import HASHABLE
-        if not isinstance(keys, HASHABLE):
+        from typed.mods.factories.meta import ATTR
+        if not isinstance(keys, ATTR('__hash__')):
             raise TypeError(
                 "Wrong type in 'Dict' factory: \n"
                 f" ==> 'keys': has unexpected type\n"

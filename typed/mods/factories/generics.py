@@ -2,11 +2,8 @@ import re
 from functools import lru_cache as cache
 from typed.mods.helper.null import _null, _null_from_list
 from typed.mods.helper.helper import (
-    _hinted_domain,
-    _hinted_codomain,
     _name,
     _name_list,
-    _META
 )
 
 def Free(Discourse):
@@ -36,6 +33,7 @@ def Inter(*types):
         > an object 'p' of the Inter(X, Y, ...)
         > is an object of every 'X, Y, ...'
     """
+    from typed.mods.types.base import TYPE
     for t in types:
         if not isinstance(t, TYPE):
             raise TypeError(
@@ -75,7 +73,7 @@ def Inter(*types):
             '__types__': unique_types,
             '__null__': __null__[0] if len(__null__) == 1 else None
         })
-    except Exception as e:
+    except Exception:
         return INTER(class_name, (), {
             '__display__': class_name,
             '__types__': unique_types,
@@ -84,8 +82,7 @@ def Inter(*types):
 
 @cache
 def Filter(X, f):
-    real_filters = []
-    from typed.mods.types.base import Any, Bool, TYPE
+    from typed.mods.types.base import TYPE
     from typed.mods.types.func import Condition
     from typed.mods.meta.func import CONDITION
     if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
@@ -116,6 +113,7 @@ def Compl(X, *subtypes):
         > is an 'x in X' such that 'is is not in Y'
         > for every 'Y in subtypes' if 'Y is subclass of X'
     """
+    from typed.mods.types.base import TYPE
     if not isinstance(X, TYPE):
         raise TypeError(
             "Wrong type in Compl factory: \n"
@@ -125,7 +123,6 @@ def Compl(X, *subtypes):
         )
     unique_subtypes = tuple(set(subtypes))
 
-    mistake_subtypes = []
     for subtype in unique_subtypes:
         if not isinstance(subtype, TYPE):
             raise TypeError(
@@ -330,7 +327,7 @@ def Enum(typ, *values):
     if typ and not values:
         try:
             return Null(typ)
-        except Exception as e:
+        except Exception:
             from typed.mods.types.base import Nill
             return Nill
 

@@ -64,7 +64,7 @@ def Time(time_format):
     if not isinstance(time_format, TimeFormat):
         raise TypeError(
             "Time is not in valid format:"
-            f" ==> '{date_format}' is not a valid time format string."
+            f" ==> '{time_format}' is not a valid time format string."
             f"      [expected_type] {_name(TimeFormat)}"
             f"      [received type] {_name(TYPE(time_format))}"
         )
@@ -159,7 +159,30 @@ def Url(*protocols, pattern=None):
             return bool(regex.match(instance))
 
     class_name = f"Url{protocols}"
-    return URL("Url", (Str,), {
+    return URL(class_name, (Str,), {
+        "__display__": class_name,
+        "__null__": ""
+    })
+
+@cache
+def SSHKey(*types, private=False):
+    from typed.mods.types.base import TYPE, Str
+
+    class SSH_KEY(TYPE(Str)):
+        def __instancecheck__(cls, instance):
+            from typed.mods.types.base import Str
+            if not isinstance(instance, Str):
+                return False
+
+            from typed.mods.helper.helper import _is_ssh_key
+            if types:
+                if not any(_is_ssh_key(key_string=instance, key_type=t, private=private) for t in types):
+                    return False
+                return True
+            return _is_ssh_key(key_string=instance, key_type=None, private=private)
+
+    class_name = f"SSHKey({', '.join(types)}, private={private})"
+    return SSH_KEY(class_name, (Str,), {
         "__display__": class_name,
         "__null__": ""
     })

@@ -1,12 +1,8 @@
-import re
 from functools import lru_cache as cache
-from typed.mods.types.func import Typed
 from typed.mods.helper.null import  _null, _null_from_list
 from typed.mods.helper.helper import (
     _name,
     _name_list,
-    _inner_union,
-    _inner_dict_union
 )
 
 @cache
@@ -41,13 +37,14 @@ def Union(*args):
         domains = [f.domain for f in funcs]
         codomains = [f.codomain for f in funcs]
         dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        if any(not (isinstance(f, Typed) and not isinstance(f, (TYPE, ABSTRACT)) for f in funcs)):
-            raise TypeError(
-                "Wrong type in Union factory: \n"
-                f" ==> {_name(f)}: has unexpected type\n"
-                 "     [expected_type] subtype of Typed"
-                f"     [received_type] {_name(TYPE(f))}"
-            )
+        for f in funcs:
+            if not (isinstance(f, Typed) and not isinstance(f, (TYPE, ABSTRACT))):
+                raise TypeError(
+                    "Wrong type in Union factory: \n"
+                    f" ==> {_name(f)}: has unexpected type\n"
+                     "     [expected_type] subtype of Typed"
+                    f"     [received_type] {_name(TYPE(f))}"
+                )
 
         def union_dispatcher(x):
             matching = []
@@ -231,6 +228,9 @@ def Prod(*args):
 
 @cache
 def Unprod(*args):
+    ###
+    # NEED TO BE REVIEWED
+    ###
     """
     Build the 'unordered product' of types:
         > the objects of 'Unprod(X, Y, ...)'
@@ -240,7 +240,7 @@ def Unprod(*args):
     Can be applied to typed functions:
         > 'Unprod(f, g, ...): Unprod(f.domain, g.domain, ...) -> Unprod(f.codomain, g.codomain, ...)'
     """
-    from typed.mods.types.base import TYPE, ABSTRACT
+    from typed.mods.types.base import TYPE, ABSTRACT, Tuple
     from typed.mods.types.func import Typed
     T = (Typed, TYPE, ABSTRACT)
     if not args:
@@ -249,11 +249,10 @@ def Unprod(*args):
     if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
         dom_types = [Prod(*f.domain) if len(f.domain) > 1 else f.domain[0] for f in args]
         cod_types = [f.codomain for f in args]
-        domain_type = UProd(*dom_types)
-        codomain_type = UProd(*cod_types)
+        domain_type = Unprod(*dom_types)
+        codomain_type = Unprod(*cod_types)
 
         def uprod_mapper(*xs):
-            from typed.mods.types.base import Tuple
             if len(xs) == 1 and isinstance(xs[0], Tuple):
                 xs = xs[0]
             outs = []
@@ -292,7 +291,6 @@ def Unprod(*args):
     from typed.mods.meta.base import _TYPE_
     class UNPROD(_TYPE_):
         def __instancecheck__(cls, instance):
-            from typed.mods.types.base import Tuple
             if not isinstance(instance, Tuple):
                 return False
             if len(instance) != len(cls.__types__):
@@ -321,9 +319,9 @@ def Unprod(*args):
                 return all(any(issubclass(st, ct) for ct in cls.__types__) for st in subclass.__types__)
             return False
 
-    class_name = f"Unprod({_name_list(*types)})"
+    class_name = f"Unprod({_name_list(*args)})"
     return UNPROD(class_name, (Tuple,), {
         "__display__": class_name,
-        '__types__': types,
-        "__null__": set(_null(t) for t in types)
+        '__types__': args,
+        "__null__": tuple(_null(t) for t in args)
     })
