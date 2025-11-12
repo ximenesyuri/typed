@@ -2,7 +2,7 @@ from typed.mods.types.func import (
     MetaFactory, Decorator, TypedDecorator,
     VariableFunc, KeywordFunc
 )
-from typed.mods.types.other import Pattern
+from typed.mods.types.other import Pattern, TimeZone
 from typed.mods.types.path import Path, Exists, File, Dir, Symlink, Mount, PathUrl
 from typed.mods.types.json import Json, Entry, Table, Flat
 from typed.mods.types.number import Nat, Pos, Neg, Num, PosNum, NegNum

@@ -15,4 +15,4 @@ from typed.mods.meta.func import (
     FACTORY, OPERATION, DEPENDENT, CONDITION
 )
 
-from typed.mods.meta.other import PATTERN
+from typed.mods.meta.other import PATTERN, TIMEZONE

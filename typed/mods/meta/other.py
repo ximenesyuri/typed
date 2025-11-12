@@ -12,13 +12,14 @@ class PATTERN(STR):
         except re.error:
             return False
 
-class PATTERN(STR):
+class TIMEZONE(STR):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Str
+        from zoneinfo import ZoneInfo
         if not isinstance(instance, Str):
             return False
         try:
-            re.compile(instance)
+            ZoneInfo(instance)
             return True
-        except re.error:
+        except:
             return False
