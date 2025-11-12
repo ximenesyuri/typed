@@ -24,11 +24,8 @@ def Extension(*exts):
 
 @cache
 def Date(date_format):
-    from typed.mods.factories.generics import Regex
     from typed.mods.types.base import TYPE, Str
-    _DATE_DIRECTIVES = r"(%[YmdjUwWaAbBcxXzZ])"
-    _ALLOWED_CHARS = r"(\s|[^%])*"
-    DateFormat = Regex(f"^{_ALLOWED_CHARS}({_DATE_DIRECTIVES}{_ALLOWED_CHARS})+$")
+    from typed.mods.types.extra import DateFormat
     if not isinstance(date_format, DateFormat):
         raise TypeError(
             "Date is not in valid format:"
@@ -56,11 +53,8 @@ def Date(date_format):
 
 @cache
 def Time(time_format):
-    from typed.mods.factories.generics import Regex
     from typed.mods.types.base import TYPE, Str
-    _TIME_DIRECTIVES = r"(%[HMSfIZp])"
-    _ALLOWED_CHARS = r"(\s|[^%])*"
-    TimeFormat = Regex(f"^{_ALLOWED_CHARS}({_TIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
+    from typed.mods.types.extra import TimeFormat
     if not isinstance(time_format, TimeFormat):
         raise TypeError(
             "Time is not in valid format:"
@@ -91,11 +85,8 @@ def Time(time_format):
 
 @cache
 def Datetime(datetime_format):
-    from typed.mods.factories.generics import Regex
     from typed.mods.types.base import TYPE, Str
-    _DATETIME_DIRECTIVES = r"(%[YmdHMSfIMjUwWaAbBcxXzZpI])"
-    _ALLOWED_CHARS = r"(\s|[^%])*"
-    DatetimeFormat = Regex(f"^{_ALLOWED_CHARS}({_DATETIME_DIRECTIVES}{_ALLOWED_CHARS})+$")
+    from typed.mods.types.extra import DatetimeFormat
     if not isinstance(datetime_format, DatetimeFormat):
         raise TypeError(
             "Datetime is not in valid format:"
