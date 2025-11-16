@@ -3,6 +3,22 @@ from typed.mods.meta.func import FACTORY
 from typed.mods.types.base import TYPE, Set, Dict
 from typed.mods.helper.helper import _issubtype, _name
 
+def _single_field_inner_type_and_key(mcls):
+    """
+    If mcls is a model with exactly one required attribute and no optional ones,
+    return (inner_type, key_name). Otherwise return (None, None).
+    """
+    try:
+        req_tuple = getattr(mcls, '_required_attributes_and_types', ())
+        req = dict(req_tuple)
+        opt = getattr(mcls, '_optional_attributes_and_defaults', {})
+        if len(req) == 1 and len(opt) == 0:
+            key, inner_type = next(iter(req.items()))
+            return inner_type, key
+    except Exception:
+        pass
+    return None, None
+
 class _MODEL_INSTANCE_(DICT):
     def __instancecheck__(cls, instance):
         if not instance in Dict:
@@ -234,8 +250,23 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
     def __instancecheck__(cls, instance):
         if hasattr(instance, '__class__') and cls in getattr(instance, '__mro__', getattr(instance.__class__, '__mro__', [])):
             return True
+
         if not isinstance(instance, Dict):
+            inner_type, key_name = _single_field_inner_type_and_key(cls)
+            if inner_type is not None:
+                ok = False
+                try:
+                    ok = instance in inner_type
+                except Exception:
+                    checker = getattr(inner_type, '__instancecheck__', None)
+                    ok = isinstance(instance, inner_type) or (callable(checker) and checker(instance))
+                if ok:
+                    for cond in getattr(cls, '__conditions_list', []):
+                        if not cond({key_name: instance}):
+                            return False
+                    return True
             return False
+
         required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
         optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
         for req_key, expected_type in required_attributes_and_types_dict.items():
@@ -257,7 +288,7 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         for cond in getattr(cls, '__conditions_list', []):
             if not cond(instance):
                 return False
-        return True
+        return True 
 
     def __subclasscheck__(cls, subclass):
         if not isinstance(subclass, type): return False
@@ -365,25 +396,51 @@ class EXACT_META(_MODEL_FACTORY_, _EXACT_, _MODEL_INSTANCE_):
         super().__init__(name, bases, dct)
 
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, Dict): return False
+        if not isinstance(instance, Dict):
+            all_keys = getattr(cls, '_all_possible_keys', set())
+            if len(all_keys) == 1:
+                inner_type, key_name = _single_field_inner_type_and_key(cls)
+                if inner_type is not None:
+                    ok = False
+                    try:
+                        ok = instance in inner_type
+                    except Exception:
+                        checker = getattr(inner_type, '__instancecheck__', None)
+                        ok = isinstance(instance, inner_type) or (callable(checker) and checker(instance))
+                    if ok:
+                        for cond in getattr(cls, '__conditions_list', []):
+                            if not cond({key_name: instance}):
+                                return False
+                        return True
+            return False
+
+        if not isinstance(instance, Dict):
+            return False
 
         instance_keys = set(instance.keys())
-        if instance_keys != getattr(cls, '_all_possible_keys', set()): return False
+        expected_keys = getattr(cls, '_all_possible_keys', set())
+        if instance_keys != expected_keys:
+            return False
 
-        req_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
-        opt_attrs = getattr(cls, '_optional_attributes_and_defaults', {})
+        req = dict(getattr(cls, '_required_attributes_and_types', ()))
+        opt = getattr(cls, '_optional_attributes_and_defaults', {})
 
-        for name, value in instance.items():
-            expected_type = None
-            if name in req_attrs:
-                expected_type = req_attrs[name]
-            elif name in opt_attrs:
-                expected_type = opt_attrs[name].type
-
-            if expected_type and not isinstance(value, expected_type): return False
+        for k in expected_keys:
+            v = instance[k]
+            if k in req:
+                typ = req[k]
+            elif k in opt:
+                typ = opt[k].type
+            else:
+                return False
+            if not isinstance(v, typ):
+                checker = getattr(typ, '__instancecheck__', None)
+                if not (callable(checker) and checker(v)):
+                    return False
 
         for cond in getattr(cls, '__conditions_list', []):
-            if not cond(instance): return False
+            if not cond(instance):
+                return False
 
         return True
 
@@ -454,26 +511,51 @@ class ORDERED_META(_MODEL_FACTORY_, _ORDERED_, _MODEL_INSTANCE_):
         super().__init__(name, bases, dct)
 
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, Dict): return False
+        if not isinstance(instance, Dict):
+            model_keys = getattr(cls, '_ordered_keys', [])
+            if len(model_keys) == 1:
+                inner_type, key_name = _single_field_inner_type_and_key(cls)
+                if inner_type is not None:
+                    ok = False
+                    try:
+                        ok = instance in inner_type
+                    except Exception:
+                        checker = getattr(inner_type, '__instancecheck__', None)
+                        ok = isinstance(instance, inner_type) or (callable(checker) and checker(instance))
+                    if ok:
+                        for cond in getattr(cls, '__conditions_list', []):
+                            if not cond({key_name: instance}):
+                                return False
+                        return True
+            return False
+
+        if not isinstance(instance, Dict):
+            return False
 
         instance_keys = list(instance.keys())
         model_keys = getattr(cls, '_ordered_keys', [])
-
         if len(instance_keys) > len(model_keys) or instance_keys != model_keys[:len(instance_keys)]:
             return False
 
-        req_attrs = getattr(cls, '_defined_required_attributes', {})
-        opt_attrs = getattr(cls, '_defined_optional_attributes', {})
+        req = dict(getattr(cls, '_required_attributes_and_types', ()))
+        opt = getattr(cls, '_optional_attributes_and_defaults', {})
 
-        for key, value in instance.items():
-            expected_type = None
-            if key in req_attrs: expected_type = req_attrs[key]
-            elif key in opt_attrs: expected_type = opt_attrs[key].type
-
-            if expected_type and not isinstance(value, expected_type): return False
+        for k in instance_keys:
+            v = instance[k]
+            if k in req:
+                typ = req[k]
+            elif k in opt:
+                typ = opt[k].type
+            else:
+                return False
+            if not isinstance(v, typ):
+                checker = getattr(typ, '__instancecheck__', None)
+                if not (callable(checker) and checker(v)):
+                    return False
 
         for cond in getattr(cls, '__conditions_list', []):
-            if not cond(instance): return False
+            if not cond(instance):
+                return False
 
         return True
 
@@ -531,6 +613,9 @@ class RIGID_META(_MODEL_FACTORY_, _RIGID_, _MODEL_INSTANCE_):
         setattr(new_type, '_ordered_keys', ordered_keys)
         setattr(new_type, '_defined_required_attributes', {k: v for k, v in attrs_types.items() if k not in opt_attrs})
         setattr(new_type, '_defined_optional_attributes', opt_attrs)
+        setattr(new_type, '_defined_keys', set(attrs_types.keys()))
+        setattr(new_type, '_required_attributes_and_types', dct.get('_initial_attributes_and_types', ()))
+        setattr(new_type, '_optional_attributes_and_defaults', opt_attrs)
         setattr(new_type, '__conditions_list', dct.get('_initial_conditions', []))
         setattr(new_type, '_all_possible_keys', set(ordered_keys))
         setattr(new_type, '_required_attribute_keys', dct.get('_initial_required_attribute_keys', set()))
@@ -545,23 +630,53 @@ class RIGID_META(_MODEL_FACTORY_, _RIGID_, _MODEL_INSTANCE_):
         super().__init__(name, bases, dct)
 
     def __instancecheck__(cls, instance):
-        if not isinstance(instance, Dict): return False
-        if list(instance.keys()) != getattr(cls, '_ordered_keys', []): return False
+        if not isinstance(instance, Dict):
+            model_keys = getattr(cls, '_ordered_keys', [])
+            if len(model_keys) == 1:
+                inner_type, key_name = _single_field_inner_type_and_key(cls)
+                if inner_type is not None:
+                    ok = False
+                    try:
+                        ok = instance in inner_type
+                    except Exception:
+                        checker = getattr(inner_type, '__instancecheck__', None)
+                        ok = isinstance(instance, inner_type) or (callable(checker) and checker(instance))
+                    if ok:
+                        for cond in getattr(cls, '__conditions_list', []):
+                            if not cond({key_name: instance}):
+                                return False
+                        return True
+            return False
 
-        req_attrs = getattr(cls, '_defined_required_attributes', {})
-        opt_attrs = getattr(cls, '_defined_optional_attributes', {})
+        if not isinstance(instance, Dict):
+            return False
 
-        for key, value in instance.items():
-            expected_type = None
-            if key in req_attrs: expected_type = req_attrs[key]
-            elif key in opt_attrs: expected_type = opt_attrs[key].type
+        instance_keys = list(instance.keys())
+        ordered_keys = getattr(cls, '_ordered_keys', [])
+        if instance_keys != ordered_keys:
+            return False
 
-            if expected_type and not isinstance(value, expected_type): return False
+        req = dict(getattr(cls, '_required_attributes_and_types', ()))
+        opt = getattr(cls, '_optional_attributes_and_defaults', {})
+
+        for k in instance_keys:
+            v = instance[k]
+            if k in req:
+                typ = req[k]
+            elif k in opt:
+                typ = opt[k].type
+            else:
+                return False
+            if not isinstance(v, typ):
+                checker = getattr(typ, '__instancecheck__', None)
+                if not (callable(checker) and checker(v)):
+                    return False
 
         for cond in getattr(cls, '__conditions_list', []):
-            if not cond(instance): return False
+            if not cond(instance):
+                return False
 
-        return True
+        return True 
 
     def __subclasscheck__(cls, subclass):
         if not isinstance(subclass, type) or not hasattr(subclass, '_ordered_keys'): return False

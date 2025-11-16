@@ -147,7 +147,6 @@ def Exact(
     new_model = EXACT_META(
         class_name,
         bases,
-        (EXACT_INSTANCE, MODEL_FACTORY, EXACT),
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
@@ -190,7 +189,6 @@ def Ordered(
     new_model = ORDERED_META(
         class_name,
         bases,
-        (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED),
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
@@ -232,7 +230,6 @@ def Rigid(
     new_model = RIGID_META(
         class_name,
         bases,
-        (RIGID_INSTANCE, MODEL_FACTORY, RIGID),
         {
             '_initial_attributes_and_types': attributes_and_types,
             '_initial_required_attribute_keys': required_attribute_keys,
