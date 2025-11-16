@@ -248,10 +248,12 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         super().__init__(name, bases, dct)
 
     def __instancecheck__(cls, instance):
-        if hasattr(instance, '__class__') and cls in getattr(instance, '__mro__', getattr(instance.__class__, '__mro__', [])):
+        if hasattr(instance, '__class__') and cls in getattr(
+            instance, '__mro__', getattr(instance.__class__, '__mro__', [])
+        ):
             return True
 
-        if not isinstance(instance, Dict):
+        if not (instance in Dict):
             inner_type, key_name = _single_field_inner_type_and_key(cls)
             if inner_type is not None:
                 ok = False
@@ -267,28 +269,42 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
                     return True
             return False
 
-        required_attributes_and_types_dict = dict(getattr(cls, '_required_attributes_and_types', ()))
+        attrs_types = dict(getattr(cls, '_required_attributes_and_types', ()))
+        required_keys = set(getattr(cls, '_required_attribute_keys', set()))
         optional_attributes_and_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-        for req_key, expected_type in required_attributes_and_types_dict.items():
+
+        for req_key in required_keys:
             if req_key not in instance:
                 return False
-            attr_value = instance[req_key]
-            if not isinstance(attr_value, expected_type):
+            v = instance[req_key]
+            expected_type = attrs_types.get(req_key)
+            ok = False
+            try:
+                ok = v in expected_type
+            except Exception:
                 checker = getattr(expected_type, '__instancecheck__', None)
-                if not (callable(checker) and checker(attr_value)):
-                    return False
-        for attr_name, wrapper in optional_attributes_and_defaults.items():
-            if attr_name in instance:
-                attr_value = instance[attr_name]
+                ok = isinstance(v, expected_type) or (callable(checker) and checker(v))
+            if not ok:
+                return False
+
+        for opt_name, wrapper in optional_attributes_and_defaults.items():
+            if opt_name in instance:
+                v = instance[opt_name]
                 expected_type = wrapper.type
-                if not isinstance(attr_value, expected_type):
+                ok = False
+                try:
+                    ok = v in expected_type
+                except Exception:
                     checker = getattr(expected_type, '__instancecheck__', None)
-                    if not (callable(checker) and checker(attr_value)):
-                        return False
+                    ok = isinstance(v, expected_type) or (callable(checker) and checker(v))
+                if not ok:
+                    return False
+
         for cond in getattr(cls, '__conditions_list', []):
             if not cond(instance):
                 return False
-        return True 
+
+        return True
 
     def __subclasscheck__(cls, subclass):
         if not isinstance(subclass, type): return False
