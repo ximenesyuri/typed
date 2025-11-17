@@ -585,7 +585,7 @@ def _is_public_ssh_key_format(key_string, key_type=None):
             return False
     return bool(match)
 
-def _is_ssh_key(key_string: str, key_type: str | None = None, private: bool = False) -> bool:
+def _is_ssh_key(key_string, key_type, private):
     if not isinstance(key_string, str) or not key_string.strip():
         return False
 
