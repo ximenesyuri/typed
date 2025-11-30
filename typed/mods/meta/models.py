@@ -19,6 +19,76 @@ def _single_field_inner_type_and_key(mcls):
         pass
     return None, None
 
+class _ModelKeys:
+    def __get__(self, obj, owner=None):
+        if owner is None:
+            return lambda: ()
+
+        if obj is None:
+            cls = owner
+            def _keys():
+                attrs = getattr(cls, 'attrs', None)
+                if attrs is None:
+                    return ()
+                ordered = getattr(cls, '_ordered_keys', None)
+                if ordered:
+                    return tuple(k for k in ordered if k in attrs)
+                return tuple(attrs.keys())
+            return _keys
+
+        inst = obj
+        cls = owner
+
+        def _keys():
+            return inst.__json__.keys()
+
+        return _keys
+
+
+class _ModelValues:
+    def __get__(self, obj, owner=None):
+        if owner is None:
+            return lambda: ()
+
+        if obj is None:
+            cls = owner
+
+            def _values():
+                attrs = getattr(cls, 'attrs', None)
+                if attrs is None:
+                    return ()
+                return tuple(attrs[k]['type'] for k in cls.keys())
+            return _values
+
+        inst = obj
+        cls = owner
+
+        def _values():
+            return inst.__json__.values()
+        return _values
+
+
+class _ModelItems:
+    def __get__(self, obj, owner=None):
+        if owner is None:
+            return lambda: ()
+        if obj is None:
+            cls = owner
+
+            def _items():
+                attrs = getattr(cls, 'attrs', None)
+                if attrs is None:
+                    return ()
+                return tuple((k, attrs[k]['type']) for k in cls.keys())
+            return _items
+
+        inst = obj
+        cls = owner
+        def _items():
+            return inst.__json__.items()
+
+        return _items
+
 class _MODEL_INSTANCE_(DICT):
     def __instancecheck__(cls, instance):
         if not instance in Dict:
@@ -73,6 +143,27 @@ class _MODEL_FACTORY_(FACTORY):
             else:
                 super().__setattr__(name, value)
 
+    # def keys(cls):
+    #     attrs = getattr(cls, 'attrs', None)
+    #     if attrs is None:
+    #         return ()
+    #     ordered = getattr(cls, '_ordered_keys', None)
+    #     if ordered:
+    #         return tuple(k for k in ordered if k in attrs)
+    #     return tuple(attrs.keys())
+
+    # def values(cls):
+    #     attrs = getattr(cls, 'attrs', None)
+    #     if attrs is None:
+    #         return ()
+    #     return tuple(attrs[k]['type'] for k in cls.keys())
+
+    # def items(cls):
+    #     attrs = getattr(cls, 'attrs', None)
+    #     if attrs is None:
+    #         return ()
+    #     return tuple((k, attrs[k]['type']) for k in cls.keys())
+
     def __instancecheck__(cls, instance):
         return cls.__instancecheck__(instance)
 
@@ -91,10 +182,27 @@ class _MODEL_FACTORY_(FACTORY):
             entity_dict = entity.copy()
         else:
             entity_dict = kwargs
+
         optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
         for attr, wrapper in optional_defaults.items():
             if attr not in entity_dict:
                 entity_dict[attr] = wrapper.default_value
+
+        required_types = dict(getattr(cls, '_required_attributes_and_types', ()))
+        optional_wrappers = getattr(cls, '_optional_attributes_and_defaults', {})
+
+        for key, val in list(entity_dict.items()):
+            target_type = None
+            if key in required_types:
+                target_type = required_types[key]
+            elif key in optional_wrappers:
+                target_type = optional_wrappers[key].type
+
+            if target_type is None:
+                continue
+
+            if getattr(target_type, 'is_model', False) and isinstance(val, dict):
+                entity_dict[key] = target_type(**val)
 
         if not cls.__instancecheck__(entity_dict):
             from typed.mods.models import validate
@@ -224,6 +332,50 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
     def __json__(self):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
+
+    keys = _ModelKeys()
+    values = _ModelValues()
+    items = _ModelItems()
+
+    # def keys(self):
+    #     """
+    #     If called on a model *class* (e.g. Y.keys()), return the model's
+    #     field names. If called on an *instance* (e.g. Y(...).keys()),
+    #     return the instance's dict keys.
+    #     """
+    #     if isinstance(self, type) and getattr(self, 'is_model', False):
+    #         attrs = getattr(self, 'attrs', None)
+    #         if attrs is None:
+    #             return ()
+    #         ordered = getattr(self, '_ordered_keys', None)
+    #         if ordered:
+    #             return tuple(k for k in ordered if k in attrs)
+    #         return tuple(attrs.keys())
+    #     return self.__json__.keys()
+
+    # def values(self):
+    #     """
+    #     On a model class: return the field *types*.
+    #     On an instance: return the instance's values.
+    #     """
+    #     if isinstance(self, type) and getattr(self, 'is_model', False):
+    #         attrs = getattr(self, 'attrs', None)
+    #         if attrs is None:
+    #             return ()
+    #         return tuple(attrs[k]['type'] for k in self.keys())
+    #     return self.__json__.values()
+
+    # def items(self):
+    #     """
+    #     On a model class: return (field_name, field_type) pairs.
+    #     On an instance: return (key, value) pairs for that instance.
+    #     """
+    #     if isinstance(self, type) and getattr(self, 'is_model', False):
+    #         attrs = getattr(self, 'attrs', None)
+    #         if attrs is None:
+    #             return ()
+    #         return tuple((k, attrs[k]['type']) for k in self.keys())
+    #     return self.__json__.items()
 
 class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
@@ -387,6 +539,14 @@ class EXACT_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
+    def keys(self):
+        return dict.keys(self.__json__)
+
+    def values(self):
+        return dict.values(self.__json__)
+
+    def items(self):
+        return dict.items(self.__json__)
 
 class EXACT_META(_MODEL_FACTORY_, _EXACT_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
@@ -506,6 +666,15 @@ class ORDERED_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
+    def keys(self):
+        return dict.keys(self.__json__)
+
+    def values(self):
+        return dict.values(self.__json__)
+
+    def items(self):
+        return dict.items(self.__json__)
+
 class ORDERED_META(_MODEL_FACTORY_, _ORDERED_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
         new_type = super().__new__(cls, name, bases, dct)
@@ -619,6 +788,15 @@ class RIGID_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
         from typed.mods.helper.models import _to_json
         return _to_json(self)
 
+    def keys(self):
+        return dict.keys(self.__json__)
+
+    def values(self):
+        return dict.values(self.__json__)
+
+    def items(self):
+        return dict.items(self.__json__)
+
 class RIGID_META(_MODEL_FACTORY_, _RIGID_, _MODEL_INSTANCE_):
     def __new__(cls, name, bases, dct):
         new_type = super().__new__(cls, name, bases, dct)
@@ -692,7 +870,7 @@ class RIGID_META(_MODEL_FACTORY_, _RIGID_, _MODEL_INSTANCE_):
             if not cond(instance):
                 return False
 
-        return True 
+        return True
 
     def __subclasscheck__(cls, subclass):
         if not isinstance(subclass, type) or not hasattr(subclass, '_ordered_keys'): return False
