@@ -141,7 +141,7 @@ class _MODEL_FACTORY_(FACTORY):
                     f"     [received_type] {_name(TYPE(value))}"
                 )
             else:
-                super().__setattr__(name, value) 
+                super().__setattr__(name, value)
 
     def __instancecheck__(cls, instance):
         return cls.__instancecheck__(instance)
@@ -401,7 +401,6 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         if not isinstance(subclass, type): return False
         if cls in getattr(subclass, '__mro__', []): return True
         if not all(hasattr(subclass, attr) for attr in ['_required_attributes_and_types', '_required_attribute_keys', '_optional_attributes_and_defaults']): return False
-        if not isinstance(subclass, TYPE): return False
 
         cls_req_attrs = dict(getattr(cls, '_required_attributes_and_types', ()))
         sub_req_attrs = dict(getattr(subclass, '_required_attributes_and_types', ()))

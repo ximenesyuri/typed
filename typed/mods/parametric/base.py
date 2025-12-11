@@ -17,8 +17,6 @@ def _Tuple_(*args):
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
         sorted_types = tuple(sorted(unique, key=_key))
-        if len(sorted_types) == 1:
-            return sorted_types[0]
         if sorted_types != args:
             return _Tuple_(*sorted_types)
     if not args:
@@ -149,8 +147,6 @@ def _Set_(*args):
         def _key(t):
             return (t.__module__, getattr(t, '__qualname__', t.__name__))
         sorted_types = tuple(sorted(unique, key=_key))
-        if len(sorted_types) == 1:
-            return sorted_types[0]
         if sorted_types != args:
             return _Set_(*sorted_types)
 
@@ -201,7 +197,6 @@ def _Set_(*args):
     return SET(class_name, (Set,), {
         '__display__': class_name,
         '__types__': types,
-        '__convert__': staticmethod(SET.__convert__),
         '__null__': set(__null__) if __null__ is not None else None
     })
 
