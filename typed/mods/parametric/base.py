@@ -197,7 +197,7 @@ def _Set_(*args):
     return SET(class_name, (Set,), {
         '__display__': class_name,
         '__types__': types,
-        '__null__': set(__null__) if __null__ is not None else None
+        '__null__': {__null__} if __null__ is not None else None
     })
 
 @cache
