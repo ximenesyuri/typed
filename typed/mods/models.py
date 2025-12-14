@@ -98,7 +98,7 @@ def Model(
     conditions = list(__conditions__) if __conditions__ else []
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
     class_name = f"Model({args_str})"
 
     bases = tuple(extended_models) + (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
@@ -182,7 +182,7 @@ def Ordered(
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
     conditions = list(__conditions__) if __conditions__ else []
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
     class_name = f"Ordered({args_str})"
 
     bases = tuple(extended_models) + (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED)
@@ -223,7 +223,7 @@ def Rigid(
     ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
     conditions = list(__conditions__) if __conditions__ else []
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
+    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
     class_name = f"Rigid({args_str})"
     bases = tuple(extended_models) + (RIGID_INSTANCE, MODEL_FACTORY, RIGID)
 
@@ -288,7 +288,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a term of model {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     elif model in ORDERED:
@@ -318,7 +318,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     elif model in EXACT:
@@ -351,7 +351,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     for k in required_attribute_keys:
@@ -381,7 +381,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
         if not cond(entity):
             errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
     if errors:
-        raise TypeError(f"{repr(entity)} is not a {model_name}:\n" + "\n".join(errors))
+        raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
     return entity
 
 def drop(model, entries):

@@ -1,12 +1,14 @@
 import json
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
+from typed.mods.helper.helper import _name
 from inspect import isroutine, getmembers
 
 class _Optional:
     def __init__(self, typ, default_value):
         self.type = typ
         self.default_value = default_value
+        self.__display__ = f"Optional({_name(typ)}, {default_value})"
 
 MODEL_FACTORY = _MODEL_FACTORY_('MODEL_FACTORY', (TYPE,), {})
 

@@ -157,7 +157,12 @@ class _MODEL_FACTORY_(FACTORY):
         if args:
             entity = args[0]
             if not isinstance(entity, Dict):
-                raise TypeError(f"Expected a dictionary or keyword arguments, got {type(entity)}")
+                raise TypeError(
+                    "Received wrong type in cls.:\n"
+                    f" ==> '{args[0].__name__}': has value '{_name(entity)}'\n"
+                     "     [expected_type] Dict\n"
+                    f"     [received_type] {_name(type(entity))}"
+                )
             entity_dict = entity.copy()
         else:
             entity_dict = kwargs
