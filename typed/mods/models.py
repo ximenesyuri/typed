@@ -1,3 +1,4 @@
+from typing import dataclass_transform
 from typed.mods.types.base import TYPE, Str, Dict, List, Bool, Any
 from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
@@ -410,6 +411,7 @@ def drop(model, entries):
             new_kwargs[k] = optional_types[k]
     return Model(**new_kwargs)
 
+@dataclass_transform()
 def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         all_extends = []
@@ -452,6 +454,7 @@ def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=Fals
     else:
         return wrap(_cls)
 
+@dataclass_transform()
 def exact(_cls=None, *, extends=None, conditions=None):
     def wrap(cls):
         all_extends = []
@@ -476,6 +479,7 @@ def exact(_cls=None, *, extends=None, conditions=None):
     if _cls is None: return wrap
     else: return wrap(_cls)
 
+@dataclass_transform()
 def ordered(_cls=None, *, extends=None, conditions=None):
     def wrap(cls):
         all_extends = []
@@ -500,6 +504,7 @@ def ordered(_cls=None, *, extends=None, conditions=None):
     if _cls is None: return wrap
     else: return wrap(_cls)
 
+@dataclass_transform()
 def rigid(_cls=None, *, extends=None, conditions=None):
     def wrap(cls):
         all_extends = []
@@ -524,6 +529,7 @@ def rigid(_cls=None, *, extends=None, conditions=None):
     if _cls is None: return wrap
     else: return wrap(_cls)
 
+@dataclass_transform()
 def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
     def wrap(cls):
         parent_models = []
@@ -567,6 +573,7 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
     else:
         return wrap(_cls)
 
+@dataclass_transform()
 def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
     def wrap(cls):
         parent_models = []
@@ -669,7 +676,6 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
         return Ordered(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
 
     return Model(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
-
 
 @typed
 def value(model: MODEL, attr: Str) -> Any:
