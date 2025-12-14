@@ -25,7 +25,8 @@ One time defined, the types can be used as type hints for _typed functions_, for
 So, with `typed` you have a framework ensuring type safety by:
 1. defining custom types from _type factories_;
 2. using those custom types as type hints for _typed functions_;
-3. checking the type hints at runtime. 
+3. checking the type hints at runtime.
+
 
 # Install
 
