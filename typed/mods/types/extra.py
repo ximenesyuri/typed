@@ -1,6 +1,7 @@
-from typed.mods.types.base         import Str
+from typed.mods.types.base         import Str, Bool
 from typed.mods.factories.base     import Prod
-from typed.mods.factories.generics import Regex, Range, Len, Enum
+from typed.mods.factories.generics import Regex, Range, Len, Enum, Filter
+from typed.mods.decorators         import typed
 
 # System
 Env = Regex(r"^[A-Z0-9_]+$")
@@ -26,6 +27,17 @@ Email.__display__ = "Email"
 Protocol = Enum(Str, "http", "https", "file", "ftp", "ssh", "smtp")
 Hostname = Regex(r"^(?:[a-zA-Z-1-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
 IPv4     = Regex(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+
+@typed
+def _is_ipv6(string: Str) -> Bool:
+    from ipaddress import IPv6Address
+    try:
+        IPv6Address(string)
+        return True
+    except:
+        return False
+
+IPv6 = Filter(Str, _is_ipv6)
 
 Protocol.__display__ = "Protocol"
 Hostname.__display__ = "Hostname"

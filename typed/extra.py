@@ -11,7 +11,7 @@ from typed.mods.types.extra import (
     RGB, HEX, HSL,
     Char,
     Email,
-    Protocol, Hostname, IPv4,
+    Protocol, Hostname, IPv4, IPv6,
     UUID,
     DateFormat, DatetimeFormat, TimeFormat
 )
