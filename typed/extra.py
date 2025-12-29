@@ -3,7 +3,6 @@ from typed.mods.types.func import (
     VariableFunc, KeywordFunc
 )
 from typed.mods.types.other import Pattern, TimeZone
-from typed.mods.types.path import Path, Exists, File, Dir, Symlink, Mount, PathUrl
 from typed.mods.types.number import Nat, Pos, Neg, Num, PosNum, NegNum
 from typed.mods.types.extra import (
     Protocol, Hostname, IPv4, IPv6,
