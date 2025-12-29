@@ -165,6 +165,7 @@ def Regex(regex):
 
     from typed.mods.types.other import Pattern
     if not isinstance(regex, Pattern):
+        from typed.mods.types.base import TYPE
         raise TypeError(
             "Wrong type in Regex factory: \n"
             f" ==> {regex}: has unexpected type\n"
