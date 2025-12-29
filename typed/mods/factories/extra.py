@@ -1,26 +1,6 @@
-import re
 from functools import lru_cache as cache
 from datetime import datetime
 from typed.mods.helper.helper import _name
-from typed.mods.helper.null import _null
-
-@cache
-def Extension(*exts):
-    from typed.mods.types.path import PathUrl
-    from typed.mods.types.base import TYPE
-    class EXTENSION(TYPE(PathUrl)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, PathUrl):
-                return False
-            if instance == '':
-                return True
-            parts = instance.split('.')
-            return any(parts[-1] == ext for ext in exts)
-    class_name = f"Extension({', '.join(exts)})"
-    return EXTENSION(class_name, (PathUrl,), {
-        "__display__": class_name,
-        "__null__": _null(PathUrl)
-    })
 
 @cache
 def Date(date_format):
@@ -114,43 +94,4 @@ def Datetime(datetime_format):
     return DATETIME(class_name, (Str,), {
         "__display__": class_name,
         "__null__": "",
-    })
-
-@cache
-def Url(*protocols, pattern=None):
-    from typed.mods.types.extra import Protocol
-    from typed.mods.types.base import TYPE, Str
-    wrong_type = []
-    for prot in protocols:
-        if not isinstance(prot, Protocol):
-            wrong_type.append(prot)
-    if wrong_type:
-        message = ""
-        for entry in wrong_type:
-            message += f"==> '{entry}': is not a valid protocol\n"
-            message += f"    [received_type] {_name(TYPE(entry))}\n"
-            message += f"    [expected_type] Protocol\n"
-        raise TypeError(
-            f"There are entries which are not valid protocols.\n" + message
-        )
-
-    class URL(TYPE(Str)):
-        def __instancecheck__(cls, instance):
-            if not isinstance(instance, Str):
-                return False
-
-            full_protocols = [f"{prot}://" for prot in protocols]
-            str_protocols = "|".join(map(re.escape, full_protocols))
-            if not pattern:
-                pattern_str = rf"^({str_protocols})\S+$"
-                regex = re.compile(pattern_str)
-            else:
-                pattern_str = rf"^({str_protocols}){pattern.pattern}$"
-                regex = re.compile(pattern_str)
-            return bool(regex.match(instance))
-
-    class_name = f"Url{protocols}"
-    return URL(class_name, (Str,), {
-        "__display__": class_name,
-        "__null__": ""
     })
