@@ -154,26 +154,3 @@ def Url(*protocols, pattern=None):
         "__display__": class_name,
         "__null__": ""
     })
-
-@cache
-def SSHKey(*types, private=False):
-    from typed.mods.types.base import TYPE, Str
-
-    class SSH_KEY(TYPE(Str)):
-        def __instancecheck__(cls, instance):
-            from typed.mods.types.base import Str
-            if not isinstance(instance, Str):
-                return False
-
-            from typed.mods.helper.helper import _is_ssh_key
-            if types:
-                if not any(_is_ssh_key(key_string=instance, key_type=t, private=private) for t in types):
-                    return False
-                return True
-            return _is_ssh_key(key_string=instance, key_type=None, private=private)
-
-    class_name = f"SSHKey({', '.join(types)}, private={private})"
-    return SSH_KEY(class_name, (Str,), {
-        "__display__": class_name,
-        "__null__": ""
-    })

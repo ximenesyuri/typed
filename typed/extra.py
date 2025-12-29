@@ -4,13 +4,8 @@ from typed.mods.types.func import (
 )
 from typed.mods.types.other import Pattern, TimeZone
 from typed.mods.types.path import Path, Exists, File, Dir, Symlink, Mount, PathUrl
-from typed.mods.types.json import Json, Entry, Table, Flat
 from typed.mods.types.number import Nat, Pos, Neg, Num, PosNum, NegNum
 from typed.mods.types.extra import (
-    Env,
-    RGB, HEX, HSL,
-    Char,
-    Email,
     Protocol, Hostname, IPv4, IPv6,
     UUID,
     DateFormat, DatetimeFormat, TimeFormat

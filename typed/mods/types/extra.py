@@ -1,27 +1,6 @@
 from typed.mods.types.base         import Str, Bool
-from typed.mods.factories.base     import Prod
-from typed.mods.factories.generics import Regex, Range, Len, Enum, Filter
+from typed.mods.factories.generics import Regex, Enum, Filter
 from typed.mods.decorators         import typed
-
-# System
-Env = Regex(r"^[A-Z0-9_]+$")
-Env.__display__ = "Env"
-
-# Color
-RGB = Prod(Range(0, 255), 3)
-HEX = Regex(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
-HSL = Prod(Range(0, 360), Range(0, 100), Range(0, 100))
-
-RGB.__display__ = "RGB"
-HEX.__display__ = "HEX"
-HSL.__display__ = "HSL"
-
-# Text
-Char     = Len(Str, 1)
-Email    = Regex(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-
-Char.__display__  = "Char"
-Email.__display__ = "Email"
 
 # Network
 Protocol = Enum(Str, "http", "https", "file", "ftp", "ssh", "smtp")
