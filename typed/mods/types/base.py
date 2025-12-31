@@ -185,6 +185,8 @@ Any = ANY("Any", (), {
     "__display__": "Any",
     "__null__": None
 })
+Self = Any
+Cls  = Any
 Bytes = BYTES("Bytes", (), {
     "__display__": "Bytes",
     "__null__": bytes()

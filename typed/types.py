@@ -2,7 +2,7 @@ from typed.mods.types.base import (
     TYPE, ABSTRACT, UNIVERSAL,
     META, DISCOURSE, PARAMETRIC,
     Nill, Any,
-    Int, Str, Float, Bool,
+    Int, Str, Float, Bool, Bytes, Self, Cls,
     Tuple, List, Set, Dict
 )
 from typed.mods.types.func import (

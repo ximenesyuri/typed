@@ -61,6 +61,7 @@ class new:
     @typed
     def type(name: Str, meta_bases: Tuple(TYPE), instancecheck: Function, subclasscheck: Function=None, **attrs: Dict) -> TYPE:
         from typed.mods.types.base import Str
+        from typed.mods.helper.helper import _META
         if not isinstance(name, Str):
             raise TypeError
         meta_bases = tuple(TYPE(t) for t in bases)
