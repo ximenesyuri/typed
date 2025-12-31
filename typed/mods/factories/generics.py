@@ -86,6 +86,9 @@ def Filter(X, f):
     from typed.mods.types.func import Condition
     from typed.mods.meta.func import CONDITION
 
+    if getattr(f, "__lazy_typed__", False):
+        f = f._materialize()
+
     if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
         if callable(f):
             from typed.mods.decorators import typed as _typed
