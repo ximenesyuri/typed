@@ -45,7 +45,6 @@ def Optional(typ, default_value=None):
         )
     return _Optional(typ, default_value)
 
-@typed
 def Model(
     __extends__:    Maybe(List)=None,
     __conditions__: Maybe(List)=None,
@@ -122,7 +121,6 @@ def Model(
     new_model.is_model = True
     return new_model
 
-@typed
 def Exact(
     __extends__   : Maybe(List)=None,
     __conditions__: Maybe(List)=None,
@@ -164,7 +162,6 @@ def Exact(
     new_model.__display__ = class_name
     return new_model
 
-@typed
 def Ordered(
     __extends__:    Maybe(List)=None,
     __conditions__: Maybe(List)=None,
@@ -205,7 +202,6 @@ def Ordered(
     new_model.__display__ = class_name
     return new_model
 
-@typed
 def Rigid(
     __extends__:    Maybe(List)=None,
     __conditions__: Maybe(List)=None,
@@ -249,7 +245,6 @@ def Rigid(
     new_model.__display__ = class_name
     return new_model
 
-@typed
 def validate(entity: Dict, model: MODEL) -> Dict:
     model_name = getattr(model, '__name__', str(model))
 
@@ -617,12 +612,6 @@ def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=
 
 @typed
 def eval(model: MODEL, **attrs: Dict) -> MODEL:
-    """
-    Return a new model derived from `model` where attributes provided in `attrs`
-    are fixed to the given values (i.e. turned into optional attributes with
-    those values as defaults). The returned model Y behaves such that:
-      Y(x1, x2, ...) == X(x1, x2, ..., attr1=value1, ...)
-    """
     if not getattr(model, 'is_model', False):
         raise TypeError(f"eval expects a Model-type. Got: {model}")
 
