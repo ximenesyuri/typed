@@ -1,7 +1,6 @@
 from typed.mods.helper.helper import (
     _inner_union,
     _inner_dict_union,
-    _name,
     _from_typing,
     _issubtype,
     _isweaksubtype
@@ -43,7 +42,6 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
     def __instancecheck__(cls, instance):
         if _from_typing(type(instance)) or _from_typing(instance):
             return False
-        from typed.mods.types.base import TYPE
         return _issubtype(type(instance), _TYPE_)
 
     def __invert__(cls):
@@ -174,7 +172,7 @@ class _META_(_TYPE_):
         from typed.mods.types.base import TYPE
         return (
                 subclass in TYPE
-                and _issubtype(instance, TYPE)
+                and _issubtype(subclass, TYPE)
                 and _issubtype(subclass, cls)
             )
 
@@ -211,7 +209,7 @@ class INT(_TYPE_):
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
-        from typed.mods.types.attr import ATTR
+        from typed.mods.factories.meta import ATTR
         from typed.mods.helper.helper import _name
         if TYPE(obj) in ATTR('__int__'):
             return int(obj)
@@ -229,7 +227,7 @@ class FLOAT(_TYPE_):
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
-        from typed.mods.types.attr import ATTR
+        from typed.mods.factories.meta import ATTR
         from typed.mods.helper.helper import _name
         if TYPE(obj) in ATTR('__float__'):
             return float(obj)
@@ -249,6 +247,11 @@ class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Bool, TYPE
         return isinstance(instance, bool) or _issubtype(TYPE(instance), Bool)
+
+class BYTES(_TYPE_):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import Bytes, TYPE
+        return isinstance(instance, bytes) or _issubtype(TYPE(instance), Bytes)
 
 class ANY(_TYPE_):
     def __instancecheck__(cls, instance):

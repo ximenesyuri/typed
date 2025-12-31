@@ -1,9 +1,8 @@
-from inspect import isclass
 from typed.mods.meta.base import (
     _TYPE_, _ABSTRACT_, _UNIVERSAL_,
     _META_, _DISCOURSE_, _PARAMETRIC_,
     NILL, ANY,
-    STR, INT, FLOAT, BOOL,
+    STR, INT, FLOAT, BOOL, BYTES,
     TUPLE, LIST, SET, DICT,
 )
 
@@ -185,6 +184,10 @@ class Str(metaclass=STR):
 Any = ANY("Any", (), {
     "__display__": "Any",
     "__null__": None
+})
+Bytes = BYTES("Bytes", (), {
+    "__display__": "Bytes",
+    "__null__": bytes()
 })
 Tuple = TUPLE("Tuple", (), {
     "__display__": "Tuple",
