@@ -85,13 +85,19 @@ def Filter(X, f):
     from typed.mods.types.base import TYPE
     from typed.mods.types.func import Condition
     from typed.mods.meta.func import CONDITION
+
     if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
-        raise TypeError(
-            "Wrong type in Filter factory: \n"
-            f" ==> '{_name(f)}': has unexpected type\n"
-             "     [expected_type] Condition\n"
-            f"     [received_type] '{_name(TYPE(f))}'"
-        )
+        if callable(f):
+            from typed.mods.decorators import typed as _typed
+            f = _typed(f, lazy=False)
+        if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
+            raise TypeError(
+                "Wrong type in Filter factory: \n"
+                f" ==> '{_name(f)}': has unexpected type\n"
+                "     [expected_type] Condition\n"
+                f"     [received_type] '{_name(TYPE(f))}'"
+            )
+
     class FILTER(TYPE(X)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, X):

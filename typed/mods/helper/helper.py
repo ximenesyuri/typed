@@ -1,9 +1,5 @@
-import re
 from typing import get_type_hints
-from inspect import signature, Signature, Parameter, getsource, getsourcelines, isclass
-from ast import parse, walk, AnnAssign, Name, Assign, unparse, FunctionDef
-from textwrap import dedent
-from functools import update_wrapper
+from inspect import signature, Signature, Parameter, isclass
 
 def _from_typing(obj):
     try:
@@ -437,16 +433,23 @@ def _check_defaults_match_hints(func):
         )
 
 def _instrument_locals_check(func, force_all_annotated=True):
-    """Wrap function to type check local variables at runtime. If `force_all_annotated`, require every local typed."""
+    """
+    Wrap the function so that local variable type checks are inserted.
+    The actual instrumentation is deferred until the first call.
+    """
+    from inspect import getsourcelines
+    from textwrap import dedent
+    from ast import parse, walk, AnnAssign, Name, Assign, unparse, FunctionDef
+    from functools import wraps, update_wrapper
+    import re
 
     try:
-        src = getsource(func)
+        lines, _ = getsourcelines(func)
     except OSError:
         return func
-    lines, start_idx = getsourcelines(func)
-    src = dedent("".join(lines))
-    tree = parse(src, type_comments=True)
 
+    src = dedent(''.join(lines))
+    tree = parse(src, type_comments=True)
     fn_node = next((n for n in tree.body if isinstance(n, FunctionDef)), None)
     if fn_node is None:
         return func
@@ -461,59 +464,74 @@ def _instrument_locals_check(func, force_all_annotated=True):
             for target in node.targets:
                 if isinstance(target, Name):
                     all_locs.add(target.id)
+
     if force_all_annotated:
-        not_annot = set(all_locs) - set(name for name, _ in annotated_locs)
+        not_annot = set(all_locs) - {name for name, _ in annotated_locs}
         if not_annot:
             raise TypeError(
                 f"Missing type hints in local variables:"
                 f"  ==> '{func.__name__}': local var '{not_annot}' was not typed."
             )
+
     if not annotated_locs:
         return func
 
-    src_lines = src.splitlines()
     name_to_type = {name: unparse(typ) for name, typ in annotated_locs}
-    instrumented_lines = []
-    import re
-    for line in src_lines:
-        instrumented_lines.append(line)
-        for name, type_str in name_to_type.items():
-            print(type_str)
-            if re.match(rf'^\s*{re.escape(name)}\s*=.*', line):
-                check = (
-                    f"    if not isinstance({name}, {type_str}):\n"
-                    f"        raise TypeError(\n"
-                                  f"\"Wrong type in function '{func.__name__}'\\n\"\n"
-                                  f"\"  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n\"\n"
-                                  f"\"      [expected_type] {type_str}\\n\"\n"
-                                  f"f\"      [received_type] {{_type({name}).__name__}}\"\n"
-                            ")"
-                )
-                instrumented_lines.append(check)
 
-    for i, l in list(enumerate(instrumented_lines)):
-        if isinstance(l, str) and l.strip().startswith("return"):
-            for name, type_str in name_to_type.items():
-                check = (
-                    f"    if not isinstance({name}, {type_str}):\n"
-                    f"        raise TypeError(\n"
-                                  f"\"Wrong type in function '{func.__name__}'\\n\"\n"
-                                  f"\"  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n\"\n"
-                                  f"\"      [expected_type] {type_str}\\n\"\n"
-                                  f"f\"      [received_type] {{_type({name}).__name__}}\"\n"
-                            ")"
-                )
-                instrumented_lines.insert(i, check)
+    original_globals = func.__globals__.copy()
+    original_globals['_type'] = _type
 
-    code_joined = "\n".join(instrumented_lines)
-    ns = func.__globals__.copy()
-    ns.update({'_type': _type})
-    locs = {}
-    exec(code_joined, ns, locs)
-    f2 = locs[func.__name__]
-    f2.__wrapped__ = func
-    update_wrapper(f2, func)
-    return f2
+    instrumented = None
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        nonlocal instrumented
+        if instrumented is None:
+            instrumented_lines = []
+
+            for line in lines:
+                clean_line = line.rstrip('\n')
+                instrumented_lines.append(clean_line)
+
+                for name, type_str in name_to_type.items():
+                    if re.match(rf'^\s*{re.escape(name)}\s*=.*', clean_line):
+                        check = f"""
+                            if not isinstance({name}, {type_str}):
+                                raise TypeError(
+                                    "Wrong type in function '{func.__name__}'\\n"
+                                    "  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n"
+                                    "      [expected_type] {type_str}\\n"
+                                    f"      [received_type] {{_type({name}).__name__}}")
+                        """ 
+                        for check_line in check.splitlines():
+                            instrumented_lines.append(check_line)
+
+            return_indices = [i for i, l in enumerate(instrumented_lines)
+                              if l.strip().startswith('return')]
+            for idx in reversed(return_indices):
+                for name, type_str in name_to_type.items():
+                    check = f"""
+                if not isinstance({name}, {type_str}):
+                    raise TypeError(
+                        "Wrong type in function '{func.__name__}'\\n"
+                        "  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n"
+                        "      [expected_type] {type_str}\\n"
+                        f"      [received_type] {{_type({name}).__name__}}")
+            """
+                    for check_line in reversed(check.splitlines()):
+                        instrumented_lines.insert(idx, check_line) 
+
+            code_joined = "\n".join(instrumented_lines)
+            locs = {}
+            exec(code_joined, original_globals, locs)
+            instrumented = locs[func.__name__]
+            instrumented.__wrapped__ = func
+            update_wrapper(instrumented, func)
+
+        return instrumented(*args, **kwargs)
+
+    wrapper.__wrapped__ = func
+    return wrapper
 
 def _META(name, bases, instancecheck, subclasscheck=None, **attrs):
     dct = {'__instancecheck__': staticmethod(instancecheck)}

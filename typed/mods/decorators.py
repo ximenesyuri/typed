@@ -1,8 +1,13 @@
 from typed.mods.types.base import TYPE
 from typed.mods.types.func import Function
 from functools import lru_cache, update_wrapper
-from typed.mods.helper.helper import _name, _has_dependent_type, _dependent_signature, _check_defaults_match_hints, _instrument_locals_check, _variable_checker
-from typed.mods.err import TypedErr
+from typed.mods.helper.helper import (
+    _name,
+    _has_dependent_type,
+    _dependent_signature,
+    _check_defaults_match_hints,
+    _instrument_locals_check,
+)
 
 def hinted(func):
     if isinstance(func, Function):
@@ -19,65 +24,92 @@ def hinted(func):
         f"     [received_type] '{_name(TYPE(func))}'"
     )
 
-def typed(arg=None, *, defaults=False, cache=False, locals=False, full=False, dependent=False):
-    """
-    Decorator that creates a 'typed function' or 'typed var'.
-    Allows: @typed, @typed(defaults=.., cache=.., locals=.., full=.., dependent=..)
-    """
-    def typed_decorator(func):
-        res_func = func
+def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, dependent=False, lazy=True):
+    from typed.mods.err import TypedErr
 
-        # --- 0. If dependent=False, disallow dependent types
+    def _build_typed(res_func):
+        if getattr(res_func, "__lazy_typed_wrapper__", False):
+            res_func = res_func._orig
+
         if _has_dependent_type(res_func):
             if not dependent:
                 raise TypeError(
-                    f"Function '{func.__name__}' uses dependent types, but 'dependent=True' was not specified in @typed()"
+                    f"Function '{res_func.__name__}' uses dependent types, "
+                    f"but 'dependent=True' was not specified in @typed()"
                 )
-            # If dependent=True, still check dependent signature
             _dependent_signature(res_func)
 
-        # --- 1. Check parameter default values ---
-        if defaults or full:
+        if defaults or rigid:
             _check_defaults_match_hints(res_func)
 
-        # --- 2. Local-typed runtime checks
-        if locals or full:
-            res_func = _instrument_locals_check(res_func, force_all_annotated=full)
+        if locals or rigid:
+            res_func = _instrument_locals_check(res_func, force_all_annotated=rigid)
 
-        # --- 3. Wrap in core typed logic
         try:
             from typed.mods.types.base import Bool
             from typed.mods.types.func import Typed, Condition
-            if isinstance(res_func, Typed):
-                res_func = res_func
-            else:
-                typed_arg = Typed(res_func)
-                cod = typed_arg.cod
-                if cod is Bool:
-                    typed_arg.__class__ = Condition
-                else:
-                    typed_arg.__class__ = Typed
-                res_func = typed_arg
-        except Exception as e:
-            raise TypedErr(f"Error in the typed function '{_name(func)}':\n {e}")
 
-        if cache or full:
+            if isinstance(res_func, Typed):
+                typed_func = res_func
+            else:
+                typed_func = Typed(res_func)
+
+            cod = typed_func.cod
+            if cod is Bool:
+                typed_func.__class__ = Condition
+            else:
+                typed_func.__class__ = Typed
+
+            res_func = typed_func
+        except Exception as e:
+            raise TypedErr(f"Error in the typed function '{_name(res_func)}':\n {e}")
+
+        if cache:
             res_func = lru_cache(maxsize=None)(res_func)
 
         return res_func
+
+    def _make_lazy_wrapper(func):
+        class _LazyTypedWrapper:
+            __lazy_typed_wrapper__ = True
+
+            def __init__(self, f):
+                self._orig = f
+                self._wrapped = None
+                update_wrapper(self, f)
+
+            def _materialize(self):
+                if self._wrapped is None:
+                    self._wrapped = _build_typed(self._orig)
+                return self._wrapped
+
+            def __call__(self, *a, **kw):
+                return self._materialize()(*a, **kw)
+
+            def __getattr__(self, name):
+                return getattr(self._materialize(), name)
+
+            def __repr__(self):
+                return f"<LazyTypedWrapper for {getattr(self._orig, '__name__', 'anonymous')}>"
+
+        return _LazyTypedWrapper(func)
+
+    def typed_decorator(func):
+        if not lazy:
+            return _build_typed(func)
+        return _make_lazy_wrapper(func)
 
     if arg is not None and (isinstance(arg, TYPE) or isinstance(arg, Function)):
         if callable(arg):
             return typed_decorator(arg)
         else:
+            from typed.mods.helper.helper import _variable_checker
             return _variable_checker(arg)
 
     elif arg is not None and callable(arg):
-        # User wrote @typed(function)
         return typed_decorator(arg)
 
     elif arg is None:
-        # User wrote @typed(defaults=..., ...) or just @typed
         def wrapper(f):
             return typed_decorator(f)
         return wrapper
@@ -110,7 +142,7 @@ predicate = condition
 def factory(func):
     """Decorator that creates a factory with cache"""
     if isinstance(func, Function):
-        from typed.mods.types.func import Factory, Typed
+        from typed.mods.types.func import Typed
         typed_func = Typed(func)
         if not issubclass(typed_func.codomain, TYPE):
             raise TypeError(
