@@ -57,10 +57,12 @@ __lazy__ = {
     "Function":  ("typed.mods.types.func", "Function"),
     "Hinted":    ("typed.mods.types.func", "Hinted"),
     "Typed":     ("typed.mods.types.func", "Typed"),
+    "Lazy":      ("typed.mods.types.func", "Lazy"),
 
     "name":      ("typed.mods.general", "name"),
     "names":     ("typed.mods.general", "names"),
     "null":      ("typed.mods.general", "null"),
+    "convert":   ("typed.mods.general", "convert"),
     "new":       ("typed.mods.general", "new")
 }
 
@@ -93,5 +95,5 @@ if __lsp__:
         Nill, Any, Int, Str, Float, Bool, Bytes, Self, Cls,
         Tuple, List, Set, Dict, Pattern, TYPE
     )
-    from typed.mods.types.func import Function, Hinted, Typed
-    from typed.mods.general import name, names, null, new
+    from typed.mods.types.func import Function, Hinted, Typed, Lazy
+    from typed.mods.general import name, names, null, new, convert

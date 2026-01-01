@@ -5,8 +5,10 @@ __all__ = [
     "__UNIVERSE__", "_TYPE_", "_ABSTRACT_", "_UNIVERSAL_", "_META_", "_DISCOURSE_", "_PARAMETRIC_",
     "NILL", "ANY", "INT", "BOOL", "STR", "FLOAT", "BYTES", "TUPLE", "LIST", "DICT", "SET", "PATTERN",
 
-    "CALLABLE", "BUILTIN", "FUNCTION", "LAMBDA", "CLASS", "BOUND_METHOD", "UNBOUND_METHOD", "METHOD",
-    "HINTED_DOM", "HINTED_COD", "HINTED", "TYPED_DOM", "TYPED_COD", "TYPED", "FACTORY", "OPERATION", "DEPENDENT", "CONDITION",
+    "CALLABLE", "BUILTIN", "FUNCTION", "LAMBDA",
+    "CLASS", "BOUND_METHOD", "UNBOUND_METHOD", "METHOD",
+    "HINTED_DOM", "HINTED_COD", "HINTED", "TYPED_DOM", "TYPED_COD", "TYPED",
+    "FACTORY", "OPERATION", "DEPENDENT", "CONDITION", "LAZY"
 ]
 
 __lazy__ = {
@@ -48,6 +50,7 @@ __lazy__ = {
     "OPERATION":        ("typed.mods.meta.func", "OPERATION"),
     "DEPENDENT":        ("typed.mods.meta.func", "DEPENDENT"),
     "CONDITION":        ("typed.mods.meta.func", "CONDITION"),
+    "LAZY":             ("typed.mods.meta.func", "LAZY"),
 }
 
 
@@ -76,5 +79,6 @@ if __lsp__:
         CLASS, BOUND_METHOD, UNBOUND_METHOD, METHOD,
         HINTED_DOM, HINTED_COD, HINTED,
         TYPED_DOM, TYPED_COD, TYPED,
-        FACTORY, OPERATION, DEPENDENT, CONDITION
+        FACTORY, OPERATION, DEPENDENT, CONDITION,
+        LAZY
     )

@@ -28,7 +28,7 @@ def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, d
     from typed.mods.err import TypedErr
 
     def _build_typed(res_func):
-        if getattr(res_func, "__lazy_typed__", False):
+        if getattr(res_func, "is_lazy", False):
             res_func = res_func._orig
 
         if _has_dependent_type(res_func):
@@ -72,8 +72,8 @@ def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, d
     def _make_lazy_wrapper(func):
         from typed.mods.types.func import Typed
 
-        class LazyTyped(Typed):
-            __lazy_typed__ = True
+        class Lazy(Typed):
+            is_lazy = True
 
             def __init__(self, f):
                 self._orig = f
@@ -93,9 +93,9 @@ def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, d
                 return getattr(self._materialize(), name)
 
             def __repr__(self):
-                return f"<LazyTyped for {getattr(self._orig, '__name__', 'anonymous')}>"
+                return f"<Lazy for {getattr(self._orig, '__name__', 'anonymous')}>"
 
-        return type.__call__(LazyTyped, func)
+        return type.__call__(Lazy, func)
 
     def typed_decorator(func):
         if not lazy:

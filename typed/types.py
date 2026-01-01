@@ -12,7 +12,7 @@ __all__ = [
     "Class", "BoundMethod", "UnboundMethod", "Method",
     "HintedDom", "HintedCod", "Hinted",
     "TypedDom", "TypedCod", "Typed",
-    "Factory", "Condition", "Operation", "Dependent"
+    "Factory", "Condition", "Operation", "Dependent", "Lazy"
 ]
 
 __lazy__ = {
@@ -54,7 +54,8 @@ __lazy__ = {
     "Factory":      ("typed.mods.types.func", "Factory"),
     "Condition":    ("typed.mods.types.func", "Condition"),
     "Operation":    ("typed.mods.types.func", "Operation"),
-    "Dependent":    ("typed.mods.types.func", "Dependent")
+    "Dependent":    ("typed.mods.types.func", "Dependent"),
+    "Lazy":         ("typed.mods.types.func", "Lazy")
 }
 
 
@@ -85,6 +86,7 @@ if __lsp__:
         Class, BoundMethod, UnboundMethod, Method,
         HintedDom, HintedCod, Hinted,
         TypedDom, TypedCod, Typed,
-        Factory, Condition, Operation, Dependent
+        Factory, Condition, Operation, Dependent,
+        Lazy
     )
 

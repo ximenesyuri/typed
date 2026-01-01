@@ -45,17 +45,17 @@ class CLASS(CALLABLE):
 
 class BOUND_METHOD(CALLABLE):
     def __instancecheck__(cls, instance):
-        return inspect.ismethod(obj) and obj.__self__ is not None
+        return inspect.ismethod(instance) and instance.__self__ is not None
 
 class UNBOUND_METHOD(CALLABLE):
     def __instancecheck__(cls, instance):
-        return inspect.isfunction(obj) and '.' in getattr(obj, '__qualname__', '')
+        return inspect.isfunction(instance) and '.' in getattr(instance, '__qualname__', '')
 
 class METHOD(CALLABLE):
     def __instancecheck__(cls, instance):
         return (
-            inspect.ismethod(obj) and obj.__self__ is not None
-            or inspect.isfunction(obj) and '.' in getattr(obj, '__qualname__', '')
+            inspect.ismethod(instance) and instance.__self__ is not None
+            or inspect.isfunction(instance) and '.' in getattr(instance, '__qualname__', '')
         )
 
 class LAMBDA(CALLABLE):
@@ -111,7 +111,7 @@ class FUNCTION(CALLABLE):
                     )
 
         class_name = f'Function({args})'
-        from typed.mods.meta.func import FUNCTION
+        from typed.mods.types.func import Function
         return FUNCTION(class_name, (Function,), {'__display__': class_name})
         from typed.mods.parametric.func  import _Function_
         return _Function_(*args)
@@ -176,7 +176,7 @@ class HINTED_COD(COMPOSABLE):
             from typed.mods.parametric.func  import _HintedCod_
             return _HintedCod_(args[0])
         if len(args)==1 and isinstance(args[0], TYPE):
-            from typed.mods.parametric.func  import HintedCod_
+            from typed.mods.parametric.func  import _HintedCod_
             return _HintedCod_(args[0])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or a single type")
 
@@ -236,6 +236,12 @@ class TYPED_COD(HINTED_COD):
 
 class TYPED(HINTED, TYPED_DOM, TYPED_COD):
     def __instancecheck__(cls, instance):
+        if getattr(instance, "is_lazy", False):
+            wrapped = getattr(instance, "_wrapped", None)
+            if wrapped is None:
+                return False
+            return isinstance(wrapped, cls)
+
         return super().__instancecheck__(instance)
 
     def check(self, instance):
@@ -251,7 +257,7 @@ class TYPED(HINTED, TYPED_DOM, TYPED_COD):
         if cls is Typed or issubclass(cls, Typed):
             if len(args) == 1 and inspect.isfunction(args[0]) and not isinstance(args[0], Typed):
                 return type.__call__(Typed, args[0])
-        from typed.mods.types.base import TYPE, Int, Bool
+        from typed.mods.types.base import TYPE, Int
         if not args and not kwargs:
             return cls
         if len(args)==1 and callable(args[0]) and not kwargs:
@@ -302,7 +308,12 @@ class OPERATION(FACTORY):
 
 class DEPENDENT(FACTORY):
     def __instancecheck__(cls, instance):
-        from typed.mods.types.base import TYPE, Tuple
         if super().__instancecheck__(instance) and hasattr(instance, "is_dependent_type"):
             return instance.is_dependent_type
         return False
+
+class LAZY(FUNCTION):
+    def __instancecheck__(cls, instance):
+        if not getattr(instance, "is_lazy", False):
+            return False
+        return getattr(instance, "_wrapped", None) is None

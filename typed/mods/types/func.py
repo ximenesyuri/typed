@@ -1,5 +1,4 @@
 import inspect
-from typing import get_type_hints
 from typed.mods.helper.helper import (
     _is_domain_hinted,
     _is_codomain_hinted,
@@ -32,7 +31,8 @@ from typed.mods.meta.func import (
     CONDITION,
     FACTORY,
     OPERATION,
-    DEPENDENT
+    DEPENDENT,
+    LAZY
 )
 
 Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
@@ -44,6 +44,7 @@ Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
 BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
 UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
 Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
+Lazy          = LAZY('Lazy', (Function,), {"__display__": "Lazy"})
 
 setattr(Function, 'args', property(_get_args))
 setattr(Function, 'kwargs', property(_get_kwargs))
@@ -191,31 +192,4 @@ Dependent = DEPENDENT("Dependent", (Factory,), {
     "__display__": "Dependent"
 })
 
-from typed.mods.factories.generics import Filter
-from typed.mods.types.base import Any, Bool, TYPE, META
 
-def _has_var_arg(func: Function) -> Bool:
-    signature = inspect.signature(func)
-    for param in signature.parameters.values():
-        if param.kind == param.VAR_POSITIONAL:
-            return True
-    return False
-
-def _has_var_kwarg(func: Function) -> Bool:
-    signature = inspect.signature(func)
-    for param in signature.parameters.values():
-        if param.kind == param.VAR_KEYWORD:
-            return True
-    return False
-
-MetaFactory    = Typed(Any, cod=META)
-Decorator      = Typed(Function, cod=Function)
-TypedDecorator = Typed(Typed, cod=Typed)
-VariableFunc   = Filter(Function, Condition(_has_var_arg))
-KeywordFunc    = Filter(Function, Condition(_has_var_kwarg))
-
-MetaFactory.__display__    = "MetaFactory"
-Decorator.__diplay__       = "Decorator"
-TypedDecorator.__display__ = "TypedDecorator"
-VariableFunc.__display__   = "VariableFunc"
-KeywordFunc.__display__    = "KeywordFunc"
