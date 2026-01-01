@@ -1,12 +1,12 @@
 [project]
 name = "typed"
-version = "0.7.5"
+version = "0.8.0"
 description = "A typed approach to Python"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "BSD"}
 authors = [
-    {name = "Yuri Ximenes", email = "yx.dev@gmx.ie"},
+    {name = "Yuri Ximenes", email = "ximenesyuri@gmx.ie"},
 ]
 
 [build-system]
