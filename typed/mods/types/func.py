@@ -165,6 +165,7 @@ class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
         b.apply_defaults()
         _check_domain(self.func, list(b.arguments.keys()), self.domain, None, list(b.arguments.values()))
         result = self.func(*b.args, **b.kwargs)
+        from typed.mods.types.base import TYPE
         _check_codomain(self.func, _hinted_codomain(self.func), TYPE(result), result)
         return result
     def __repr__(self):
