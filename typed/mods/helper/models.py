@@ -1,8 +1,8 @@
 import json
+from functools import lru_cache as cache
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
 from typed.mods.helper.helper import _name
-from inspect import isroutine, getmembers
 
 class _Optional:
     def __init__(self, typ, default_value):
@@ -205,3 +205,10 @@ def _to_json(obj):
                 json_dict[key] = str(value)
 
     return json_dict
+
+
+def _canonical_model_key(kind, extends, conditions, attrs):
+    extends_key = tuple(extends or ())
+    conditions_key = tuple(conditions or ())
+    attrs_key = tuple(sorted(attrs.items(), key=lambda kv: kv[0]))
+    return (kind, extends_key, conditions_key, attrs_key)

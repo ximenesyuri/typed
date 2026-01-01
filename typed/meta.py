@@ -3,7 +3,7 @@ from typed.mods.meta.base import (
     _TYPE_, _ABSTRACT_, _UNIVERSAL_,
     _META_, _DISCOURSE_, _PARAMETRIC_,
     NILL, ANY,
-    INT, BOOL, STR, FLOAT,
+    INT, BOOL, STR, FLOAT, BYTES,
     TUPLE, LIST, DICT, SET
 )
 

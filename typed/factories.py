@@ -4,9 +4,6 @@ from typed.mods.factories.base import (
 from typed.mods.factories.generics import (
     Inter, Filter, Compl, Regex, Range, Not, Enum, Single, Null, NotNull, Len, Maybe
 )
-from typed.mods.factories.extra import (
-    Date, Time, Datetime
-)
 from typed.mods.factories.meta import (
     ATTR, SUBTYPES, NOT
 )

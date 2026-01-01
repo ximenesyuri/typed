@@ -31,8 +31,22 @@ def _null_model(typ):
         return None
 
 def _null(typ):
-    if hasattr(typ, '__null__'):
+    if hasattr(typ, '__null__') and typ.__null__ is not None:
         return typ.__null__
+
+    try:
+        from typed.mods.models import MODEL
+    except Exception:
+        return None
+
+    if isinstance(typ, MODEL):
+        val = _null_model(typ)
+        try:
+            typ.__null__ = val
+        except Exception:
+            pass
+        return val
+
     return None
 
 def _null_from_list(*types):

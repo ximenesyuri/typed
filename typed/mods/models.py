@@ -1,4 +1,5 @@
 from typing import dataclass_transform
+from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Str, Dict, List, Bool, Any
 from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
@@ -20,8 +21,8 @@ from typed.mods.helper.models import (
     _process_extends,
     _merge_attrs,
     _attrs,
+    _canonical_model_key
 )
-from typed.mods.decorators import typed
 
 MODEL_METATYPES = Union(_MODEL_, _EXACT_, _ORDERED_, _RIGID_, _MODEL_FACTORY_)
 MODEL     = _MODEL_('MODEL', (TYPE,), {'__display__': 'MODEL'})
@@ -30,6 +31,75 @@ ORDERED   = _ORDERED_('ORDERED', (MODEL, ), {'__display__': 'ORDERED'})
 RIGID     = _RIGID_('RIGID', (EXACT, ORDERED, ), {'__display__': 'RIGID'})
 OPTIONAL  = _OPTIONAL_('OPTIONAL', (MODEL,), {'__display__': 'OPTIONAL'})
 MANDATORY = _MANDATORY_('MANDATORY', (MODEL,), {'__display__': 'MANDATORY'})
+
+class _LAZY_MODEL_(_MODEL_):
+    def __new__(mcls, name, bases, namespace, **kw):
+        cls = super().__new__(mcls, name, bases, namespace)
+        cls._real_model = None
+        return cls
+
+    def _materialize(cls):
+        real = cls._real_model
+        if real is None:
+            builder = super(_LAZY_MODEL_, cls).__getattribute__('__builder__')
+            real = builder()
+            cls._real_model = real
+        return real
+
+    def __call__(cls, *args, **kwargs):
+        real = cls._materialize()
+        return real(*args, **kwargs)
+
+    def __getattr__(cls, name):
+        if name in ('_real_model', '__builder__', '__lazy_model__'):
+            raise AttributeError
+        real = cls._materialize()
+        return getattr(real, name)
+
+    def __instancecheck__(cls, instance):
+        real = cls._materialize()
+        return isinstance(instance, real)
+
+    def __subclasscheck__(cls, subclass):
+        real = cls._materialize()
+        return issubclass(subclass, real)
+
+    def __repr__(cls):
+        return f"<LazyModel for {getattr(cls, '__name__', 'anonymous')}>"
+
+def _lazy_model(
+    original_cls,
+    *,
+    builder,
+    is_exact=False,
+    is_ordered=False,
+    is_rigid=False,
+    is_optional=False,
+    is_mandatory=False,
+):
+    name = original_cls.__name__
+
+    namespace = {
+        '__module__': original_cls.__module__,
+        '__doc__':    original_cls.__doc__,
+        '__builder__': staticmethod(builder),
+        '__lazy_model__': True,
+        'is_model': True,
+        'is_exact': is_exact,
+        'is_ordered': is_ordered,
+        'is_rigid': is_rigid,
+        'is_optional': is_optional,
+        'is_mandatory': is_mandatory,
+    }
+
+    if is_optional:
+        namespace['_required_attribute_keys'] = set()
+    if is_mandatory:
+        namespace['_optional_attributes_and_defaults'] = {}
+
+    LazyCls = _LAZY_MODEL_(name, (MODEL,), namespace)
+    LazyCls.__qualname__ = original_cls.__qualname__
+    return LazyCls
 
 def Optional(typ, default_value=None):
     if not isinstance(typ, TYPE):
@@ -44,6 +114,146 @@ def Optional(typ, default_value=None):
             f"     [received_type]: '{_name(TYPE(default_value))}'"
         )
     return _Optional(typ, default_value)
+
+@cache(maxsize=None)
+def _cached_model(kind, extends_key, conditions_key, attrs_key):
+    extended_models = list(extends_key)
+    conditions = list(conditions_key)
+    kwargs = dict(attrs_key)
+
+    for key in kwargs.keys():
+        if not isinstance(key, Str):
+            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
+
+    if kind == "Model":
+        if not kwargs and not extended_models:
+            bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
+            attributes_and_types = ()
+            required_attribute_keys = set()
+            optional_attributes_and_defaults = {}
+            ordered_keys = []
+            class_name = "Model()"
+            new_model = MODEL_META(
+                class_name,
+                bases,
+                {
+                    '_initial_attributes_and_types': attributes_and_types,
+                    '_initial_required_attribute_keys': required_attribute_keys,
+                    '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                    '_initial_conditions': conditions,
+                    '_initial_ordered_keys': ordered_keys,
+                }
+            )
+            _attach_model_attrs(new_model, ())
+            new_model.__display__ = class_name
+            new_model.__null__ = None
+            new_model.is_model = True
+            return new_model
+
+        attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
+        ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
+
+        args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
+        class_name = f"Model({args_str})"
+        bases = tuple(extended_models) + (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
+
+        new_model = MODEL_META(
+            class_name,
+            bases,
+            {
+                '_initial_attributes_and_types': attributes_and_types,
+                '_initial_required_attribute_keys': required_attribute_keys,
+                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                '_initial_conditions': conditions,
+                '_initial_ordered_keys': ordered_keys,
+            }
+        )
+        _attach_model_attrs(new_model, extended_models)
+        new_model.__display__ = class_name
+        new_model.__null__ = None
+        new_model.is_model = True
+        return new_model
+
+    if kind == "Exact":
+        attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
+        all_possible_keys = set(kwargs.keys())
+
+        args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
+        class_name = f"Exact({args_str})"
+
+        bases = tuple(extended_models) + (EXACT_INSTANCE, MODEL_FACTORY, EXACT)
+        new_model = EXACT_META(
+            class_name,
+            bases,
+            {
+                '_initial_attributes_and_types': attributes_and_types,
+                '_initial_required_attribute_keys': required_attribute_keys,
+                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                '_initial_all_possible_keys': all_possible_keys,
+                '_initial_conditions': conditions,
+            }
+        )
+
+        _attach_model_attrs(new_model, extended_models)
+        new_model.is_exact = True
+        new_model.__null__ = None
+        new_model.__display__ = class_name
+        return new_model
+
+    if kind == "Ordered":
+        attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
+        ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
+
+        args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
+        class_name = f"Ordered({args_str})"
+
+        bases = tuple(extended_models) + (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED)
+        new_model = ORDERED_META(
+            class_name,
+            bases,
+            {
+                '_initial_attributes_and_types': attributes_and_types,
+                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                '_initial_ordered_keys': ordered_keys,
+                '_initial_conditions': conditions,
+            }
+        )
+
+        _attach_model_attrs(new_model, extended_models)
+        new_model.is_ordered = True
+        new_model.__null__ = None
+        new_model.__display__ = class_name
+        return new_model
+
+    if kind == "Rigid":
+        attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
+        ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
+
+        args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
+        class_name = f"Rigid({args_str})"
+
+        bases = tuple(extended_models) + (RIGID_INSTANCE, MODEL_FACTORY, RIGID)
+        new_model = RIGID_META(
+            class_name,
+            bases,
+            {
+                '_initial_attributes_and_types': attributes_and_types,
+                '_initial_required_attribute_keys': required_attribute_keys,
+                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
+                '_initial_ordered_keys': ordered_keys,
+                '_initial_conditions': conditions,
+            }
+        )
+
+        _attach_model_attrs(new_model, extended_models)
+        new_model.is_rigid = True
+        new_model.is_ordered = True
+        new_model.is_exact = True
+        new_model.__null__ = None
+        new_model.__display__ = class_name
+        return new_model
+
+    raise ValueError(f"Unknown model kind: {kind!r}")
 
 def Model(
     __extends__:    Maybe(List)=None,
@@ -64,62 +274,17 @@ def Model(
     extended_models = _process_extends(__extends__)
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
-    if not kwargs and not extended_models:
-        bases = (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
-        attributes_and_types = ()
-        required_attribute_keys = set()
-        optional_attributes_and_defaults = {}
-        conditions = []
-        ordered_keys = []
-        class_name = "Model()"
-        new_model = MODEL_META(
-            class_name,
-            bases,
-            {
-                '_initial_attributes_and_types': attributes_and_types,
-                '_initial_required_attribute_keys': required_attribute_keys,
-                '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-                '_initial_conditions': conditions,
-                '_initial_ordered_keys': ordered_keys,
-            }
-        )
-        _attach_model_attrs(new_model, ())
-        new_model.__display__ = class_name
-        from typed.mods.helper.null import _null_model
-        new_model.__null__ = _null_model(new_model)
-        new_model.is_model = True
-        return new_model
 
-    for key in kwargs.keys():
-        if not isinstance(key, Str):
-            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
-
-    attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
     conditions = list(__conditions__) if __conditions__ else []
-    ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
 
-    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
-    class_name = f"Model({args_str})"
-
-    bases = tuple(extended_models) + (MODEL_INSTANCE, MODEL_FACTORY, MODEL)
-
-    new_model = MODEL_META(
-        class_name,
-        bases,
-        {
-            '_initial_attributes_and_types': attributes_and_types,
-            '_initial_required_attribute_keys': required_attribute_keys,
-            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-            '_initial_conditions': conditions,
-            '_initial_ordered_keys': ordered_keys
-        }
+    key = _canonical_model_key(
+        kind="Model",
+        extends=extended_models,
+        conditions=conditions,
+        attrs=kwargs,
     )
-    _attach_model_attrs(new_model, extended_models)
-    new_model.__display__ = class_name
-    from typed.mods.helper.null import _null_model
-    new_model.__null__ = _null_model(new_model)
-    new_model.is_model = True
-    return new_model
+    return _cached_model(*key)
+
 
 def Exact(
     __extends__   : Maybe(List)=None,
@@ -131,36 +296,16 @@ def Exact(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
 
-    for key in kwargs.keys():
-        if not isinstance(key, Str):
-            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
-
-    attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
-    all_possible_keys = set(kwargs.keys())
     conditions = list(__conditions__) if __conditions__ else []
 
-    args_str = ", ".join(f"{key}: {getattr(value, '__name__', str(value))}" for key, value in kwargs.items())
-    class_name = f"Exact({args_str})"
-
-    bases = tuple(extended_models) + (EXACT_INSTANCE, MODEL_FACTORY, EXACT)
-    new_model = EXACT_META(
-        class_name,
-        bases,
-        {
-            '_initial_attributes_and_types': attributes_and_types,
-            '_initial_required_attribute_keys': required_attribute_keys,
-            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-            '_initial_all_possible_keys': all_possible_keys,
-            '_initial_conditions': conditions,
-        }
+    key = _canonical_model_key(
+        kind="Exact",
+        extends=extended_models,
+        conditions=conditions,
+        attrs=kwargs,
     )
+    return _cached_model(*key)
 
-    _attach_model_attrs(new_model, extended_models)
-    new_model.is_exact = True
-    from typed.mods.helper.null import _null_model
-    new_model.__null__ = _null_model(new_model)
-    new_model.__display__ = class_name
-    return new_model
 
 def Ordered(
     __extends__:    Maybe(List)=None,
@@ -172,35 +317,16 @@ def Ordered(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
 
-    for key in kwargs.keys():
-        if not isinstance(key, Str):
-            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
-
-    attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
-    ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
     conditions = list(__conditions__) if __conditions__ else []
 
-    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
-    class_name = f"Ordered({args_str})"
-
-    bases = tuple(extended_models) + (ORDERED_INSTANCE, MODEL_FACTORY, ORDERED)
-    new_model = ORDERED_META(
-        class_name,
-        bases,
-        {
-            '_initial_attributes_and_types': attributes_and_types,
-            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-            '_initial_ordered_keys': ordered_keys,
-            '_initial_conditions': conditions,
-        }
+    key = _canonical_model_key(
+        kind="Ordered",
+        extends=extended_models,
+        conditions=conditions,
+        attrs=kwargs,
     )
+    return _cached_model(*key)
 
-    _attach_model_attrs(new_model, extended_models)
-    new_model.is_ordered = True
-    from typed.mods.helper.null import _null_model
-    new_model.__null__ = _null_model(new_model)
-    new_model.__display__ = class_name
-    return new_model
 
 def Rigid(
     __extends__:    Maybe(List)=None,
@@ -212,38 +338,15 @@ def Rigid(
     if extended_models:
         kwargs = _merge_attrs(extended_models, kwargs)
 
-    for key in kwargs.keys():
-        if not isinstance(key, Str):
-            raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
-
-    attributes_and_types, required_attribute_keys, optional_attributes_and_defaults = _attrs(kwargs)
-    ordered_keys = _ordered_keys(attributes_and_types, optional_attributes_and_defaults)
     conditions = list(__conditions__) if __conditions__ else []
 
-    args_str = ", ".join(f"{key}: {_name(value)}" for key, value in kwargs.items())
-    class_name = f"Rigid({args_str})"
-    bases = tuple(extended_models) + (RIGID_INSTANCE, MODEL_FACTORY, RIGID)
-
-    new_model = RIGID_META(
-        class_name,
-        bases,
-        {
-            '_initial_attributes_and_types': attributes_and_types,
-            '_initial_required_attribute_keys': required_attribute_keys,
-            '_initial_optional_attributes_and_defaults': optional_attributes_and_defaults,
-            '_initial_ordered_keys': ordered_keys,
-            '_initial_conditions': conditions,
-        }
+    key = _canonical_model_key(
+        kind="Rigid",
+        extends=extended_models,
+        conditions=conditions,
+        attrs=kwargs,
     )
-
-    _attach_model_attrs(new_model, extended_models)
-    new_model.is_rigid = True
-    new_model.is_ordered = True
-    new_model.is_exact = True
-    from typed.mods.helper.null import _null_model
-    new_model.__null__ = _null_model(new_model)
-    new_model.__display__ = class_name
-    return new_model
+    return _cached_model(*key)
 
 def validate(entity: Dict, model: MODEL) -> Dict:
     model_name = getattr(model, '__name__', str(model))
@@ -407,7 +510,17 @@ def drop(model, entries):
     return Model(**new_kwargs)
 
 @dataclass_transform()
-def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
+def model(
+    _cls=None,
+    *,
+    extends=None,
+    conditions=None,
+    exact=False,
+    ordered=False,
+    rigid=False,
+    nullable=False,
+    lazy=True,
+):
     def wrap(cls):
         all_extends = []
         if extends:
@@ -431,26 +544,54 @@ def model(_cls=None, *, extends=None, conditions=None, exact=False, ordered=Fals
                 kwargs[name] = Optional(type_hint, default)
             else:
                 kwargs[name] = type_hint
-        return_model = Model(
-            __extends__=all_extends,
-            __conditions__=conditions,
-            __exact__=exact,
-            __ordered__=ordered,
-            __rigid__=rigid,
-            **kwargs
+
+        if not lazy:
+            return_model = Model(
+                __extends__=all_extends,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            return_model.__name__ = cls.__name__
+            return_model.__qualname__ = cls.__qualname__
+            return_model.__module__ = cls.__module__
+            return_model.__doc__ = cls.__doc__
+            return return_model
+
+        def _builder():
+            real = Model(
+                __extends__=all_extends,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            real.__name__ = cls.__name__
+            real.__qualname__ = cls.__qualname__
+            real.__module__ = cls.__module__
+            real.__doc__ = cls.__doc__
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=exact,
+            is_ordered=ordered,
+            is_rigid=rigid,
+            is_optional=False,
+            is_mandatory=False,
         )
-        return_model.__name__ = cls.__name__
-        return_model.__qualname__ = cls.__qualname__
-        return_model.__module__ = cls.__module__
-        return_model.__doc__ = cls.__doc__
-        return return_model
+
     if _cls is None:
         return wrap
     else:
         return wrap(_cls)
 
 @dataclass_transform()
-def exact(_cls=None, *, extends=None, conditions=None):
+def exact(_cls=None, *, extends=None, conditions=None, lazy: bool = True):
     def wrap(cls):
         all_extends = []
         if extends:
@@ -458,24 +599,46 @@ def exact(_cls=None, *, extends=None, conditions=None):
                 all_extends.extend(extends)
             else:
                 all_extends.append(extends)
-
         for base in cls.__bases__:
             if getattr(base, 'is_model', False) and base not in all_extends:
                 all_extends.append(base)
 
         annotations = cls.__annotations__
         kwargs = {name: type_hint for name, type_hint in annotations.items()}
-        exact_model = Exact(__extends__=all_extends, __conditions__=conditions, **kwargs)
-        exact_model.__name__ = cls.__name__
-        exact_model.__qualname__ = cls.__qualname__
-        exact_model.__module__ = cls.__module__
-        exact_model.__doc__ = cls.__doc__
-        return exact_model
-    if _cls is None: return wrap
-    else: return wrap(_cls)
+
+        if not lazy:
+            exact_model = Exact(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            exact_model.__name__ = cls.__name__
+            exact_model.__qualname__ = cls.__qualname__
+            exact_model.__module__ = cls.__module__
+            exact_model.__doc__ = cls.__doc__
+            return exact_model
+
+        def _builder():
+            real = Exact(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            real.__name__ = cls.__name__
+            real.__qualname__ = cls.__qualname__
+            real.__module__ = cls.__module__
+            real.__doc__ = cls.__doc__
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=True,
+            is_ordered=False,
+            is_rigid=False,
+            is_optional=False,
+            is_mandatory=False,
+        )
+
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)
 
 @dataclass_transform()
-def ordered(_cls=None, *, extends=None, conditions=None):
+def ordered(_cls=None, *, extends=None, conditions=None, lazy=True):
     def wrap(cls):
         all_extends = []
         if extends:
@@ -483,24 +646,46 @@ def ordered(_cls=None, *, extends=None, conditions=None):
                 all_extends.extend(extends)
             else:
                 all_extends.append(extends)
-
         for base in cls.__bases__:
             if getattr(base, 'is_model', False) and base not in all_extends:
                 all_extends.append(base)
 
         annotations = cls.__annotations__
         kwargs = {name: type_hint for name, type_hint in annotations.items()}
-        res = Ordered(__extends__=all_extends, __conditions__=conditions, **kwargs)
-        res.__name__ = cls.__name__
-        res.__qualname__ = cls.__qualname__
-        res.__module__ = cls.__module__
-        res.__doc__ = cls.__doc__
-        return res
-    if _cls is None: return wrap
-    else: return wrap(_cls)
+
+        if not lazy:
+            res = Ordered(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            res.__name__ = cls.__name__
+            res.__qualname__ = cls.__qualname__
+            res.__module__ = cls.__module__
+            res.__doc__ = cls.__doc__
+            return res
+
+        def _builder():
+            real = Ordered(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            real.__name__ = cls.__name__
+            real.__qualname__ = cls.__qualname__
+            real.__module__ = cls.__module__
+            real.__doc__ = cls.__doc__
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=False,
+            is_ordered=True,
+            is_rigid=False,
+            is_optional=False,
+            is_mandatory=False,
+        )
+
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)
 
 @dataclass_transform()
-def rigid(_cls=None, *, extends=None, conditions=None):
+def rigid(_cls=None, *, extends=None, conditions=None, lazy=True):
     def wrap(cls):
         all_extends = []
         if extends:
@@ -508,24 +693,56 @@ def rigid(_cls=None, *, extends=None, conditions=None):
                 all_extends.extend(extends)
             else:
                 all_extends.append(extends)
-
         for base in cls.__bases__:
             if getattr(base, 'is_model', False) and base not in all_extends:
                 all_extends.append(base)
 
         annotations = cls.__annotations__
         kwargs = {name: type_hint for name, type_hint in annotations.items()}
-        res = Rigid(__extends__=all_extends, __conditions__=conditions, **kwargs)
-        res.__name__ = cls.__name__
-        res.__qualname__ = cls.__qualname__
-        res.__module__ = cls.__module__
-        res.__doc__ = cls.__doc__
-        return res
-    if _cls is None: return wrap
-    else: return wrap(_cls)
+
+        if not lazy:
+            res = Rigid(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            res.__name__ = cls.__name__
+            res.__qualname__ = cls.__qualname__
+            res.__module__ = cls.__module__
+            res.__doc__ = cls.__doc__
+            return res
+
+        def _builder():
+            real = Rigid(__extends__=all_extends, __conditions__=conditions, **kwargs)
+            real.__name__ = cls.__name__
+            real.__qualname__ = cls.__qualname__
+            real.__module__ = cls.__module__
+            real.__doc__ = cls.__doc__
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=True,
+            is_ordered=True,
+            is_rigid=True,
+            is_optional=False,
+            is_mandatory=False,
+        )
+
+    if _cls is None:
+        return wrap
+    else:
+        return wrap(_cls)
 
 @dataclass_transform()
-def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False, nullable=False):
+def optional(
+    _cls=None,
+    *,
+    extends=None,
+    conditions=None,
+    exact=False,
+    ordered=False,
+    rigid=False,
+    nullable=False,
+    lazy=True,
+):
     def wrap(cls):
         parent_models = []
         for base in cls.__bases__:
@@ -548,20 +765,45 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
             default = getattr(cls, name, None)
             kwargs[name] = _optional(hint, default, is_null)
 
-        model_cls = Model(
-            __extends__=parent_models,
-            __conditions__=conditions,
-            __exact__=exact,
-            __ordered__=ordered,
-            __rigid__=rigid,
-            **kwargs
-        )
+        if not lazy:
+            model_cls = Model(
+                __extends__=parent_models,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            for a in ('__name__', '__qualname__', '__module__', '__doc__'):
+                setattr(model_cls, a, getattr(cls, a, None))
+            model_cls.is_optional = True
+            model_cls.is_mandatory = False
+            return model_cls
 
-        for a in ('__name__', '__qualname__', '__module__', '__doc__'):
-            setattr(model_cls, a, getattr(cls, a, None))
-        model_cls.is_optional = True
-        model_cls.is_mandatory = False
-        return model_cls
+        def _builder():
+            real = Model(
+                __extends__=parent_models,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            for a in ('__name__', '__qualname__', '__module__', '__doc__'):
+                setattr(real, a, getattr(cls, a, None))
+            real.is_optional = True
+            real.is_mandatory = False
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=exact,
+            is_ordered=ordered,
+            is_rigid=rigid,
+            is_optional=True,
+            is_mandatory=False,
+        )
 
     if _cls is None:
         return wrap
@@ -569,7 +811,16 @@ def optional(_cls=None, *, extends=None, conditions=None, exact=False, ordered=F
         return wrap(_cls)
 
 @dataclass_transform()
-def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=False, rigid=False):
+def mandatory(
+    _cls=None,
+    *,
+    extends=None,
+    conditions=None,
+    exact=False,
+    ordered=False,
+    rigid=False,
+    lazy=True,
+):
     def wrap(cls):
         parent_models = []
         for base in cls.__bases__:
@@ -590,27 +841,51 @@ def mandatory(_cls=None, *, extends=None, conditions=None, exact=False, ordered=
             base = getattr(hint, 'type', hint)
             kwargs[name] = base
 
-        model_cls = Model(
-            __extends__=parent_models,
-            __conditions__=conditions,
-            __exact__=exact,
-            __ordered__=ordered,
-            __rigid__=rigid,
-            **kwargs
-        )
+        if not lazy:
+            model_cls = Model(
+                __extends__=parent_models,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            for a in ('__name__', '__qualname__', '__module__', '__doc__'):
+                setattr(model_cls, a, getattr(cls, a, None))
+            model_cls.is_mandatory = True
+            model_cls.is_optional = False
+            return model_cls
 
-        for a in ('__name__', '__qualname__', '__module__', '__doc__'):
-            setattr(model_cls, a, getattr(cls, a, None))
-        model_cls.is_mandatory = True
-        model_cls.is_optional = False
-        return model_cls
+        def _builder():
+            real = Model(
+                __extends__=parent_models,
+                __conditions__=conditions,
+                __exact__=exact,
+                __ordered__=ordered,
+                __rigid__=rigid,
+                **kwargs
+            )
+            for a in ('__name__', '__qualname__', '__module__', '__doc__'):
+                setattr(real, a, getattr(cls, a, None))
+            real.is_mandatory = True
+            real.is_optional = False
+            return real
+
+        return _lazy_model(
+            cls,
+            builder=_builder,
+            is_exact=exact,
+            is_ordered=ordered,
+            is_rigid=rigid,
+            is_optional=False,
+            is_mandatory=True,
+        )
 
     if _cls is None:
         return wrap
     else:
         return wrap(_cls)
 
-@typed
 def eval(model: MODEL, **attrs: Dict) -> MODEL:
     if not getattr(model, 'is_model', False):
         raise TypeError(f"eval expects a Model-type. Got: {model}")
@@ -666,7 +941,6 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
 
     return Model(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
 
-@typed
 def value(model: MODEL, attr: Str) -> Any:
     ###
     # TODO: improve to allow inner attributes:
