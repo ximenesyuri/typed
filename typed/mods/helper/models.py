@@ -23,6 +23,16 @@ def _ensure_iterable_conditions(conditions):
 def _ordered_keys(attributes_and_types, optional_defaults):
     return [k for k, _ in attributes_and_types]
 
+def _materialize_if_lazy(model):
+    if getattr(model, "__lazy_model__", False):
+        materialize = getattr(model, "_materialize", None)
+        if callable(materialize):
+            try:
+                return materialize()
+            except Exception:
+                return model
+    return model
+
 def _process_extends(__extends__):
     extended_models = []
     if __extends__ is not None:
@@ -30,6 +40,8 @@ def _process_extends(__extends__):
             extended_models.extend(__extends__)
         else:
             extended_models.append(__extends__)
+
+    extended_models = [_materialize_if_lazy(m) for m in extended_models]
     return extended_models
 
 def _merge_attrs(extended_models, new_kwargs):
