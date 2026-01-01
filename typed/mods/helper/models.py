@@ -1,5 +1,4 @@
 import json
-from functools import lru_cache as cache
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
 from typed.mods.helper.helper import _name
@@ -24,7 +23,7 @@ def _ordered_keys(attributes_and_types, optional_defaults):
     return [k for k, _ in attributes_and_types]
 
 def _materialize_if_lazy(model):
-    if getattr(model, "__lazy_model__", False):
+    if getattr(model, "is_lazy", False):
         materialize = getattr(model, "_materialize", None)
         if callable(materialize):
             try:
@@ -218,9 +217,44 @@ def _to_json(obj):
 
     return json_dict
 
-
 def _canonical_model_key(kind, extends, conditions, attrs):
     extends_key = tuple(extends or ())
     conditions_key = tuple(conditions or ())
     attrs_key = tuple(sorted(attrs.items(), key=lambda kv: kv[0]))
     return (kind, extends_key, conditions_key, attrs_key)
+
+def _lazy_model(
+    original_cls,
+    *,
+    builder,
+    is_exact=False,
+    is_ordered=False,
+    is_rigid=False,
+    is_optional=False,
+    is_mandatory=False,
+):
+    name = original_cls.__name__
+
+    namespace = {
+        '__module__': original_cls.__module__,
+        '__doc__':    original_cls.__doc__,
+        '__builder__': staticmethod(builder),
+        'is_lazy': True,
+        'is_model': True,
+        'is_exact': is_exact,
+        'is_ordered': is_ordered,
+        'is_rigid': is_rigid,
+        'is_optional': is_optional,
+        'is_mandatory': is_mandatory,
+    }
+
+    if is_optional:
+        namespace['_required_attribute_keys'] = set()
+    if is_mandatory:
+        namespace['_optional_attributes_and_defaults'] = {}
+
+    from typed.mods.meta.models import LAZY_META
+    LazyCls = LAZY_META(name, (), namespace)
+    LazyCls.__qualname__ = original_cls.__qualname__
+    LazyCls.__display__ = 'LazyModel'
+    return LazyCls

@@ -200,23 +200,28 @@ class _MODEL_FACTORY_(FACTORY):
 
 class _MODEL_(_TYPE_):
     def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_model', False)
+        is_model = getattr(instance, 'is_model', False)
+        if not is_model:
+            return False
 
+        is_lazy = getattr(instance, 'is_lazy', False)
+        if is_lazy:
+            real = getattr(instance, '_real_model', None)
+            return real is not None
+
+        return True
 
 class _EXACT_(_MODEL_):
     def __instancecheck__(cls, instance):
         return getattr(instance, 'is_exact', False)
 
-
 class _ORDERED_(_MODEL_):
     def __instancecheck__(cls, instance):
         return getattr(instance, 'is_ordered', False)
 
-
 class _RIGID_(_EXACT_, _ORDERED_):
     def __instancecheck__(cls, instance):
         return getattr(instance, 'is_rigid', False)
-
 
 class _OPTIONAL_(_MODEL_):
     def __instancecheck__(cls, instance):
@@ -257,6 +262,24 @@ class _MANDATORY_(_MODEL_):
         opts = getattr(subclass, '_optional_attributes_and_defaults', None)
         return isinstance(opts, Dict) and len(opts) == 0
 
+class _LAZY_MODEL_(_TYPE_):
+    def __instancecheck__(cls, instance):
+        if not getattr(instance, 'is_lazy', False):
+            return False
+        real = getattr(instance, '_real_model', None)
+        return real is None
+
+class _LAZY_EXACT_(_LAZY_MODEL_):
+    def __instancecheck__(cls, instance):
+        return getattr(instance, 'is_exact', False)
+
+class _LAZY_ORDERED_(_LAZY_MODEL_):
+    def __instancecheck__(cls, instance):
+        return getattr(instance, 'is_ordered', False)
+
+class _LAZY_RIGID_(_LAZY_EXACT_, _LAZY_ORDERED_):
+    def __instancecheck__(cls, instance):
+        return getattr(instance, 'is_rigid', False)
 
 class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
     _defined_required_attributes = {}
@@ -506,3 +529,38 @@ class RIGID_INSTANCE(MODEL_INSTANCE): pass
 class RIGID_META(MODEL_META):
     def __instancecheck__(cls, instance):
         return MODEL_META.__instancecheck__(cls, instance)
+
+class LAZY_META(MODEL_META):
+    def __new__(mcls, name, bases, namespace, **kw):
+        cls = super().__new__(mcls, name, bases, namespace)
+        cls._real_model = None
+        return cls
+
+    def _materialize(cls):
+        real = cls._real_model
+        if real is None:
+            builder = super(LAZY_META, cls).__getattribute__('__builder__')
+            real = builder()
+            cls._real_model = real
+        return real
+
+    def __call__(cls, *args, **kwargs):
+        real = cls._materialize()
+        return real(*args, **kwargs)
+
+    def __getattr__(cls, name):
+        if name in ('_real_model', '__builder__', '__lazy_model__'):
+            raise AttributeError
+        real = cls._materialize()
+        return getattr(real, name)
+
+    def __instancecheck__(cls, instance):
+        real = cls._materialize()
+        return isinstance(instance, real)
+
+    def __subclasscheck__(cls, subclass):
+        real = cls._materialize()
+        return issubclass(subclass, real)
+
+    def __repr__(cls):
+        return f"<LazyModel for {getattr(cls, '__name__', 'anonymous')}>"

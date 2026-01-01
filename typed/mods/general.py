@@ -1,16 +1,68 @@
-import re
-import inspect
-import ast
-from functools  import wraps
+from typed.mods.decorators import typed
+from typed.mods.types.base import (
+    Any, TYPE, Str, Tuple, Dict, META, PARAMETRIC
+)
+from typed.mods.types.func import Function, Factory
+from typed.mods.helper.helper import _name, _name_list
+from typed.mods.helper.null import _null
+
+@typed
+def name(obj: Any) -> Str:
+    return _name(obj)
+
+@typed
+def names(*objs: Tuple) -> Str:
+    return _name_list(*objs)
+
+null = _null
+
+class new:
+    @typed
+    def meta(name: Str, meta_bases: Tuple(TYPE), instancecheck: Function, subclasscheck: Function=None) -> META:
+        from typed.mods.helper.helper import _META
+        return _META(name, meta_bases, instancecheck, subclasscheck)
+
+    @typed
+    def type(name: Str, meta_bases: Tuple(TYPE), instancecheck: Function, subclasscheck: Function=None, **attrs: Dict) -> TYPE:
+        from typed.mods.types.base import Str
+        from typed.mods.helper.helper import _META
+        if not isinstance(name, Str):
+            raise TypeError
+        meta_bases = tuple(TYPE(t) for t in bases)
+        return _META(name.upper(), meta_bases, instancecheck, subclasscheck)(name, bases, attrs)
+
+    @typed
+    def parametric(*types: Tuple(TYPE), factory: Factory=None) -> PARAMETRIC:
+        TYPES = (TYPE(typ) for typ in types)
+        class _PARAMETRIC_(*TYPES):
+            def __instancecheck__(cls, instance):
+                return all(isinstance(instance, typ) for typ in types)
+            def __subclasscheck__(cls, subclass):
+                return all(issubclass(subclass, typ) for typ in types)
+            def __call__(self, *args, **kwargs):
+                if not args and not kwargs:
+                    return self._type()
+                elif args and isinstance(args[0], type):
+                    return self._factory(*args, **kwargs)
+                else:
+                    return self._type(*args, **kwargs)
+
+        class_name = _name(base_type)
+        return _PARAMETRIC_(class_name, (base_type,), {
+            "__display__": class_name,
+            "base_type": base_type,
+            "factory": factory
+        })
 
 def poly(arg, num_args=-1):
     """
     1. Can be used as a decorator for Typed functions (parametric, e.g. for union-branching).
     2. Can be used for method name dispatch (original purpose).
     """
-    from typed.mods.helper.helper import _name
-    from typed.mods.types.base import TYPE
     from typed.mods.factories.meta import ATTR
+    import re
+    import inspect
+    import ast
 
     if callable(arg):
         from typed.mods.types.func import Typed
@@ -18,14 +70,13 @@ def poly(arg, num_args=-1):
             try:
                 func = Typed(arg)
             except Exception as e:
-                raise TypeErr(e)
+                raise TypeError(e)
         else:
             func = arg
 
         domain = func.domain
         params_info = inspect.signature(func.func).parameters
 
-        from typed.mods.factories.base import Union as Union_factory
         union_param_names = []
         union_types_dict = {}
 
@@ -113,5 +164,4 @@ def poly(arg, num_args=-1):
         f"     [received_type] {_name(TYPE(arg))}"
     )
 
-join = poly("__join__")
 convert = poly("__convert__")

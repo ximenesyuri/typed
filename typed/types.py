@@ -3,7 +3,8 @@ from typed.mods.types.base import (
     META, DISCOURSE, PARAMETRIC,
     Nill, Any,
     Int, Str, Float, Bool, Bytes, Self, Cls,
-    Tuple, List, Set, Dict
+    Tuple, List, Set, Dict,
+    Pattern
 )
 from typed.mods.types.func import (
     Callable, Builtin, Lambda, Function, Composable,

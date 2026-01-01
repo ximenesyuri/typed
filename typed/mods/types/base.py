@@ -4,6 +4,7 @@ from typed.mods.meta.base import (
     NILL, ANY,
     STR, INT, FLOAT, BOOL, BYTES,
     TUPLE, LIST, SET, DICT,
+    PATTERN
 )
 
 Nill = NILL("Nill", (), {
@@ -213,3 +214,5 @@ class Dict(metaclass=DICT):
         self.__dict__[key] = value
     def __contains__(self, key):
         return key in self.__dict__
+
+Pattern = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})

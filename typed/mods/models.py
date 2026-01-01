@@ -7,6 +7,7 @@ from typed.mods.helper.helper import _name
 from typed.mods.meta.models import (
     _MODEL_FACTORY_,
     _MODEL_, _EXACT_, _ORDERED_, _RIGID_,
+    _LAZY_MODEL_, _LAZY_EXACT_, _LAZY_ORDERED_, _LAZY_RIGID_,
     _OPTIONAL_, _MANDATORY_,
     MODEL_INSTANCE, MODEL_META,
     EXACT_INSTANCE, EXACT_META,
@@ -21,7 +22,8 @@ from typed.mods.helper.models import (
     _process_extends,
     _merge_attrs,
     _attrs,
-    _canonical_model_key
+    _canonical_model_key,
+    _lazy_model
 )
 
 MODEL_METATYPES = Union(_MODEL_, _EXACT_, _ORDERED_, _RIGID_, _MODEL_FACTORY_)
@@ -32,74 +34,10 @@ RIGID     = _RIGID_('RIGID', (EXACT, ORDERED, ), {'__display__': 'RIGID'})
 OPTIONAL  = _OPTIONAL_('OPTIONAL', (MODEL,), {'__display__': 'OPTIONAL'})
 MANDATORY = _MANDATORY_('MANDATORY', (MODEL,), {'__display__': 'MANDATORY'})
 
-class _LAZY_MODEL_(_MODEL_):
-    def __new__(mcls, name, bases, namespace, **kw):
-        cls = super().__new__(mcls, name, bases, namespace)
-        cls._real_model = None
-        return cls
-
-    def _materialize(cls):
-        real = cls._real_model
-        if real is None:
-            builder = super(_LAZY_MODEL_, cls).__getattribute__('__builder__')
-            real = builder()
-            cls._real_model = real
-        return real
-
-    def __call__(cls, *args, **kwargs):
-        real = cls._materialize()
-        return real(*args, **kwargs)
-
-    def __getattr__(cls, name):
-        if name in ('_real_model', '__builder__', '__lazy_model__'):
-            raise AttributeError
-        real = cls._materialize()
-        return getattr(real, name)
-
-    def __instancecheck__(cls, instance):
-        real = cls._materialize()
-        return isinstance(instance, real)
-
-    def __subclasscheck__(cls, subclass):
-        real = cls._materialize()
-        return issubclass(subclass, real)
-
-    def __repr__(cls):
-        return f"<LazyModel for {getattr(cls, '__name__', 'anonymous')}>"
-
-def _lazy_model(
-    original_cls,
-    *,
-    builder,
-    is_exact=False,
-    is_ordered=False,
-    is_rigid=False,
-    is_optional=False,
-    is_mandatory=False,
-):
-    name = original_cls.__name__
-
-    namespace = {
-        '__module__': original_cls.__module__,
-        '__doc__':    original_cls.__doc__,
-        '__builder__': staticmethod(builder),
-        '__lazy_model__': True,
-        'is_model': True,
-        'is_exact': is_exact,
-        'is_ordered': is_ordered,
-        'is_rigid': is_rigid,
-        'is_optional': is_optional,
-        'is_mandatory': is_mandatory,
-    }
-
-    if is_optional:
-        namespace['_required_attribute_keys'] = set()
-    if is_mandatory:
-        namespace['_optional_attributes_and_defaults'] = {}
-
-    LazyCls = _LAZY_MODEL_(name, (MODEL,), namespace)
-    LazyCls.__qualname__ = original_cls.__qualname__
-    return LazyCls
+LAZY_MODEL = _LAZY_MODEL_("LAZY_MODEL", (TYPE,), {"__display__": "LAZY_MODEL"})
+LAZY_EXACT = _LAZY_EXACT_("LAZY_EXACT", (LAZY_MODEL,), {"__display__": "LAZY_EXACT"})
+LAZY_ORDERED = _LAZY_ORDERED_("LAZY_ORDERED", (LAZY_MODEL,), {"__display__": "LAZY_ORDERED"})
+LAZY_RIGID = _LAZY_RIGID_("LAZY_RIGID", (LAZY_EXACT, LAZY_ORDERED,), {"__display__": "LAZY_RIGID"})
 
 def Optional(typ, default_value=None):
     if not isinstance(typ, TYPE):

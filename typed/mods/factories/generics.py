@@ -6,6 +6,7 @@ from typed.mods.helper.helper import (
     _name_list,
 )
 
+@cache
 def Free(Discourse):
     from typed.mods.types.base import TYPE, DISCOURSE
     if not isinstance(Discourse, DISCOURSE):
@@ -172,7 +173,7 @@ def Regex(regex):
         > that matches the regex r'some_regex'
     """
 
-    from typed.mods.types.other import Pattern
+    from typed.mods.types.base import Pattern
     if not isinstance(regex, Pattern):
         from typed.mods.types.base import TYPE
         raise TypeError(

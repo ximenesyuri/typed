@@ -412,3 +412,15 @@ class DICT(_TYPE_):
     def __call__(cls, *args, **kwargs):
         from typed.mods.parametric.base import _Dict_
         return _Dict_(*args, **kwargs)
+
+class PATTERN(STR):
+    def __instancecheck__(cls, instance):
+        import re
+        from typed.mods.types.base import Str
+        if not isinstance(instance, Str):
+            return False
+        try:
+            re.compile(instance)
+            return True
+        except re.error:
+            return False
