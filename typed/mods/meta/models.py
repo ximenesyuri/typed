@@ -559,8 +559,19 @@ class LAZY_META(MODEL_META):
         return isinstance(instance, real)
 
     def __subclasscheck__(cls, subclass):
-        real = cls._materialize()
-        return issubclass(subclass, real)
+        if getattr(subclass, 'is_lazy', False):
+            from typed.mods.helper.models import _lazy_submodel
+            if _lazy_submodel(subclass, cls):
+                return True
+
+        real_cls = cls._materialize()
+
+        if getattr(subclass, 'is_lazy', False) and hasattr(subclass, '_materialize'):
+            real_sub = subclass._materialize()
+        else:
+            real_sub = subclass
+
+        return issubclass(real_sub, real_cls)
 
     def __repr__(cls):
         return f"<LazyModel for {getattr(cls, '__name__', 'anonymous')}>"

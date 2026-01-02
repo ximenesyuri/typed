@@ -232,6 +232,7 @@ def _lazy_model(
     is_rigid=False,
     is_optional=False,
     is_mandatory=False,
+    extends=(),
 ):
     name = original_cls.__name__
 
@@ -246,6 +247,7 @@ def _lazy_model(
         'is_rigid': is_rigid,
         'is_optional': is_optional,
         'is_mandatory': is_mandatory,
+        '__lazy_extends__': tuple(extends),
     }
 
     if is_optional:
@@ -254,7 +256,28 @@ def _lazy_model(
         namespace['_optional_attributes_and_defaults'] = {}
 
     from typed.mods.meta.models import LAZY_META
-    LazyCls = LAZY_META(name, (), namespace)
+    LazyCls = LAZY_META(name, tuple(extends), namespace)
     LazyCls.__qualname__ = original_cls.__qualname__
     LazyCls.__display__ = 'LazyModel'
     return LazyCls
+
+def _lazy_submodel(subclass, cls):
+    if subclass is cls:
+        return True
+
+    visited = set()
+    stack = [subclass]
+
+    while stack:
+        cur = stack.pop()
+        if cur in visited:
+            continue
+        visited.add(cur)
+
+        bases = getattr(cur, '__bases__', ())
+        for base in bases:
+            if base is cls:
+                return True
+            stack.append(base)
+
+    return False

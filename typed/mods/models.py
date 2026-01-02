@@ -521,6 +521,7 @@ def model(
             is_rigid=rigid,
             is_optional=False,
             is_mandatory=False,
+            extends=tuple(all_extends)
         )
 
     if _cls is None:
@@ -568,6 +569,7 @@ def exact(_cls=None, *, extends=None, conditions=None, lazy: bool = True):
             is_rigid=False,
             is_optional=False,
             is_mandatory=False,
+            extends=tuple(all_extends)
         )
 
     if _cls is None:
@@ -615,6 +617,7 @@ def ordered(_cls=None, *, extends=None, conditions=None, lazy=True):
             is_rigid=False,
             is_optional=False,
             is_mandatory=False,
+            extends=tuple(all_extends)
         )
 
     if _cls is None:
@@ -662,6 +665,7 @@ def rigid(_cls=None, *, extends=None, conditions=None, lazy=True):
             is_rigid=True,
             is_optional=False,
             is_mandatory=False,
+            extends=tuple(all_extends)
         )
 
     if _cls is None:
@@ -741,6 +745,7 @@ def optional(
             is_rigid=rigid,
             is_optional=True,
             is_mandatory=False,
+            extends=tuple(parent_models)
         )
 
     if _cls is None:
@@ -817,6 +822,7 @@ def mandatory(
             is_rigid=rigid,
             is_optional=False,
             is_mandatory=True,
+            extends=tuple(parent_models)
         )
 
     if _cls is None:
