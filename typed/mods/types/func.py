@@ -44,7 +44,6 @@ Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
 BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
 UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
 Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
-Lazy          = LAZY('Lazy', (Function,), {"__display__": "Lazy"})
 
 setattr(Function, 'args', property(_get_args))
 setattr(Function, 'kwargs', property(_get_kwargs))
@@ -193,4 +192,4 @@ Dependent = DEPENDENT("Dependent", (Factory,), {
     "__display__": "Dependent"
 })
 
-
+Lazy = LAZY('Lazy', (Hinted,), {"__display__": "Lazy"})

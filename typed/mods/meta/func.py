@@ -312,7 +312,7 @@ class DEPENDENT(FACTORY):
             return instance.is_dependent_type
         return False
 
-class LAZY(FUNCTION):
+class LAZY(HINTED):
     def __instancecheck__(cls, instance):
         if not getattr(instance, "is_lazy", False):
             return False
