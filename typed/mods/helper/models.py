@@ -79,11 +79,11 @@ def _attrs(kwargs):
     return tuple(processed_attributes_and_types), required_attribute_keys, optional_attributes_and_defaults
 
 def _optional(type_hint, default, is_nullable):
-    from typed.mods.factories.generics import Maybe
+    from typed.mods.models import Optional
+
     if isinstance(type_hint, _Optional):
         return type_hint
 
-    from typed.models import Optional
     if is_nullable:
         if default is not None:
             return Optional(type_hint, default)
@@ -96,7 +96,7 @@ def _optional(type_hint, default, is_nullable):
             except Exception:
                 return Optional(type_hint, None)
     else:
-        return Optional(Maybe(type_hint), default)
+        return Optional(type_hint, default)
 
 def _attach_model_attrs(child_model, parent_models):
     if not hasattr(child_model, 'extends'):
