@@ -407,7 +407,8 @@ def validate(entity: Dict, model: MODEL) -> Dict:
         if k not in entity:
             errors.append(f" ==> '{k}' missing.")
 
-    for attr_name, expected_type in required_attributes_and_types_raw.items():
+    for attr_name in required_attribute_keys:
+        expected_type = required_attributes_and_types_raw[attr_name]
         if attr_name in entity:
             v = entity[attr_name]
             if not (v in expected_type):
@@ -416,6 +417,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
                     f"     [received_type]: '{_name(TYPE(v))}'\n"
                     f"     [expected_type]: '{_name(expected_type)}'"
                 )
+
     for attr_name, wrapper in optional_attributes_and_defaults.items():
         if attr_name in entity:
             v = entity[attr_name]
