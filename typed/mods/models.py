@@ -407,6 +407,8 @@ def validate(entity: Dict, model: MODEL) -> Dict:
     for attr_name, wrapper in optional_attributes_and_defaults.items():
         if attr_name in entity:
             v = entity[attr_name]
+            if v is None:
+                continue
             if not (v in wrapper.type):
                 errors.append(
                     f" ==> '{attr_name}': wrong type.\n"
