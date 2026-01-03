@@ -298,6 +298,12 @@ def validate(entity: Dict, model: MODEL) -> Dict:
     ordered_keys = list(getattr(model, '_ordered_keys', []))
     all_model_keys = set(required_attributes_and_types_raw.keys()) | set(optional_attributes_and_defaults.keys())
 
+    def _is_missing_optional_value(attr_name, value):
+        wrapper = optional_attributes_and_defaults.get(attr_name)
+        if wrapper is None:
+            return False
+        return (value is None) or (value is wrapper.default_value)
+
     errors = []
 
     if model in RIGID:
@@ -310,6 +316,8 @@ def validate(entity: Dict, model: MODEL) -> Dict:
                 if k in required_attributes_and_types_raw:
                     typ = required_attributes_and_types_raw[k]
                 elif k in optional_attributes_and_defaults:
+                    if _is_missing_optional_value(k, v):
+                        continue
                     typ = optional_attributes_and_defaults[k].type
                 else:
                     errors.append(f" ==> Unexpected attribute '{k}'.")
@@ -340,6 +348,8 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if k in required_attributes_and_types_raw:
                 typ = required_attributes_and_types_raw[k]
             elif k in optional_attributes_and_defaults:
+                if _is_missing_optional_value(k, v):
+                    continue
                 typ = optional_attributes_and_defaults[k].type
             else:
                 errors.append(f" ==> Unexpected attribute '{k}'.")
@@ -373,6 +383,8 @@ def validate(entity: Dict, model: MODEL) -> Dict:
                 if k in required_attributes_and_types_raw:
                     typ = required_attributes_and_types_raw[k]
                 elif k in optional_attributes_and_defaults:
+                    if _is_missing_optional_value(k, v):
+                        continue
                     typ = optional_attributes_and_defaults[k].type
                 else:
                     errors.append(f" ==> Unexpected attribute '{k}'.")
@@ -407,7 +419,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
     for attr_name, wrapper in optional_attributes_and_defaults.items():
         if attr_name in entity:
             v = entity[attr_name]
-            if v is None:
+            if _is_missing_optional_value(attr_name, v):
                 continue
             if not (v in wrapper.type):
                 errors.append(
