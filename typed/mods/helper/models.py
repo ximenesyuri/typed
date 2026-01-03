@@ -191,19 +191,19 @@ def _to_json(obj):
     """
     Helper method to recursively convert an object to a JSON-serializable dictionary.
     """
-    from typed.mods.models import MODEL
+    from typed.mods.models import MODEL, LAZY_MODEL
     json_dict = {}
     for key, value in obj.__dict__.items():
         if key.startswith('_'):
             continue
-        if isinstance(value, MODEL):
+        if value in MODEL or value in LAZY_MODEL:
             json_dict[key] = _to_json(value)
-        elif isinstance(value, list) and all(isinstance(item, MODEL) for item in value):
+        elif isinstance(value, list) and all(item in MODEL or item in LAZY_MODEL for item in value):
             json_dict[key] = [_to_json(item) for item in value]
-        elif isinstance(value, dict) and any(isinstance(item, MODEL) for item in value.values()):
+        elif isinstance(value, dict) and any(item in MODEL or item in LAZY_MODEL for item in value.values()):
             processed_dict = {}
             for sub_key, sub_value in value.items():
-                if isinstance(sub_value, MODEL):
+                if sub_value in MODEL or sub_value in LAZY_MODEL:
                     processed_dict[sub_key] = _to_json(sub_value)
                 else:
                     processed_dict[sub_key] = sub_value
@@ -216,6 +216,26 @@ def _to_json(obj):
                 json_dict[key] = str(value)
 
     return json_dict
+
+def _model_to_json(model_cls):
+    """
+    Return a JSON-like description of a model, not a model instance.
+    """
+    model_cls = _materialize_if_lazy(model_cls)
+
+    data = {}
+    attrs = getattr(model_cls, 'attrs', None)
+    opt   = getattr(model_cls, 'optional_attrs', None)
+    mand  = getattr(model_cls, 'mandatory_attrs', None)
+
+    if attrs is not None:
+        data['attrs'] = attrs
+    if opt is not None:
+        data['optional_attrs'] = opt
+    if mand is not None:
+        data['mandatory_attrs'] = mand
+
+    return data
 
 def _canonical_model_key(kind, extends, conditions, attrs):
     extends_key = tuple(extends or ())

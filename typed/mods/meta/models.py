@@ -402,7 +402,6 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         ):
             return True
 
-        # Non-dict: handle degenerate "single-field" model case
         if not (instance in Dict):
             inner_type, key_name = _single_field_inner_type_and_key(cls)
             if inner_type is not None:
@@ -419,12 +418,10 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
                     return True
             return False
 
-        # Dict-like entity: check required + optional attributes and conditions
         req = getattr(cls, '_defined_required_attributes', {})
         opt = getattr(cls, '_defined_optional_attributes', {})
         optional_attributes_and_defaults = opt
 
-        # All required keys must be present and match types
         for req_key, expected_type in req.items():
             if req_key not in instance:
                 return False
@@ -438,7 +435,6 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
             if not ok:
                 return False
 
-        # Optional keys, when present, must match types
         for opt_name, wrapper in optional_attributes_and_defaults.items():
             if opt_name in instance:
                 v = instance[opt_name]
@@ -452,7 +448,6 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
                 if not ok:
                     return False
 
-        # Conditions
         for cond in getattr(cls, '__conditions_list', []):
             if not cond(instance):
                 return False
@@ -511,6 +506,11 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
             return False
 
         return True
+
+    @property
+    def __json__(cls):
+        from typed.mods.helper.models import _model_to_json
+        return _model_to_json(cls)
 
 class EXACT_INSTANCE(MODEL_INSTANCE): pass
 
