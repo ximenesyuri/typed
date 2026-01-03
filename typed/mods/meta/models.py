@@ -289,13 +289,10 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
 
     def __init__(self, **data):
         super().__init__()
-        # Initialize optional attributes with default values
         for key, wrapper in self.__class__._defined_optional_attributes.items():
             super().__setitem__(key, wrapper.default_value)
-        # Set provided values
         for key, value in data.items():
             self.__setattr__(key, value)
-        # Ensure all required attributes are present
         for req_key in self.__class__._defined_required_attributes.keys():
             if req_key not in self:
                 raise TypeError(
@@ -316,6 +313,17 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
     def __setattr__(self, name, value):
         if name in self._defined_required_attributes:
             expected_type = self._defined_required_attributes[name]
+
+            if value is None:
+                try:
+                    from typed.mods.models import OPTIONAL as OPTIONAL_META
+                except Exception:
+                    OPTIONAL_META = None
+
+                if (OPTIONAL_META and expected_type in OPTIONAL_META) or getattr(expected_type, "is_optional", False):
+                    self[name] = value
+                    return
+
             if not (isinstance(value, expected_type) or
                     (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                 raise TypeError(
@@ -323,8 +331,18 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                     f"but expected type '{_name(expected_type)}'."
                 )
             self[name] = value
+
         elif name in self._defined_optional_attributes:
-            expected_type = self._defined_optional_attributes[name].type
+            wrapper = self._defined_optional_attributes[name]
+            expected_type = wrapper.type
+
+            # Allow clearing / defaulting optional fields:
+            # - explicit None
+            # - the optional default sentinel (often the "Nill"/null value)
+            if value is None or value is wrapper.default_value:
+                self[name] = value
+                return
+
             if not (isinstance(value, expected_type) or
                     (hasattr(expected_type, '__instancecheck__') and expected_type.__instancecheck__(value))):
                 raise TypeError(
@@ -332,8 +350,9 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
                     f"but expected type '{_name(expected_type)}'."
                 )
             self[name] = value
+
         else:
-            object.__setattr__(self, name, value)
+            object.__setattr__(self, name, value) 
 
     def __delattr__(self, name):
         if name in self._defined_required_attributes:
@@ -367,7 +386,7 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         if req_keys:
             req_dict = {k: v for k, v in attrs_tuple if k in req_keys}
         else:
-            req_dict = dict(attrs_tuple)
+            req_dict = {}
 
         defined_keys = set(req_dict.keys()) | set(opt_dict.keys())
 
