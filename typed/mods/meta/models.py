@@ -438,6 +438,8 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         for opt_name, wrapper in optional_attributes_and_defaults.items():
             if opt_name in instance:
                 v = instance[opt_name]
+                if v is None:
+                    continue
                 expected_type = wrapper.type
                 ok = False
                 try:
