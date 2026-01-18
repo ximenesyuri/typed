@@ -51,6 +51,9 @@ __lazy__ = {
     "DEPENDENT":        ("typed.mods.meta.func", "DEPENDENT"),
     "CONDITION":        ("typed.mods.meta.func", "CONDITION"),
     "LAZY":             ("typed.mods.meta.func", "LAZY"),
+
+    "_MODEL_":          ("typed.mods.meta.models", "_MODEL_"),
+    "_LAZY_MODEL_":     ("typed.mods.meta.func", "_LAZY_MODEL_"),
 }
 
 
@@ -82,3 +85,4 @@ if __lsp__:
         FACTORY, OPERATION, DEPENDENT, CONDITION,
         LAZY
     )
+    from typed.mods.meta.models import _LAZY_MODEL_, _MODEL_
