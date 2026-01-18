@@ -43,3 +43,5 @@ py i ximenesyuri/typed
 # Documentation
 
 Please, see [ximenesyuri.com/libs/typed](https://ximenesyuri.com/libs/typed).
+
+
