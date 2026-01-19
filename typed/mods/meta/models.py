@@ -421,6 +421,9 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         ):
             return True
 
+        if getattr(getattr(instance, '__class__', None), 'is_model', False):
+            return False
+
         if not (instance in Dict):
             inner_type, key_name = _single_field_inner_type_and_key(cls)
             if inner_type is not None:
