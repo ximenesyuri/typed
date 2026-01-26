@@ -24,7 +24,19 @@ def hinted(func):
         f"     [received_type] '{_name(TYPE(func))}'"
     )
 
-def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, dependent=False, lazy=True):
+def typed(
+    arg=None,
+    *,
+    defaults=False,
+    cache=False,
+    locals=False,
+    rigid=False,
+    dependent=False,
+    lazy=True,
+    enclose=None,
+    message=None,
+):
+    from functools import lru_cache, update_wrapper
     from typed.mods.err import TypedErr
 
     def _build_typed(res_func):
@@ -66,6 +78,19 @@ def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, d
 
         if cache:
             res_func = lru_cache(maxsize=None)(res_func)
+
+        if enclose is not None:
+            orig = res_func
+
+            def _enclosed(*a, **kw):
+                try:
+                    return orig(*a, **kw)
+                except Exception as e:
+                    msg = message.format(e=e) if message is not None else str(e)
+                    raise enclose(msg) from e
+
+            update_wrapper(_enclosed, orig)
+            res_func = _enclosed
 
         return res_func
 
@@ -124,6 +149,8 @@ def typed(arg=None, *, defaults=False, cache=False, locals=False, rigid=False, d
             "     [expected_type] subtype of 'Function' or of 'TYPE'\n"
             f"     [received_type] '{_name(TYPE(arg))}'"
         )
+
+
 
 def condition(func):
     """Decorator that creates a 'condition', a.k.a 'predicate'"""
