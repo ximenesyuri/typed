@@ -113,14 +113,16 @@ class FUNCTION(CALLABLE):
         class_name = f'Function({args})'
         from typed.mods.types.func import Function
         return FUNCTION(class_name, (Function,), {'__display__': class_name})
-        from typed.mods.parametric.func  import _Function_
-        return _Function_(*args)
 
 class COMPOSABLE(FUNCTION):
     def __instancecheck__(cls, instance):
         super().__instancecheck__(instance)
 
-class HINTED_DOM(COMPOSABLE):
+class PARTIAL(FUNCTION):
+    def __instancecheck__(cls, instance):
+        return getattr(instance, 'is_partial', False)
+
+class HINTED_DOM(PARTIAL, COMPOSABLE):
     """
     Build the 'hinted-domain function type' of types:
         > the objects of 'HintedDom(X, Y, ...)'
@@ -153,7 +155,7 @@ class HINTED_DOM(COMPOSABLE):
             return _HintedDom_(*args, **kwargs)
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types")
 
-class HINTED_COD(COMPOSABLE):
+class HINTED_COD(PARTIAL, COMPOSABLE):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE
         if _issubtype(TYPE(instance), cls):

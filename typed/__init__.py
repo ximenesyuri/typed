@@ -2,7 +2,7 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "typed",
+    "typed", "_",
 
     "Union", "Prod", "Inter", "Filter", "Compl", "Regex", "Range", "Not", "Enum", "Single", "Null", "Len", "Maybe",
 
@@ -58,6 +58,7 @@ __lazy__ = {
     "Hinted":    ("typed.mods.types.func", "Hinted"),
     "Typed":     ("typed.mods.types.func", "Typed"),
     "Lazy":      ("typed.mods.types.func", "Lazy"),
+    "_":         ("typed.mods.types.func", "_"),
 
     "name":      ("typed.mods.general", "name"),
     "names":     ("typed.mods.general", "names"),
@@ -83,7 +84,7 @@ def __dir__():
     return sorted(set(globals().keys()) | set(__all__))
 
 if __lsp__:
-    from typed.mods.decorators import typed
+    from typed.mods.decorators import typed, _
 
     from typed.mods.factories.base import Union, Prod
     from typed.mods.factories.generics import (

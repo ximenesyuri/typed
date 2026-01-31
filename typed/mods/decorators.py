@@ -9,6 +9,28 @@ from typed.mods.helper.helper import (
     _instrument_locals_check,
 )
 
+def partial(func):
+    def wrapper(*args, **kwargs):
+        try:
+            from typed.mods.types.func import _
+            underscore_to_check = _
+        except ImportError:
+            from typed.mods.decorators import _
+            underscore_to_check = _
+        has_underscore = (
+            (underscore_to_check in args) or 
+            (any(v is underscore_to_check for v in kwargs.values()))
+        )
+        if has_underscore:
+            from typed.mods.types.func import Partial
+            partial_instance = object.__new__(Partial)
+            partial_instance.__init__(func, args, kwargs)
+            return partial_instance
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
 def hinted(func):
     if isinstance(func, Function):
         from typed.mods.types.func import Hinted
@@ -35,6 +57,7 @@ def typed(
     lazy=True,
     enclose=None,
     message=None,
+    partials=True,
 ):
     from functools import lru_cache, update_wrapper
     from typed.mods.err import TypedErr
@@ -75,6 +98,9 @@ def typed(
             res_func = typed_func
         except Exception as e:
             raise TypedErr(f"Error in the typed function '{_name(res_func)}':\n {e}")
+
+        if partials:
+            res_func = partial(res_func)
 
         if cache:
             res_func = lru_cache(maxsize=None)(res_func)
@@ -149,7 +175,6 @@ def typed(
             "     [expected_type] subtype of 'Function' or of 'TYPE'\n"
             f"     [received_type] '{_name(TYPE(arg))}'"
         )
-
 
 
 def condition(func):
@@ -245,3 +270,4 @@ def dependent(func):
          "     [expected_type] subtype of 'Function'\n"
         f"     [received_type] '{_name(TYPE(func))}'"
     )
+

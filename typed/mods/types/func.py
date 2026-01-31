@@ -21,6 +21,7 @@ from typed.mods.meta.func import (
     UNBOUND_METHOD,
     METHOD,
     FUNCTION,
+    PARTIAL,
     COMPOSABLE,
     HINTED_DOM,
     HINTED_COD,
@@ -39,15 +40,141 @@ Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
 Generator     = GENERATOR('Generator', (), {"__display__": "Generator"})
 Builtin       = BUILTIN('Builtin', (Callable,), {"__display__": "Builtin"})
 Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
-Function      = FUNCTION('Function', (Callable,), {"__display__": "Function"})
 Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
 BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
 UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
 Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
 
-setattr(Function, 'args', property(_get_args))
-setattr(Function, 'kwargs', property(_get_kwargs))
-setattr(Function, 'posargs', property(_get_pos_args))
+class Function(Callable, metaclass=FUNCTION):
+    @property
+    def args(self):
+        return _get_args(self)
+
+    @property
+    def kwargs(self):
+        return _get_kwargs(self)
+
+    @property
+    def posargs(self):
+        return _get_pos_args(self)
+
+class Underscore:
+    def __repr__(self):
+        return "_"
+
+    def __str__(self):
+        return "_"
+
+_ = Underscore()
+
+class Partial(Function, metaclass=PARTIAL):
+    def __init__(self, original_func, bound_args, bound_kwargs):
+        self.original_func = original_func
+        self.bound_args = list(bound_args)
+        self.bound_kwargs = dict(bound_kwargs)
+        self.is_partial = True
+        if hasattr(original_func, '__name__'):
+            self.__name__ = f"{original_func.__name__}_partial"
+        else:
+            self.__name__ = "partial"
+        if hasattr(original_func, 'domain'):
+            self._original_domain = original_func.domain
+        if hasattr(original_func, 'codomain'):
+            self._original_codomain = original_func.codomain
+
+    def __call__(self, *new_args, **new_kwargs):
+        arg_list = list(self.bound_args)
+        kwarg_dict = dict(self.bound_kwargs)
+
+        new_args_iter = iter(new_args)
+        for i, arg in enumerate(arg_list):
+            if arg is _:
+                try:
+                    arg_list[i] = next(new_args_iter)
+                except StopIteration:
+                    break
+
+        import inspect
+        target = getattr(self.original_func, "func", self.original_func)
+        try:
+            sig = inspect.signature(target)
+            param_names = list(sig.parameters.keys())
+
+            for kwarg_name, kwarg_value in new_kwargs.items():
+                if kwarg_name in param_names:
+                    param_index = param_names.index(kwarg_name)
+                    if param_index < len(arg_list) and arg_list[param_index] is _:
+                        arg_list[param_index] = kwarg_value
+        except Exception:
+            pass
+
+        if _ in arg_list:
+            new_partial = object.__new__(self.__class__)
+            new_partial.__init__(self.original_func, arg_list, kwarg_dict)
+            return new_partial
+
+        cleaned_args = [arg for arg in arg_list if arg is not _]
+
+        final_kwargs = kwarg_dict.copy()
+        final_kwargs.update(new_kwargs)
+
+        try:
+            sig = inspect.signature(target)
+            param_names = list(sig.parameters.keys())
+            for i in range(min(len(cleaned_args), len(param_names))):
+                param_name = param_names[i]
+                if param_name in final_kwargs:
+                    del final_kwargs[param_name]
+        except Exception:
+            pass
+
+        return self.original_func(*cleaned_args, **final_kwargs)
+
+    def __repr__(self):
+        return f"<Partial: {getattr(self.original_func, '__name__', 'func')} with bound args {self.bound_args} and kwargs {self.bound_kwargs}>"
+
+    @property
+    def domain(self):
+        if not hasattr(self, '_original_domain'):
+            return ()
+
+        import inspect
+        target = getattr(self.original_func, "func", self.original_func)
+
+        try:
+            sig = inspect.signature(target)
+            param_names = list(sig.parameters.keys())
+        except Exception:
+            remaining = [
+                t for arg, t in zip(self.bound_args, self._original_domain)
+                if arg is _
+            ]
+            return tuple(remaining)
+
+        remaining_types = []
+
+        for idx, (name, typ) in enumerate(zip(param_names, self._original_domain)):
+            pos_bound = idx < len(self.bound_args) and self.bound_args[idx] is not _
+            kw_bound = name in self.bound_kwargs
+
+            if not pos_bound and not kw_bound:
+                remaining_types.append(typ)
+
+        return tuple(remaining_types)
+
+    @property
+    def codomain(self):
+        if hasattr(self, '_original_codomain'):
+            return self._original_codomain
+        return None
+
+    @property
+    def dom(self):
+        return self.domain
+
+    @property
+    def cod(self):
+        return self.codomain
 
 class Composable(Function, metaclass=COMPOSABLE):
     def __init__(self, func):
@@ -74,7 +201,7 @@ class Composable(Function, metaclass=COMPOSABLE):
     def __str__(self):
         return self.__name__
 
-class HintedDom(Composable, metaclass=HINTED_DOM):
+class HintedDom(Composable, Partial, metaclass=HINTED_DOM):
     def __init__(self, func):
         _is_domain_hinted(func)
         super().__init__(func)
@@ -92,7 +219,7 @@ class HintedDom(Composable, metaclass=HINTED_DOM):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})"
 
-class HintedCod(Composable, metaclass=HINTED_COD):
+class HintedCod(Composable, Partial, metaclass=HINTED_COD):
     def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
