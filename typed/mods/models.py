@@ -490,10 +490,23 @@ def model(
         annotations = getattr(cls, '__annotations__', {})
         is_nullable = getattr(cls, '__nullable__', nullable)
         kwargs = {}
+
+        for base in all_extends:
+            parent_required = dict(getattr(base, '_required_attributes_and_types', ()))
+            parent_optional = getattr(base, '_optional_attributes_and_defaults', {})
+
+            for k, typ in parent_required.items():
+                if k not in annotations:
+                    kwargs[k] = typ
+
+            for k, wrapper in parent_optional.items():
+                if k not in annotations:
+                    kwargs[k] = wrapper
+
         for name, type_hint in annotations.items():
             if isinstance(type_hint, _Optional):
                 kwargs[name] = type_hint
-            elif hasattr(cls, name):
+            elif hasattr(cls, name) and name in cls.__dict__:
                 default = getattr(cls, name)
                 kwargs[name] = Optional(type_hint, default)
             else:
