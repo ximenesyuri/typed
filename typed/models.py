@@ -2,18 +2,16 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "LAZY_MODEL", "LAZY_EXACT", "LAZY_ORDERED", "LAZY_RIGID",
+    "LAZY_MODEL", "EAGER_MODEL",
     "MODEL", "EXACT", "ORDERED", "RIGID",
     "Model", "Optional", "Exact", "Ordered", "Rigid",
     "model", "optional", "mandatory", "exact", "ordered", "rigid",
-    "drop", "validate", "eval", "value"
+    "drop", "validate", "eval", "value", "hasvalue", "Default", "expression"
 ]
 
 __lazy__ = {
     "LAZY_MODEL":   ("typed.mods.models", "LAZY_MODEL"),
-    "LAZY_EXACT":   ("typed.mods.models", "LAZY_EXACT"),
-    "LAZY_ORDERED": ("typed.mods.models", "LAZY_ORDERED"),
-    "LAZY_RIGID":   ("typed.mods.models", "LAZY_RIGID"),
+    "EAGER_MODEL":  ("typed.mods.models", "EAGER_MODEL"),
     "MODEL":        ("typed.mods.models", "MODEL"),
     "EXACT":        ("typed.mods.models", "EXACT"),
     "ORDERED":      ("typed.mods.models", "ORDERED"),
@@ -33,6 +31,9 @@ __lazy__ = {
     "validate":     ("typed.mods.models", "validate"),
     "eval":         ("typed.mods.models", "eval"),
     "value":        ("typed.mods.models", "value"),
+    "hasvalue":     ("typed.mods.models", "hasvalue"),
+    "Default":      ("typed.mods.models", "Default"),
+    "expression":   ("typed.mods.models", "expression")
 }
 
 
@@ -53,10 +54,10 @@ def __dir__():
 
 if __lsp__:
     from typed.mods.models import (
-        LAZY_MODEL, LAZY_EXACT, LAZY_ORDERED, LAZY_RIGID,
+        LAZY_MODEL, EAGER_MODEL,
         MODEL, EXACT, ORDERED, RIGID,
         Model, Optional, Exact, Ordered, Rigid,
         model, optional, mandatory, exact, ordered, rigid,
-        drop, validate, eval, value
+        drop, validate, eval, value, hasvalue, Default, expression
     )
 

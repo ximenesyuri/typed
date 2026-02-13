@@ -1,6 +1,6 @@
 [project]
-name = "typed"
-version = "0.8.1"
+name = "typedsystem"
+version = "0.9.0"
 description = "A typed approach to Python"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -16,4 +16,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["typed*"]
-

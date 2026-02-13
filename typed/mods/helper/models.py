@@ -1,7 +1,586 @@
 import json
+from threading import local
+from contextlib import contextmanager
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
 from typed.mods.helper.helper import _name
+
+_dynamic_default_state = local()
+
+def _get_dynamic_default_env():
+    env = getattr(_dynamic_default_state, "env", None)
+    if env is None:
+        env = {}
+        _dynamic_default_state.env = env
+    return env
+
+def _get_dynamic_default_stack():
+    stack = getattr(_dynamic_default_state, "stack", None)
+    if stack is None:
+        stack = []
+        _dynamic_default_state.stack = stack
+    return stack
+
+def _get_current_model_and_entity():
+    stack = getattr(_dynamic_default_state, "stack", None)
+    if not stack:
+        return None, None
+    model_cls = stack[-1]
+    env = _get_dynamic_default_env()
+    return model_cls, env.get(model_cls)
+
+@contextmanager
+def _dynamic_default_context(model_cls, entity_dict):
+    env = _get_dynamic_default_env()
+    stack = _get_dynamic_default_stack()
+    prev = env.get(model_cls, None)
+    stack.append(model_cls)
+    env[model_cls] = entity_dict
+    try:
+        yield
+    finally:
+        stack.pop()
+        if prev is None:
+            env.pop(model_cls, None)
+        else:
+            env[model_cls] = prev
+
+def _resolve_operand(obj):
+    if isinstance(obj, FieldRef):
+        return obj.resolve()
+    if isinstance(obj, Expr):
+        return obj()
+    if callable(obj):
+        return obj()
+    return obj
+
+class Expr:
+    def __init__(self, func): self._func = func
+    def __call__(self): return self._func()
+    def __getattr__(self, name):
+        def fn():
+            resolved = self()
+            if hasattr(resolved, name):
+                attr = getattr(resolved, name)
+                if callable(attr):
+                    def method_wrapper(*args, **kwargs):
+                        current_resolved = self()
+                        method = getattr(current_resolved, name)
+                        return method(*args, **kwargs)
+                    return method_wrapper
+                return attr
+            else:
+                raise AttributeError(f"'{type(resolved).__name__}' object has no attribute '{name}'")
+        return fn
+
+    def __str__(self): return str(self())
+    def __int__(self): return int(self())
+    def __float__(self): return float(self())
+    def __bool__(self): return bool(self())
+    def __len__(self):  return len(self())
+    def __iter__(self): return iter(self())
+    def __getitem__(self, key): return self()[key]
+    def __contains__(self, item): return item in self()
+    def __eq__(self, other): return self() == other
+    def __ne__(self, other): return self() != other
+    def __hash__(self): return hash(self())
+    def __repr__(self): return repr(self())
+
+    def __add__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left + right
+        return Expr(fn)
+
+    def __radd__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left + right
+        return Expr(fn)
+
+    def __sub__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left - right
+        return Expr(fn)
+
+    def __rsub__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left - right
+        return Expr(fn)
+
+    def __mul__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left * right
+        return Expr(fn)
+
+    def __rmul__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left * right
+        return Expr(fn)
+
+    def __truediv__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left / right
+        return Expr(fn)
+
+    def __rtruediv__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left / right
+        return Expr(fn)
+
+    def __floordiv__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left // right
+        return Expr(fn)
+
+    def __rfloordiv__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left // right
+        return Expr(fn)
+
+    def __mod__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left % right
+        return Expr(fn)
+
+    def __rmod__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left % right
+        return Expr(fn)
+
+    def __pow__(self, other):
+        def fn():
+            left = self()
+            right = _resolve_operand(other)
+            return left ** right
+        return Expr(fn)
+
+    def __rpow__(self, other):
+        def fn():
+            left = _resolve_operand(other)
+            right = self()
+            return left ** right
+        return Expr(fn)
+
+class _FieldProxy:
+    def __init__(self, value, field_type):
+        self._value = value
+        self._field_type = field_type
+
+    def __getattr__(self, name):
+        if hasattr(self._value, name):
+            return getattr(self._value, name)
+        elif hasattr(self._field_type, name):
+            attr = getattr(self._field_type, name)
+            if callable(attr):
+                return attr
+            return attr
+        elif hasattr(self._field_type, '__builtin__'):
+            builtin_type = getattr(self._field_type, '__builtin__')
+            if hasattr(builtin_type, name):
+                attr = getattr(builtin_type, name)
+                if callable(attr):
+                    return attr
+                return attr
+        else:
+            raise AttributeError(f"'{name}' not found in value, field type, or its __builtin__")
+
+    def __repr__(self):
+        return f"_FieldProxy({repr(self._value)}, {repr(self._field_type)})"
+
+    def __str__(self): return str(self._value)
+    def __int__(self): return int(self._value)
+    def __float__(self): return float(self._value)
+    def __bool__(self): return bool(self._value)
+    def __len__(self): return len(self._value)
+    def __iter__(self): return iter(self._value)
+    def __getitem__(self, key): return self._value[key]
+    def __ne__(self, other): return not self.__eq__(other)
+    def __hash__(self): return hash(self._value)
+    def __contains__(self, item): return item in self._value
+
+    def __eq__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value == other._value
+        return self._value == other
+    def __add__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value + other._value
+        return self._value + other
+
+    def __radd__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value + self._value
+        return other + self._value
+
+    def __sub__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value - other._value
+        return self._value - other
+
+    def __rsub__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value - self._value
+        return other - self._value
+
+    def __mul__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value * other._value
+        return self._value * other
+
+    def __rmul__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value * self._value
+        return other * self._value
+
+    def __truediv__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value / other._value
+        return self._value / other
+
+    def __rtruediv__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value / self._value
+        return other / self._value
+
+    def __floordiv__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value // other._value
+        return self._value // other
+
+    def __rfloordiv__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value // self._value
+        return other // self._value
+
+    def __mod__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value % other._value
+        return self._value % other
+
+    def __rmod__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value % self._value
+        return other % self._value
+
+    def __pow__(self, other):
+        if isinstance(other, _FieldProxy):
+            return self._value ** other._value
+        return self._value ** other
+
+    def __rpow__(self, other):
+        if isinstance(other, _FieldProxy):
+            return other._value ** self._value
+        return other ** self._value
+
+
+class FieldRef:
+    def __init__(self, attr_path):
+        if isinstance(attr_path, str):
+            attr_path = attr_path.lstrip(".")
+            self.attr_path = attr_path.split(".") if attr_path else []
+        else:
+            self.attr_path = list(attr_path)
+
+    def _resolve_instance_dict(self):
+        model_cls, entity = _get_current_model_and_entity()
+        if entity is None:
+            raise RuntimeError(
+                f"No dynamic default context active while resolving FieldRef "
+                f"{self.attr_path} (no current model)."
+            )
+        return entity
+
+    def _get_field_type(self):
+        model_cls, _ = _get_current_model_and_entity()
+        if model_cls is None:
+            return None
+
+        attrs_meta = getattr(model_cls, 'attrs', None)
+        if attrs_meta is None:
+            return None
+
+        top = self.attr_path[0] if self.attr_path else None
+        if top is None or top not in attrs_meta:
+            return None
+
+        return attrs_meta[top]['type']
+
+    def resolve(self):
+        current = self._resolve_instance_dict()
+        model_cls, _ = _get_current_model_and_entity()
+        attrs_meta = getattr(model_cls, 'attrs', None)
+        if attrs_meta is not None:
+            top = self.attr_path[0] if self.attr_path else None
+            if top not in attrs_meta:
+                raise AttributeError(
+                    f"Dynamic default refers to unknown field '{top}' in model "
+                    f"{getattr(model_cls, '__name__', model_cls)}"
+                )
+
+        for part in self.attr_path:
+            if isinstance(current, dict):
+                current = current.get(part)
+            else:
+                current = getattr(current, part)
+
+        if len(self.attr_path) == 1 and attrs_meta is not None and current is not None:
+            top = self.attr_path[0]
+            if top in attrs_meta:
+                field_type = attrs_meta[top]['type']
+                if field_type is not None:
+                    return _FieldProxy(current, field_type)
+        return current
+
+    def __getattr__(self, name):
+        def expr_func(*args, **kwargs):
+            try:
+                resolved = self.resolve()
+                if hasattr(resolved, name):
+                    attr = getattr(resolved, name)
+                    if callable(attr):
+                        return attr(*args, **kwargs)
+                    return attr
+                raise AttributeError(f"'{type(resolved).__name__}' object has no attribute '{name}'")
+            except RuntimeError:
+                    if not args and not kwargs:
+                        def deferred_call(*call_args, **call_kwargs):
+                            final_resolved = self.resolve()
+                            if hasattr(final_resolved, name):
+                                final_attr = getattr(final_resolved, name)
+                                if callable(final_attr):
+                                    return final_attr(*call_args, **call_kwargs)
+                                return final_attr
+                            raise AttributeError(f"'{type(final_resolved).__name__}' object has no attribute '{name}'")
+                        return deferred_call
+                    else:
+                        raise
+        return Expr(expr_func)
+
+    def __str__(self):
+        try:
+            resolved = self.resolve()
+            return str(resolved)
+        except RuntimeError:
+            return f"<FieldRef {self.attr_path}>"
+
+    def __int__(self):
+        try:
+            resolved = self.resolve()
+            return int(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot convert FieldRef {self.attr_path} to int without context")
+
+    def __float__(self):
+        try:
+            resolved = self.resolve()
+            return float(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot convert FieldRef {self.attr_path} to float without context")
+
+    def __bool__(self):
+        try:
+            resolved = self.resolve()
+            return bool(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot convert FieldRef {self.attr_path} to bool without context")
+
+    def __len__(self):
+        try:
+            resolved = self.resolve()
+            return len(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot get length of FieldRef {self.attr_path} without context")
+
+    def __iter__(self):
+        try:
+            resolved = self.resolve()
+            return iter(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot iterate over FieldRef {self.attr_path} without context")
+
+    def __getitem__(self, key):
+        try:
+            resolved = self.resolve()
+            return resolved[key]
+        except RuntimeError:
+            raise TypeError(f"Cannot index FieldRef {self.attr_path} without context")
+
+    def __contains__(self, item):
+        try:
+            resolved = self.resolve()
+            return item in resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot check membership in FieldRef {self.attr_path} without context")
+
+    def __eq__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved == other
+        except RuntimeError:
+            return False
+
+    def __ne__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved != other
+        except RuntimeError:
+            return True
+
+    def __hash__(self):
+        try:
+            resolved = self.resolve()
+            return hash(resolved)
+        except RuntimeError:
+            raise TypeError(f"Cannot hash FieldRef {self.attr_path} without context")
+
+    def __repr__(self):
+        try:
+            resolved = self.resolve()
+            return repr(resolved)
+        except RuntimeError:
+            return f"<FieldRef {self.attr_path}>"
+
+    def __add__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved + other
+        except RuntimeError:
+            raise TypeError(f"Cannot add FieldRef {self.attr_path} without context")
+
+    def __radd__(self, other):
+        try:
+            resolved = self.resolve()
+            return other + resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot add to FieldRef {self.attr_path} without context")
+
+    def __sub__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved - other
+        except RuntimeError:
+            raise TypeError(f"Cannot subtract FieldRef {self.attr_path} without context")
+
+    def __rsub__(self, other):
+        try:
+            resolved = self.resolve()
+            return other - resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot subtract from FieldRef {self.attr_path} without context")
+
+    def __mul__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved * other
+        except RuntimeError:
+            raise TypeError(f"Cannot multiply FieldRef {self.attr_path} without context")
+
+    def __rmul__(self, other):
+        try:
+            resolved = self.resolve()
+            return other * resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot multiply with FieldRef {self.attr_path} without context")
+
+    def __truediv__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved / other
+        except RuntimeError:
+            raise TypeError(f"Cannot divide FieldRef {self.attr_path} without context")
+
+    def __rtruediv__(self, other):
+        try:
+            resolved = self.resolve()
+            return other / resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot divide by FieldRef {self.attr_path} without context")
+
+    def __floordiv__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved // other
+        except RuntimeError:
+            raise TypeError(f"Cannot floor divide FieldRef {self.attr_path} without context")
+
+    def __rfloordiv__(self, other):
+        try:
+            resolved = self.resolve()
+            return other // resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot floor divide by FieldRef {self.attr_path} without context")
+
+    def __mod__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved % other
+        except RuntimeError:
+            raise TypeError(f"Cannot modulo FieldRef {self.attr_path} without context")
+
+    def __rmod__(self, other):
+        try:
+            resolved = self.resolve()
+            return other % resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot modulo by FieldRef {self.attr_path} without context")
+
+    def __pow__(self, other):
+        try:
+            resolved = self.resolve()
+            return resolved ** other
+        except RuntimeError:
+            raise TypeError(f"Cannot power FieldRef {self.attr_path} without context")
+
+    def __rpow__(self, other):
+        try:
+            resolved = self.resolve()
+            return other ** resolved
+        except RuntimeError:
+            raise TypeError(f"Cannot power by FieldRef {self.attr_path} without context")
+
+def _expr_function(fn):
+    def wrapper(*args, **kwargs):
+        for a in args:
+            if not isinstance(a, (Expr, FieldRef)):
+                raise TypeError(
+                    f"{fn.__name__} expects Expr/FieldRef arguments inside Default; "
+                    f"got {type(a)}"
+                )
+        for k, v in kwargs.items():
+            if not isinstance(v, (Expr, FieldRef)):
+                raise TypeError(
+                    f"{fn.__name__} expects Expr/FieldRef kwargs inside Default; "
+                    f"'{k}' has type {type(v)}"
+                )
+        def eval_():
+            resolved_args = [_resolve_operand(a) for a in args]
+            resolved_kwargs = {k: _resolve_operand(v) for k, v in kwargs.items()}
+            return fn(*resolved_args, **resolved_kwargs)
+        return Expr(eval_)
+    return wrapper
 
 class _Optional:
     def __init__(self, typ, default_value):

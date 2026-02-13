@@ -1,13 +1,11 @@
 from typing import dataclass_transform
 from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Str, Dict, List, Bool, Any
-from typed.mods.factories.base import Union
 from typed.mods.factories.generics import Maybe
 from typed.mods.helper.helper import _name
 from typed.mods.meta.models import (
-    _MODEL_FACTORY_,
     _MODEL_, _EXACT_, _ORDERED_, _RIGID_,
-    _LAZY_MODEL_, _LAZY_EXACT_, _LAZY_ORDERED_, _LAZY_RIGID_,
+    _LAZY_MODEL_, _EAGER_MODEL_,
     _OPTIONAL_, _MANDATORY_,
     MODEL_INSTANCE, MODEL_META,
     EXACT_INSTANCE, EXACT_META,
@@ -23,10 +21,12 @@ from typed.mods.helper.models import (
     _merge_attrs,
     _attrs,
     _canonical_model_key,
-    _lazy_model
+    _lazy_model,
+    FieldRef,
+    _expr_function,
+    Expr
 )
 
-MODEL_METATYPES = Union(_MODEL_, _EXACT_, _ORDERED_, _RIGID_, _MODEL_FACTORY_)
 MODEL     = _MODEL_('MODEL', (TYPE,), {'__display__': 'MODEL'})
 EXACT     = _EXACT_('EXACT', (MODEL,), {'__display__': 'EXACT'})
 ORDERED   = _ORDERED_('ORDERED', (MODEL, ), {'__display__': 'ORDERED'})
@@ -34,16 +34,100 @@ RIGID     = _RIGID_('RIGID', (EXACT, ORDERED, ), {'__display__': 'RIGID'})
 OPTIONAL  = _OPTIONAL_('OPTIONAL', (MODEL,), {'__display__': 'OPTIONAL'})
 MANDATORY = _MANDATORY_('MANDATORY', (MODEL,), {'__display__': 'MANDATORY'})
 
-LAZY_MODEL = _LAZY_MODEL_("LAZY_MODEL", (TYPE,), {"__display__": "LAZY_MODEL"})
-LAZY_EXACT = _LAZY_EXACT_("LAZY_EXACT", (LAZY_MODEL,), {"__display__": "LAZY_EXACT"})
-LAZY_ORDERED = _LAZY_ORDERED_("LAZY_ORDERED", (LAZY_MODEL,), {"__display__": "LAZY_ORDERED"})
-LAZY_RIGID = _LAZY_RIGID_("LAZY_RIGID", (LAZY_EXACT, LAZY_ORDERED,), {"__display__": "LAZY_RIGID"})
+LAZY_MODEL = _LAZY_MODEL_("LAZY_MODEL", (MODEL,), {"__display__": "LAZY_MODEL"})
+EAGER_MODEL = _EAGER_MODEL_("EAGER_MODEL", (MODEL,), {"__display__": "EAGER_MODEL"})
+
+class Default:
+    def __init__(self, *, value, when=None, otherwise=None):
+        self.value = value
+        self.otherwise = otherwise
+
+        if when is None:
+            self.conditions = []
+        elif callable(when) and not isinstance(when, (list, tuple)):
+            self.conditions = [when]
+        elif isinstance(when, (list, tuple)):
+            conds = []
+            for c in when:
+                if not callable(c):
+                    raise TypeError(
+                        "Each element in 'when' must be callable; "
+                        f"got {type(c)}"
+                    )
+                conds.append(c)
+            self.conditions = conds
+        else:
+            raise TypeError(
+                "'when' must be None, a callable, or a list/tuple of callables."
+            )
+
+    def evaluate(self):
+        if not self.conditions:
+            if callable(self.value):
+                return self.value()
+            return self.value
+        if all(bool(cond()) for cond in self.conditions):
+            if callable(self.value):
+                return self.value()
+            return self.value
+        return self.otherwise
+
+    def check_type(self, typ):
+        from typed.mods.types.base import TYPE as _TYPE
+
+        if not isinstance(typ, _TYPE):
+            return False
+
+        if self.value is not None:
+            ok = False
+            try:
+                if isinstance(self.value, FieldRef):
+                    ok = True
+                elif callable(self.value):
+                    ok = True
+                else:
+                    ok = self.value in typ
+            except Exception:
+                ok = True
+            if not ok:
+                return False
+
+        if self.otherwise is not None:
+            ok = False
+            try:
+                ok = self.otherwise in typ
+            except Exception:
+                pass
+            if not ok:
+                return False
+
+        return True
+
 
 def Optional(typ, default_value=None):
     if not isinstance(typ, TYPE):
         raise TypeError(f"'{_name(typ)}' is not a type.")
+
     if default_value is None:
         return _Optional(typ, None)
+
+    if isinstance(default_value, Default):
+        if not default_value.check_type(typ):
+            raise TypeError(
+                "Error while defining optional type with Default():\n"
+                f" ==> default values are not compatible with '{_name(typ)}'"
+            )
+        return _Optional(typ, default_value)
+
+    if isinstance(default_value, FieldRef):
+        return _Optional(typ, default_value)
+
+    if isinstance(default_value, Expr):
+        return _Optional(typ, default_value)
+
+    if callable(default_value):
+        return _Optional(typ, default_value)
+
     if not isinstance(default_value, typ):
         raise TypeError(
             f"Error while defining optional type:\n"
@@ -52,6 +136,7 @@ def Optional(typ, default_value=None):
             f"     [received_type]: '{_name(TYPE(default_value))}'"
         )
     return _Optional(typ, default_value)
+
 
 @cache(maxsize=None)
 def _cached_model(kind, extends_key, conditions_key, attrs_key):
@@ -199,15 +284,16 @@ def Model(
     __exact__:      Bool=False,
     __ordered__:    Bool=False,
     __rigid__:      Bool=False,
+    __lazy__:       Bool=False,
     **kwargs:       Dict
 ) -> MODEL:
 
     if __rigid__:
-        return Rigid(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
+        return Rigid(__extends__=__extends__, __conditions__=__conditions__, __lazy__=__lazy__, **kwargs)
     if __exact__:
-        return Exact(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
+        return Exact(__extends__=__extends__, __conditions__=__conditions__, __lazy__=__lazy__, **kwargs)
     if __ordered__:
-        return Ordered(__extends__=__extends__, __conditions__=__conditions__, **kwargs)
+        return Ordered(__extends__=__extends__, __conditions__=__conditions__, __lazy__=__lazy__, **kwargs)
 
     extended_models = _process_extends(__extends__)
     if extended_models:
@@ -221,14 +307,31 @@ def Model(
         conditions=conditions,
         attrs=kwargs,
     )
-    return _cached_model(*key)
+    eager_model = _cached_model(*key)
 
+    if not __lazy__:
+        return eager_model
+
+    def builder():
+        return eager_model
+
+    return _lazy_model(
+        original_cls=eager_model,
+        builder=builder,
+        is_exact=False,
+        is_ordered=False,
+        is_rigid=False,
+        is_optional=False,
+        is_mandatory=False,
+        extends=tuple(extended_models),
+    )
 
 def Exact(
     __extends__   : Maybe(List)=None,
     __conditions__: Maybe(List)=None,
+    __lazy__      : Bool=False,
     **kwargs      : Dict
-    ) -> EXACT:
+) -> EXACT:
 
     extended_models = _process_extends(__extends__)
     if extended_models:
@@ -242,14 +345,31 @@ def Exact(
         conditions=conditions,
         attrs=kwargs,
     )
-    return _cached_model(*key)
+    eager_model = _cached_model(*key)
 
+    if not __lazy__:
+        return eager_model
+
+    def builder():
+        return eager_model
+
+    return _lazy_model(
+        original_cls=eager_model,
+        builder=builder,
+        is_exact=True,
+        is_ordered=False,
+        is_rigid=False,
+        is_optional=False,
+        is_mandatory=False,
+        extends=tuple(extended_models),
+    )
 
 def Ordered(
     __extends__:    Maybe(List)=None,
     __conditions__: Maybe(List)=None,
+    __lazy__      : Bool=False,
     **kwargs:       Dict
-    ) -> ORDERED:
+) -> ORDERED:
 
     extended_models = _process_extends(__extends__)
     if extended_models:
@@ -263,14 +383,31 @@ def Ordered(
         conditions=conditions,
         attrs=kwargs,
     )
-    return _cached_model(*key)
+    eager_model = _cached_model(*key)
 
+    if not __lazy__:
+        return eager_model
+
+    def builder():
+        return eager_model
+
+    return _lazy_model(
+        original_cls=eager_model,
+        builder=builder,
+        is_exact=False,
+        is_ordered=True,
+        is_rigid=False,
+        is_optional=False,
+        is_mandatory=False,
+        extends=tuple(extended_models),
+    )
 
 def Rigid(
     __extends__:    Maybe(List)=None,
     __conditions__: Maybe(List)=None,
+    __lazy__      : Bool=False,
     **kwargs:       Dict
-    ) -> RIGID:
+) -> RIGID:
 
     extended_models = _process_extends(__extends__)
     if extended_models:
@@ -284,13 +421,33 @@ def Rigid(
         conditions=conditions,
         attrs=kwargs,
     )
-    return _cached_model(*key)
+    eager_model = _cached_model(*key)
+
+    if not __lazy__:
+        return eager_model
+
+    def builder():
+        return eager_model
+
+    return _lazy_model(
+        original_cls=eager_model,
+        builder=builder,
+        is_exact=True,
+        is_ordered=True,
+        is_rigid=True,
+        is_optional=False,
+        is_mandatory=False,
+        extends=tuple(extended_models),
+    )
 
 def validate(entity: Dict, model: MODEL) -> Dict:
     model_name = getattr(model, '__name__', str(model))
 
-    if entity in model:
-        return entity
+    try:
+        if entity in model:
+            return entity
+    except TypeError:
+        pass
 
     required_attributes_and_types_raw = dict(getattr(model, '_required_attributes_and_types', ()))
     required_attribute_keys = list(getattr(model, '_required_attribute_keys', []))
@@ -436,32 +593,6 @@ def validate(entity: Dict, model: MODEL) -> Dict:
     if errors:
         raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
     return entity
-
-def drop(model, entries):
-    if not isinstance(model, MODEL):
-        raise TypeError(f"forget expects a Model-type. Got: {model}")
-
-    required_keys = set(getattr(model, '_required_attribute_keys', set()))
-    optional_keys = set(getattr(model, '_optional_attributes_and_defaults', {}).keys())
-    all_keys = required_keys | optional_keys
-
-    missing = [e for e in entries if e not in all_keys]
-    if missing:
-        raise ValueError(f"Entries not in model: {missing}")
-
-    required_types = dict(getattr(model, '_required_attributes_and_types', ()))
-    optional_types = getattr(model, '_optional_attributes_and_defaults', {})
-
-    new_kwargs = {}
-
-    for k in required_keys:
-        if k not in entries:
-            new_kwargs[k] = required_types[k]
-
-    for k in optional_keys:
-        if k not in entries:
-            new_kwargs[k] = optional_types[k]
-    return Model(**new_kwargs)
 
 @dataclass_transform()
 def model(
@@ -860,6 +991,25 @@ def mandatory(
         return wrap(_cls)
 
 def eval(model: MODEL, **attrs: Dict) -> MODEL:
+    from typed.mods.helper.models import _materialize_if_lazy
+
+    if getattr(model, 'is_lazy', False):
+        def builder():
+            real = _materialize_if_lazy(model)
+            from typed.mods.models import eval as _eval
+            return _eval(real, **attrs)
+
+        return _lazy_model(
+            original_cls=model,
+            builder=builder,
+            is_exact=getattr(model, 'is_exact', False),
+            is_ordered=getattr(model, 'is_ordered', False),
+            is_rigid=getattr(model, 'is_rigid', False),
+            is_optional=getattr(model, 'is_optional', False),
+            is_mandatory=getattr(model, 'is_mandatory', False),
+            extends=tuple(getattr(model, '__lazy_extends__', ())),
+        )
+
     if not getattr(model, 'is_model', False):
         raise TypeError(f"eval expects a Model-type. Got: {model}")
 
@@ -868,7 +1018,10 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
 
     for name, val in attrs.items():
         if name not in (k for k, _ in attrs_tuple):
-            raise ValueError(f"Attribute '{name}' not present in model '{getattr(model, '__name__', str(model))}'")
+            raise ValueError(
+                f"Attribute '{name}' not present in model "
+                f"'{getattr(model, '__name__', str(model))}'"
+            )
         expected_type = next((t for k, t in attrs_tuple if k == name), None)
         if expected_type is None:
             raise ValueError(f"Could not determine expected type for attribute '{name}'")
@@ -914,12 +1067,65 @@ def eval(model: MODEL, **attrs: Dict) -> MODEL:
 
     return Model(__extends__=__extends__, __conditions__=__conditions__, **new_kwargs)
 
-def value(model: MODEL, attr: Str) -> Any:
-    ###
-    # TODO: improve to allow inner attributes:
-    #       value(model, 'x.y.z')
-    ###
-    for k, v in model.optional_attrs.items():
-        if attr == k:
-            return v['default']
+def drop(model, entries):
+    from typed.mods.helper.models import _materialize_if_lazy
 
+    if getattr(model, 'is_lazy', False):
+        def builder():
+            real = _materialize_if_lazy(model)
+            from typed.mods.models import drop as _drop
+            return _drop(real, entries)
+
+        return _lazy_model(
+            original_cls=model,
+            builder=builder,
+            is_exact=getattr(model, 'is_exact', False),
+            is_ordered=getattr(model, 'is_ordered', False),
+            is_rigid=getattr(model, 'is_rigid', False),
+            is_optional=getattr(model, 'is_optional', False),
+            is_mandatory=getattr(model, 'is_mandatory', False),
+            extends=tuple(getattr(model, '__lazy_extends__', ())),
+        )
+
+    if not isinstance(model, MODEL):
+        raise TypeError(f"forget expects a Model-type. Got: {model}")
+
+    required_keys = set(getattr(model, '_required_attribute_keys', set()))
+    optional_keys = set(getattr(model, '_optional_attributes_and_defaults', {}).keys())
+    all_keys = required_keys | optional_keys
+
+    missing = [e for e in entries if e not in all_keys]
+    if missing:
+        raise ValueError(f"Entries not in model: {missing}")
+
+    required_types = dict(getattr(model, '_required_attributes_and_types', ()))
+    optional_types = getattr(model, '_optional_attributes_and_defaults', {})
+
+    new_kwargs = {}
+
+    for k in required_keys:
+        if k not in entries:
+            new_kwargs[k] = required_types[k]
+
+    for k in optional_keys:
+        if k not in entries:
+            new_kwargs[k] = optional_types[k]
+
+    return Model(**new_kwargs)
+
+def value(attr: Str) -> Any:
+    return FieldRef(attr)
+
+def hasvalue(attr: Str, expected: Any):
+    return FieldRef(attr) == expected
+
+def expression(_fn=None, *t_args, **t_kwargs):
+    def wrap(fn):
+        from typed.mods.decorators import typed
+        typed_fn = typed(*t_args, **t_kwargs)(fn)
+        return _expr_function(typed_fn)
+
+    if _fn is None:
+        return wrap
+    else:
+        return wrap(_fn)

@@ -3,7 +3,6 @@ from typed.mods.meta.func import FACTORY
 from typed.mods.types.base import TYPE, Set, Dict
 from typed.mods.helper.helper import _issubtype, _name
 
-
 def _single_field_inner_type_and_key(mcls):
     try:
         req_tuple = getattr(mcls, '_required_attributes_and_types', ())
@@ -99,6 +98,15 @@ class _MODEL_INSTANCE_(DICT):
 class _MODEL_FACTORY_(FACTORY):
     def __getattr__(cls, name):
         try:
+            from typed.mods.helper.models import _get_dynamic_default_env
+            env = _get_dynamic_default_env()
+            inst_dict = env.get(cls)
+            if inst_dict is not None and name in inst_dict:
+                return inst_dict[name]
+        except Exception:
+            pass
+
+        try:
             req_attrs = object.__getattribute__(cls, '_defined_required_attributes')
             if name in req_attrs:
                 return req_attrs[name]
@@ -169,10 +177,42 @@ class _MODEL_FACTORY_(FACTORY):
         else:
             entity_dict = kwargs
 
+        from typed.mods.helper.models import (
+            _dynamic_default_context
+        )
+        from typed.mods.models import Default
+        from typed.mods.helper.models import FieldRef, Expr, _FieldProxy
+
         optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
-        for attr, wrapper in optional_defaults.items():
-            if attr not in entity_dict:
-                entity_dict[attr] = wrapper.default_value
+        if optional_defaults:
+            with _dynamic_default_context(cls, entity_dict):
+                for attr, wrapper in optional_defaults.items():
+                    if attr in entity_dict:
+                        continue
+                    dv = wrapper.default_value
+                    if isinstance(dv, Default):
+                        evaluated = dv.evaluate()
+                        if isinstance(evaluated, FieldRef):
+                            value = evaluated.resolve()
+                            if isinstance(value, _FieldProxy):
+                                value = value._value
+                        elif isinstance(evaluated, Expr):
+                            value = evaluated()
+                        elif callable(evaluated):
+                            value = evaluated()
+                        else:
+                            value = evaluated
+                    elif isinstance(dv, FieldRef):
+                        value = dv.resolve()
+                        if isinstance(value, _FieldProxy):
+                            value = value._value
+                    elif isinstance(dv, Expr):
+                        value = dv()
+                    elif callable(dv):
+                        value = dv()
+                    else:
+                        value = dv
+                    entity_dict[attr] = value
 
         required_types = dict(getattr(cls, '_required_attributes_and_types', ()))
         optional_wrappers = getattr(cls, '_optional_attributes_and_defaults', {})
@@ -183,10 +223,8 @@ class _MODEL_FACTORY_(FACTORY):
                 target_type = required_types[key]
             elif key in optional_wrappers:
                 target_type = optional_wrappers[key].type
-
             if target_type is None:
                 continue
-
             if getattr(target_type, 'is_model', False) and isinstance(val, dict):
                 entity_dict[key] = target_type(**val)
 
@@ -200,28 +238,28 @@ class _MODEL_FACTORY_(FACTORY):
 
 class _MODEL_(_TYPE_):
     def __instancecheck__(cls, instance):
-        is_model = getattr(instance, 'is_model', False)
-        if not is_model:
-            return False
-
-        is_lazy = getattr(instance, 'is_lazy', False)
-        if is_lazy:
-            real = getattr(instance, '_real_model', None)
-            return real is not None
-
-        return True
+        return getattr(instance, 'is_model', False)
 
 class _EXACT_(_MODEL_):
     def __instancecheck__(cls, instance):
+        if not getattr(instance, 'is_model', False):
+            return False
         return getattr(instance, 'is_exact', False)
 
 class _ORDERED_(_MODEL_):
     def __instancecheck__(cls, instance):
+        if not getattr(instance, 'is_model', False):
+            return False
         return getattr(instance, 'is_ordered', False)
 
 class _RIGID_(_EXACT_, _ORDERED_):
     def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_rigid', False)
+        if not getattr(instance, 'is_model', False):
+            return False
+        return getattr(instance, 'is_rigid', False) or (
+            getattr(instance, 'is_exact', False) and
+            getattr(instance, 'is_ordered', False)
+        )
 
 class _OPTIONAL_(_MODEL_):
     def __instancecheck__(cls, instance):
@@ -262,24 +300,18 @@ class _MANDATORY_(_MODEL_):
         opts = getattr(subclass, '_optional_attributes_and_defaults', None)
         return isinstance(opts, Dict) and len(opts) == 0
 
-class _LAZY_MODEL_(_TYPE_):
+class _LAZY_MODEL_(_MODEL_):
     def __instancecheck__(cls, instance):
-        if not getattr(instance, 'is_lazy', False):
+        if not getattr(instance, 'is_model', False):
             return False
-        real = getattr(instance, '_real_model', None)
-        return real is None
+        return getattr(instance, 'is_lazy', False)
 
-class _LAZY_EXACT_(_LAZY_MODEL_):
-    def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_exact', False)
 
-class _LAZY_ORDERED_(_LAZY_MODEL_):
+class _EAGER_MODEL_(_MODEL_):
     def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_ordered', False)
-
-class _LAZY_RIGID_(_LAZY_EXACT_, _LAZY_ORDERED_):
-    def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_rigid', False)
+        if not getattr(instance, 'is_model', False):
+            return False
+        return not getattr(instance, 'is_lazy', False)
 
 class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
     _defined_required_attributes = {}
@@ -336,9 +368,6 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
             wrapper = self._defined_optional_attributes[name]
             expected_type = wrapper.type
 
-            # Allow clearing / defaulting optional fields:
-            # - explicit None
-            # - the optional default sentinel (often the "Nill"/null value)
             if value is None or value is wrapper.default_value:
                 self[name] = value
                 return
@@ -352,7 +381,7 @@ class MODEL_INSTANCE(Dict, metaclass=_MODEL_INSTANCE_):
             self[name] = value
 
         else:
-            object.__setattr__(self, name, value) 
+            object.__setattr__(self, name, value)
 
     def __delattr__(self, name):
         if name in self._defined_required_attributes:
@@ -536,6 +565,22 @@ class MODEL_META(_MODEL_FACTORY_, _MODEL_, _MODEL_INSTANCE_):
         from typed.mods.helper.models import _model_to_json
         return _model_to_json(cls)
 
+    def validate(cls, entity):
+        from typed.mods.models import validate as _validate
+        return _validate(entity, cls)
+
+    def drop(cls, *entries):
+        from typed.mods.models import drop as _drop
+        return _drop(cls, entries)
+
+    def eval(cls, **attrs):
+        from typed.mods.models import eval as _eval
+        return _eval(cls, **attrs)
+
+    def materialize(cls):
+        from typed.mods.models import materialize as _materialize
+        return _materialize(cls)
+
 class EXACT_INSTANCE(MODEL_INSTANCE): pass
 
 class EXACT_META(MODEL_META):
@@ -553,6 +598,13 @@ class RIGID_INSTANCE(MODEL_INSTANCE): pass
 class RIGID_META(MODEL_META):
     def __instancecheck__(cls, instance):
         return MODEL_META.__instancecheck__(cls, instance)
+
+class EAGER_META(MODEL_META):
+    def __instancecheck__(cls, instance):
+        return MODEL_META.__instancecheck__(cls, instance)
+
+    def __subclasscheck__(cls, subclass):
+        return MODEL_META.__subclasscheck__(cls, subclass)
 
 class LAZY_META(MODEL_META):
     def __new__(mcls, name, bases, namespace, **kw):

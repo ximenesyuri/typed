@@ -15,6 +15,7 @@ Nill = NILL("Nill", (), {
 class TYPE(metaclass=_TYPE_):
     __display__ = "TYPE"
     __null__ = Nill
+    __builtin__ = type
 
     @staticmethod
     def __convert__(obj, t, _cls_cache=None, _meta_cache=None):
@@ -165,22 +166,26 @@ PARAMETRIC = _PARAMETRIC_("PARAMETRIC", (TYPE,), {
 
 Int = INT("Int", (), {
     "__display__": "Int",
-    "__null__": 0
+    "__null__": 0,
+    "__builtin__": int
 })
 Float = FLOAT("Int", (), {
     "__display__": "Float",
-    "__null__": 0.0
+    "__null__": 0.0,
+    "__builtin__": float
 })
 Bool = BOOL("Bool", (), {
     "__display__": "Bool",
-    "__null__": False
+    "__null__": False,
+    "__builtin__": bool
 })
 
 class Str(metaclass=STR):
     def __len__(self, obj):
         return len(obj)
     __display__ = "Str"
-    __null__ = ""
+    __null__ = "",
+    __builtin__ = str
 
 Any = ANY("Any", (), {
     "__display__": "Any",
@@ -190,24 +195,30 @@ Self = Any
 Cls  = Any
 Bytes = BYTES("Bytes", (), {
     "__display__": "Bytes",
-    "__null__": bytes()
+    "__null__": bytes(),
+    "__builtin__": bytes
 })
 Tuple = TUPLE("Tuple", (), {
     "__display__": "Tuple",
-    "__null__": ()
+    "__null__": tuple(),
+    "__builtin__": tuple
 })
 List = LIST("List", (), {
     "__display__": "List",
-    "__null__": []
+    "__null__": list(),
+    "__builtin__": list
 })
 Set = SET("Set", (), {
     "__display__": "Set",
-    "__null__": set()
+    "__null__": set(),
+    "__builtin__": set
 })
 
 class Dict(metaclass=DICT):
     __display__ = "Dict"
-    __null__    = {}
+    __null__    = dict()
+    __builtin__ = dict
+
     def __getitem__(self, key):
         return self.__dict__[key]
     def __setitem__(self, key, value):
