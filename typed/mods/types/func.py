@@ -73,6 +73,7 @@ class Partial(Function, metaclass=PARTIAL):
         self.bound_args = list(bound_args)
         self.bound_kwargs = dict(bound_kwargs)
         self.is_partial = True
+        self.is_lazy = getattr(original_func, "is_lazy", False)
         if hasattr(original_func, '__name__'):
             self.__name__ = f"{original_func.__name__}_partial"
         else:
@@ -99,14 +100,31 @@ class Partial(Function, metaclass=PARTIAL):
         try:
             sig = inspect.signature(target)
             param_names = list(sig.parameters.keys())
+        except Exception:
+            sig = None
+            param_names = []
 
+        for kwarg_name, kwarg_value in new_kwargs.items():
+            if kwarg_name in kwarg_dict and kwarg_dict[kwarg_name] is not _:
+                raise TypeError(
+                    f"Argument '{kwarg_name}' is already bound in this partial "
+                    f"and cannot be provided again."
+                )
+
+            if kwarg_name in param_names:
+                param_index = param_names.index(kwarg_name)
+                if param_index < len(arg_list) and arg_list[param_index] is not _:
+                    raise TypeError(
+                        f"Argument '{kwarg_name}' is already bound in this partial "
+                        f"and cannot be provided again."
+                    )
+
+        if param_names:
             for kwarg_name, kwarg_value in new_kwargs.items():
                 if kwarg_name in param_names:
                     param_index = param_names.index(kwarg_name)
                     if param_index < len(arg_list) and arg_list[param_index] is _:
                         arg_list[param_index] = kwarg_value
-        except Exception:
-            pass
 
         if _ in arg_list:
             new_partial = object.__new__(self.__class__)
@@ -118,15 +136,11 @@ class Partial(Function, metaclass=PARTIAL):
         final_kwargs = kwarg_dict.copy()
         final_kwargs.update(new_kwargs)
 
-        try:
-            sig = inspect.signature(target)
-            param_names = list(sig.parameters.keys())
+        if sig is not None:
             for i in range(min(len(cleaned_args), len(param_names))):
                 param_name = param_names[i]
                 if param_name in final_kwargs:
                     del final_kwargs[param_name]
-        except Exception:
-            pass
 
         return self.original_func(*cleaned_args, **final_kwargs)
 
@@ -286,10 +300,21 @@ class TypedCod(HintedCod, metaclass=TYPED_COD):
 
 class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
     def __call__(self, *args, **kwargs):
+        has_underscore = (_ in args) or any(v is _ for v in kwargs.values())
+        if has_underscore:
+            partial_instance = object.__new__(Partial)
+            partial_instance.__init__(self, args, kwargs)
+            return partial_instance
         sig = inspect.signature(self.func)
         b = sig.bind(*args, **kwargs)
         b.apply_defaults()
-        _check_domain(self.func, list(b.arguments.keys()), self.domain, None, list(b.arguments.values()))
+        _check_domain(
+            self.func,
+            list(b.arguments.keys()),
+            self.domain,
+            None,
+            list(b.arguments.values()),
+        )
         result = self.func(*b.args, **b.kwargs)
         from typed.mods.types.base import TYPE
         _check_codomain(self.func, _hinted_codomain(self.func), TYPE(result), result)
@@ -319,4 +344,38 @@ Dependent = DEPENDENT("Dependent", (Factory,), {
     "__display__": "Dependent"
 })
 
-Lazy = LAZY('Lazy', (Hinted,), {"__display__": "Lazy"})
+class Lazy(Hinted, metaclass=LAZY):
+    """
+    Lazy-typed function wrapper.
+
+    - Holds the original function in self._orig
+    - On first call, materializes a Typed wrapper
+    - Thereafter forwards all calls/attribute-lookups to the Typed wrapper
+    """
+
+    def __init__(self, f):
+        self._orig = f          # original Python function
+        self._wrapped = None    # will hold a Typed(self._orig)
+        self.func = f           # for meta/Hinted inspection
+        self.is_lazy = True     # flag used by meta.LAZY.__instancecheck__
+
+    def materialize(self):
+        if self._wrapped is None:
+            self._wrapped = Typed(self._orig)
+        return self._wrapped
+
+    def __call__(self, *a, **kw):
+        has_underscore = (_ in a) or any(v is _ for v in kw.values())
+        if has_underscore:
+            p = object.__new__(Partial)
+            p.__init__(self, a, kw)
+            return p
+
+        return self.materialize()(*a, **kw)
+
+    def __getattr__(self, name):
+        return getattr(self.materialize(), name)
+
+    def __repr__(self):
+        return f"<Lazy for {getattr(self._orig, '__name__', 'anonymous')}>"
+

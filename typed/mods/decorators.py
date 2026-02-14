@@ -18,7 +18,7 @@ def partial(func):
             from typed.mods.decorators import _
             underscore_to_check = _
         has_underscore = (
-            (underscore_to_check in args) or 
+            (underscore_to_check in args) or
             (any(v is underscore_to_check for v in kwargs.values()))
         )
         if has_underscore:
@@ -28,6 +28,16 @@ def partial(func):
             return partial_instance
         else:
             return func(*args, **kwargs)
+
+    update_wrapper(wrapper, func)
+
+    underlying = getattr(func, "func", func)
+    wrapper.func = underlying
+
+    for attr in ("domain", "dom", "codomain", "cod"):
+        if hasattr(func, attr):
+            setattr(wrapper, attr, getattr(func, attr))
+
     return wrapper
 
 
@@ -80,14 +90,18 @@ def typed(
         if locals or rigid:
             res_func = _instrument_locals_check(res_func, force_all_annotated=rigid)
 
+        base_func = res_func
+        if cache:
+            base_func = lru_cache(maxsize=None)(base_func)
+
         try:
             from typed.mods.types.base import Bool
             from typed.mods.types.func import Typed, Condition
 
-            if isinstance(res_func, Typed):
-                typed_func = res_func
+            if isinstance(base_func, Typed):
+                typed_func = base_func
             else:
-                typed_func = Typed(res_func)
+                typed_func = Typed(base_func)
 
             cod = typed_func.cod
             if cod is Bool:
@@ -98,12 +112,6 @@ def typed(
             res_func = typed_func
         except Exception as e:
             raise TypedErr(f"Error in the typed function '{_name(res_func)}':\n {e}")
-
-        if partials:
-            res_func = partial(res_func)
-
-        if cache:
-            res_func = lru_cache(maxsize=None)(res_func)
 
         if enclose is not None:
             orig = res_func
@@ -121,32 +129,8 @@ def typed(
         return res_func
 
     def _make_lazy_wrapper(func):
-        from typed.mods.types.func import Typed
-
-        class Lazy(Typed):
-            is_lazy = True
-
-            def __init__(self, f):
-                self._orig = f
-                self._wrapped = None
-                self.func = f
-                update_wrapper(self, f)
-
-            def _materialize(self):
-                if self._wrapped is None:
-                    self._wrapped = _build_typed(self._orig)
-                return self._wrapped
-
-            def __call__(self, *a, **kw):
-                return self._materialize()(*a, **kw)
-
-            def __getattr__(self, name):
-                return getattr(self._materialize(), name)
-
-            def __repr__(self):
-                return f"<Lazy for {getattr(self._orig, '__name__', 'anonymous')}>"
-
-        return type.__call__(Lazy, func)
+        from typed.mods.types.func import Lazy
+        return Lazy(func)
 
     def typed_decorator(func):
         if not lazy:
@@ -178,7 +162,6 @@ def typed(
 
 
 def condition(func):
-    """Decorator that creates a 'condition', a.k.a 'predicate'"""
     if isinstance(func, Function):
         from typed.mods.types.func import Condition
         if isinstance(func, Condition):
@@ -195,7 +178,6 @@ def condition(func):
 predicate = condition
 
 def factory(func):
-    """Decorator that creates a factory with cache"""
     if isinstance(func, Function):
         from typed.mods.types.func import Typed
         typed_func = Typed(func)

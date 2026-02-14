@@ -238,11 +238,18 @@ class TYPED_COD(HINTED_COD):
 
 class TYPED(HINTED, TYPED_DOM, TYPED_COD):
     def __instancecheck__(cls, instance):
-        if getattr(instance, "is_lazy", False):
-            wrapped = getattr(instance, "_wrapped", None)
-            if wrapped is None:
+        if getattr(instance, 'is_partial', False):
+            orig = getattr(instance, 'original_func', None)
+            if orig is None:
                 return False
-            return isinstance(wrapped, cls)
+
+            if getattr(orig, 'is_lazy', False):
+                return False
+
+            return isinstance(orig, cls)
+
+        if getattr(instance, "is_lazy", False):
+            return False
 
         return super().__instancecheck__(instance)
 
@@ -316,6 +323,26 @@ class DEPENDENT(FACTORY):
 
 class LAZY(HINTED):
     def __instancecheck__(cls, instance):
-        if not getattr(instance, "is_lazy", False):
+        if getattr(instance, "is_partial", False):
+            orig = getattr(instance, "original_func", None)
+            if orig is not None:
+                return isinstance(orig, cls)
             return False
-        return getattr(instance, "_wrapped", None) is None
+
+        if getattr(instance, "is_lazy", False):
+            return True
+
+        return False
+
+    def __call__(cls, *args, **kwargs):
+        import inspect
+        from typed.mods.types.func import Lazy
+
+        if (cls is Lazy or issubclass(cls, Lazy)) \
+           and len(args) == 1 \
+           and inspect.isfunction(args[0]) \
+           and not isinstance(args[0], Lazy):
+            return type.__call__(Lazy, args[0])
+
+        return super().__call__(*args, **kwargs)
+
