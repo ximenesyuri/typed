@@ -112,7 +112,10 @@ def Filter(X, f):
     Filter_ = FILTER(class_name, (X,), {
         "__display__": class_name,
     })
-    Filter_.__null__ = _null(X) if isinstance(_null(X), Filter_) else None
+    try:
+        Filter_.__null__ = _null(X) if isinstance(_null(X), Filter_) else None
+    except Exception:
+        Filter_.__null__ = None
     return Filter_
 
 @cache
