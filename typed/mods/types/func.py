@@ -345,19 +345,11 @@ Dependent = DEPENDENT("Dependent", (Factory,), {
 })
 
 class Lazy(Hinted, metaclass=LAZY):
-    """
-    Lazy-typed function wrapper.
-
-    - Holds the original function in self._orig
-    - On first call, materializes a Typed wrapper
-    - Thereafter forwards all calls/attribute-lookups to the Typed wrapper
-    """
-
     def __init__(self, f):
-        self._orig = f          # original Python function
-        self._wrapped = None    # will hold a Typed(self._orig)
-        self.func = f           # for meta/Hinted inspection
-        self.is_lazy = True     # flag used by meta.LAZY.__instancecheck__
+        self._orig = f
+        self._wrapped = None
+        self.func = f
+        self.is_lazy = True
 
     def materialize(self):
         if self._wrapped is None:
