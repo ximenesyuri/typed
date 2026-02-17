@@ -3,6 +3,7 @@ from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Str, Dict, List, Bool, Any
 from typed.mods.factories.generics import Maybe
 from typed.mods.helper.helper import _name
+from typed.mods.helper.general import Switch
 from typed.mods.meta.models import (
     _MODEL_, _EXACT_, _ORDERED_, _RIGID_,
     _LAZY_MODEL_, _EAGER_MODEL_,
