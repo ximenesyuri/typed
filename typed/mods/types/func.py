@@ -58,15 +58,6 @@ class Function(Callable, metaclass=FUNCTION):
     def posargs(self):
         return _get_pos_args(self)
 
-class Underscore:
-    def __repr__(self):
-        return "_"
-
-    def __str__(self):
-        return "_"
-
-_ = Underscore()
-
 class Partial(Function, metaclass=PARTIAL):
     def __init__(self, original_func, bound_args, bound_kwargs):
         self.original_func = original_func
@@ -84,6 +75,7 @@ class Partial(Function, metaclass=PARTIAL):
             self._original_codomain = original_func.codomain
 
     def __call__(self, *new_args, **new_kwargs):
+        from typed.mods.general import _
         arg_list = list(self.bound_args)
         kwarg_dict = dict(self.bound_kwargs)
 
@@ -159,6 +151,7 @@ class Partial(Function, metaclass=PARTIAL):
             sig = inspect.signature(target)
             param_names = list(sig.parameters.keys())
         except Exception:
+            from typed.mods.general import _
             remaining = [
                 t for arg, t in zip(self.bound_args, self._original_domain)
                 if arg is _
@@ -300,6 +293,7 @@ class TypedCod(HintedCod, metaclass=TYPED_COD):
 
 class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
     def __call__(self, *args, **kwargs):
+        from typed.mods.general import _
         has_underscore = (_ in args) or any(v is _ for v in kwargs.values())
         if has_underscore:
             partial_instance = object.__new__(Partial)
@@ -357,6 +351,7 @@ class Lazy(Hinted, metaclass=LAZY):
         return self._wrapped
 
     def __call__(self, *a, **kw):
+        from typed.mods.general import _
         has_underscore = (_ in a) or any(v is _ for v in kw.values())
         if has_underscore:
             p = object.__new__(Partial)

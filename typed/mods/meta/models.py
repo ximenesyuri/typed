@@ -180,8 +180,8 @@ class _MODEL_FACTORY_(FACTORY):
         from typed.mods.helper.models import (
             _dynamic_default_context
         )
-        from typed.mods.models import Default
-        from typed.mods.helper.models import FieldRef, Expr, _FieldProxy
+        from typed.mods.models import Switch
+        from typed.mods.helper.models import Expr
 
         optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
         if optional_defaults:
@@ -189,30 +189,32 @@ class _MODEL_FACTORY_(FACTORY):
                 for attr, wrapper in optional_defaults.items():
                     if attr in entity_dict:
                         continue
+
                     dv = wrapper.default_value
-                    if isinstance(dv, Default):
+
+                    if isinstance(dv, Switch):
+                        # Dynamic switch default
                         evaluated = dv.evaluate()
-                        if isinstance(evaluated, FieldRef):
-                            value = evaluated.resolve()
-                            if isinstance(value, _FieldProxy):
-                                value = value._value
-                        elif isinstance(evaluated, Expr):
+                        if isinstance(evaluated, Expr):
                             value = evaluated()
                         elif callable(evaluated):
                             value = evaluated()
                         else:
                             value = evaluated
-                    elif isinstance(dv, FieldRef):
-                        value = dv.resolve()
-                        if isinstance(value, _FieldProxy):
-                            value = value._value
+
                     elif isinstance(dv, Expr):
+                        # Plain Expr default
                         value = dv()
+
                     elif callable(dv):
+                        # Callable default
                         value = dv()
+
                     else:
+                        # Plain value
                         value = dv
-                    entity_dict[attr] = value
+
+                    entity_dict[attr] = value 
 
         required_types = dict(getattr(cls, '_required_attributes_and_types', ()))
         optional_wrappers = getattr(cls, '_optional_attributes_and_defaults', {})

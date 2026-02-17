@@ -22,9 +22,9 @@ from typed.mods.helper.models import (
     _attrs,
     _canonical_model_key,
     _lazy_model,
-    FieldRef,
-    _expr_function,
-    Expr
+    _expression,
+    Expr,
+    _ValueRef
 )
 
 MODEL     = _MODEL_('MODEL', (TYPE,), {'__display__': 'MODEL'})
@@ -37,73 +37,6 @@ MANDATORY = _MANDATORY_('MANDATORY', (MODEL,), {'__display__': 'MANDATORY'})
 LAZY_MODEL = _LAZY_MODEL_("LAZY_MODEL", (MODEL,), {"__display__": "LAZY_MODEL"})
 EAGER_MODEL = _EAGER_MODEL_("EAGER_MODEL", (MODEL,), {"__display__": "EAGER_MODEL"})
 
-class Default:
-    def __init__(self, *, value, when=None, otherwise=None):
-        self.value = value
-        self.otherwise = otherwise
-
-        if when is None:
-            self.conditions = []
-        elif callable(when) and not isinstance(when, (list, tuple)):
-            self.conditions = [when]
-        elif isinstance(when, (list, tuple)):
-            conds = []
-            for c in when:
-                if not callable(c):
-                    raise TypeError(
-                        "Each element in 'when' must be callable; "
-                        f"got {type(c)}"
-                    )
-                conds.append(c)
-            self.conditions = conds
-        else:
-            raise TypeError(
-                "'when' must be None, a callable, or a list/tuple of callables."
-            )
-
-    def evaluate(self):
-        if not self.conditions:
-            if callable(self.value):
-                return self.value()
-            return self.value
-        if all(bool(cond()) for cond in self.conditions):
-            if callable(self.value):
-                return self.value()
-            return self.value
-        return self.otherwise
-
-    def check_type(self, typ):
-        from typed.mods.types.base import TYPE as _TYPE
-
-        if not isinstance(typ, _TYPE):
-            return False
-
-        if self.value is not None:
-            ok = False
-            try:
-                if isinstance(self.value, FieldRef):
-                    ok = True
-                elif callable(self.value):
-                    ok = True
-                else:
-                    ok = self.value in typ
-            except Exception:
-                ok = True
-            if not ok:
-                return False
-
-        if self.otherwise is not None:
-            ok = False
-            try:
-                ok = self.otherwise in typ
-            except Exception:
-                pass
-            if not ok:
-                return False
-
-        return True
-
-
 def Optional(typ, default_value=None):
     if not isinstance(typ, TYPE):
         raise TypeError(f"'{_name(typ)}' is not a type.")
@@ -111,15 +44,12 @@ def Optional(typ, default_value=None):
     if default_value is None:
         return _Optional(typ, None)
 
-    if isinstance(default_value, Default):
+    if isinstance(default_value, Switch):
         if not default_value.check_type(typ):
             raise TypeError(
                 "Error while defining optional type with Default():\n"
                 f" ==> default values are not compatible with '{_name(typ)}'"
             )
-        return _Optional(typ, default_value)
-
-    if isinstance(default_value, FieldRef):
         return _Optional(typ, default_value)
 
     if isinstance(default_value, Expr):
@@ -1114,16 +1044,13 @@ def drop(model, entries):
     return Model(**new_kwargs)
 
 def value(attr: Str) -> Any:
-    return FieldRef(attr)
-
-def hasvalue(attr: Str, expected: Any):
-    return FieldRef(attr) == expected
+    return _ValueRef(attr)
 
 def expression(_fn=None, *t_args, **t_kwargs):
     def wrap(fn):
         from typed.mods.decorators import typed
         typed_fn = typed(*t_args, **t_kwargs)(fn)
-        return _expr_function(typed_fn)
+        return _expression(typed_fn)
 
     if _fn is None:
         return wrap

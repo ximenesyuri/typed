@@ -133,7 +133,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
                 f"got {len(args)}"
             )
 
-        obj = args[0]
+        obj = args[0] 
         from typed.mods.types.base import (
             Str, Int, Float, Bool, Nill, Any,
             List, Tuple, Set, Dict

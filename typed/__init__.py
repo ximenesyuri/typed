@@ -2,11 +2,11 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "typed", "_",
+    "typed",
 
     "Union", "Prod", "Inter", "Filter", "Compl", "Regex", "Range", "Not", "Enum", "Single", "Null", "Len", "Maybe",
 
-    "model", "optional", "validate",
+    "model", "value",
 
     "Nill", "Any",
     "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
@@ -14,7 +14,7 @@ __all__ = [
 
     "Function", "Hinted", "Typed", "TYPE",
 
-    "name", "names", "null", "new",
+    "name", "names", "null", "new", "_", "var", "append", "switch", "func"
 ]
 
 __lazy__ = {
@@ -35,8 +35,7 @@ __lazy__ = {
     "Maybe":     ("typed.mods.factories.generics", "Maybe"),
 
     "model":     ("typed.mods.models", "model"),
-    "optional":  ("typed.mods.models", "optional"),
-    "validate":  ("typed.mods.models", "validate"),
+    "value":    ("typed.mods.models", "value"),
 
     "Nill":      ("typed.mods.types.base", "Nill"),
     "Any":       ("typed.mods.types.base", "Any"),
@@ -58,13 +57,17 @@ __lazy__ = {
     "Hinted":    ("typed.mods.types.func", "Hinted"),
     "Typed":     ("typed.mods.types.func", "Typed"),
     "Lazy":      ("typed.mods.types.func", "Lazy"),
-    "_":         ("typed.mods.types.func", "_"),
 
     "name":      ("typed.mods.general", "name"),
     "names":     ("typed.mods.general", "names"),
     "null":      ("typed.mods.general", "null"),
     "convert":   ("typed.mods.general", "convert"),
-    "new":       ("typed.mods.general", "new")
+    "new":       ("typed.mods.general", "new"),
+    "var":       ("typed.mods.general", "var"),
+    "_":         ("typed.mods.general", "_"),
+    "append":    ("typed.mods.general", "append"),
+    "switch":    ("typed.mods.general", "switch"),
+    "func":      ("typed.mods.general", "func"),
 }
 
 
@@ -84,17 +87,17 @@ def __dir__():
     return sorted(set(globals().keys()) | set(__all__))
 
 if __lsp__:
-    from typed.mods.decorators import typed, _
+    from typed.mods.decorators import typed
 
     from typed.mods.factories.base import Union, Prod
     from typed.mods.factories.generics import (
         Inter, Filter, Compl, Regex, Range, Not, Enum,
         Single, Null, Len, Maybe
     )
-    from typed.mods.models import model, optional, validate
+    from typed.mods.models import model, value
     from typed.mods.types.base import (
         Nill, Any, Int, Str, Float, Bool, Bytes, Self, Cls,
         Tuple, List, Set, Dict, Pattern, TYPE
     )
     from typed.mods.types.func import Function, Hinted, Typed, Lazy
-    from typed.mods.general import name, names, null, new, convert
+    from typed.mods.general import name, names, null, new, convert, _, var, switch, func

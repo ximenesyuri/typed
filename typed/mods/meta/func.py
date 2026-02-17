@@ -10,11 +10,12 @@ class CALLABLE(_TYPE_):
         unwrapped = instance
         while hasattr(unwrapped, 'func') and unwrapped.func is not unwrapped:
             unwrapped = unwrapped.func
+
         return (
-            inspect.isbuiltin(instance)
-            or inspect.ismethod(instance)
-            or inspect.isfunction(instance)
-            or inspect.isclass(instance)
+            inspect.isbuiltin(unwrapped)
+            or inspect.ismethod(unwrapped)
+            or inspect.isfunction(unwrapped)
+            or inspect.isclass(unwrapped)
         )
 
 class GENERATOR(_TYPE_):
@@ -68,13 +69,6 @@ class LAMBDA(CALLABLE):
         )
 
 class FUNCTION(CALLABLE):
-    """
-    Build the 'function type' of functions with
-    a given number of argumens:
-        > the objects of 'Function(n, m)' are functions
-        > with exactly 'n>=0' pos arguments and 'm>=' kwargs.
-        > For 'n<0' and 'm<0' any function is in 'Function(n, m)'
-    """
     def __instancecheck__(cls, instance):
         if super().__instancecheck__(instance):
             from typed.mods.types.base import TYPE
