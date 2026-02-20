@@ -45,6 +45,7 @@ def Optional(typ, default_value=None):
     if default_value is None:
         return _Optional(typ, None)
 
+    from typed.mods.helper.general import Switch
     if isinstance(default_value, Switch):
         if not default_value.check_type(typ):
             raise TypeError(
