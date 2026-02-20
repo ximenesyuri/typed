@@ -6,7 +6,7 @@ __all__ = [
 
     "Union", "Prod", "Inter", "Filter", "Compl", "Regex", "Range", "Not", "Enum", "Single", "Null", "Len", "Maybe",
 
-    "model", "value",
+    "model", "value", "validate",
 
     "Nill", "Any",
     "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
@@ -35,7 +35,8 @@ __lazy__ = {
     "Maybe":     ("typed.mods.factories.generics", "Maybe"),
 
     "model":     ("typed.mods.models", "model"),
-    "value":    ("typed.mods.models", "value"),
+    "value":     ("typed.mods.models", "value"),
+    "validate":  ("typed.mods.models", "validate"),
 
     "Nill":      ("typed.mods.types.base", "Nill"),
     "Any":       ("typed.mods.types.base", "Any"),
@@ -94,7 +95,7 @@ if __lsp__:
         Inter, Filter, Compl, Regex, Range, Not, Enum,
         Single, Null, Len, Maybe
     )
-    from typed.mods.models import model, value
+    from typed.mods.models import model, value, validate
     from typed.mods.types.base import (
         Nill, Any, Int, Str, Float, Bool, Bytes, Self, Cls,
         Tuple, List, Set, Dict, Pattern, TYPE
