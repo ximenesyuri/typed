@@ -183,8 +183,9 @@ Bool = BOOL("Bool", (), {
 class Str(metaclass=STR):
     def __len__(self, obj):
         return len(obj)
+
     __display__ = "Str"
-    __null__ = "",
+    __null__ = ""
     __builtin__ = str
 
 Any = ANY("Any", (), {
