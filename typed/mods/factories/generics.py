@@ -82,49 +82,90 @@ def Inter(*types):
         })
 
 @cache
-def Filter(X, f):
+def Filter(X, *conds):
+    """
+    Build the 'filtered type' of a given type through given conditions.
+    > An object x is in Filter(X, *conds) iff:
+        1. 'x in X' is True
+        2. 'cond(x) is True' for 'cond' in 'conds'
+    > Each condition can be:
+        - a 'Condition' instance
+        - a callable that, when wrapped with @typed, returns 'Bool'
+    """
     from typed.mods.types.base import TYPE
     from typed.mods.types.func import Condition
     from typed.mods.meta.func import CONDITION
 
-    if getattr(f, "__lazy_typed__", False):
-        f = f._materialize()
+    if not isinstance(X, TYPE):
+        raise TypeError(
+            "Wrong type in Filter factory: \n"
+            f" ==> '{_name(X)}': has unexpected type\n"
+            "     [expected_type] TYPE\n"
+            f"     [received_type] '{_name(TYPE(X))}'"
+        )
 
-    if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
+    if not conds:
+        raise TypeError(
+            "Wrong usage of Filter factory: \n"
+            " ==> no conditions provided\n"
+            "     [expected] at least one condition"
+        )
+
+    normalized_conditions = []
+
+    for f in conds:
+        if getattr(f, "__lazy_typed__", False):
+            f = f._materialize()
+
+        if isinstance(f, Condition) or TYPE(f) is CONDITION:
+            normalized_conditions.append(f)
+            continue
+
         if callable(f):
             from typed.mods.decorators import typed as _typed
-            f = _typed(f, lazy=False)
-        if not isinstance(f, Condition) and TYPE(f) is not CONDITION:
-            raise TypeError(
-                "Wrong type in Filter factory: \n"
-                f" ==> '{_name(f)}': has unexpected type\n"
-                "     [expected_type] Condition\n"
-                f"     [received_type] '{_name(TYPE(f))}'"
-            )
+            f_typed = _typed(f, lazy=False)
+
+            if isinstance(f_typed, Condition) or TYPE(f_typed) is CONDITION:
+                normalized_conditions.append(f_typed)
+                continue
+
+        raise TypeError(
+            "Wrong type in Filter factory: \n"
+            f" ==> '{_name(f)}': has unexpected type\n"
+            "     [expected_type] Condition\n"
+            f"     [received_type] '{_name(TYPE(f))}'"
+        )
 
     class FILTER(TYPE(X)):
         def __instancecheck__(cls, instance):
             if not isinstance(instance, X):
                 return False
-            return f(instance)
+            return all(cond(instance) for cond in cls.__conditions__)
 
-    class_name = f"Filter({_name(X)}; {_name(f)})"
+    from typed.mods.helper.null import _null
+    from typed.mods.helper.helper import _name_list
+
+    class_name = f"Filter({_name(X)}; {_name_list(*normalized_conditions)})"
     Filter_ = FILTER(class_name, (X,), {
         "__display__": class_name,
+        "__conditions__": tuple(normalized_conditions),
     })
+
     try:
         Filter_.__null__ = _null(X) if isinstance(_null(X), Filter_) else None
     except Exception:
         Filter_.__null__ = None
+
     return Filter_
+
 
 @cache
 def Compl(X, *subtypes):
     """
-    Build the 'complement subtype' of a type by given subtypes:
-        > an object 'x' of Compl(X, *subtypes)
-        > is an 'x in X' such that 'is is not in Y'
-        > for every 'Y in subtypes' if 'Y is subclass of X'
+    Build the 'complement subtype' of a type by given subtypes.
+    > 'x in Compl(X, *subtypes)' is True iff
+        1. 'x in X' is True
+        2. 'x in Y' is False for Y in subtypes
     """
     from typed.mods.types.base import TYPE
     if not isinstance(X, TYPE):
@@ -172,10 +213,10 @@ def Compl(X, *subtypes):
 def Regex(regex):
     """
     Build the 'regex type' for a given regex:
-        > an object 'x' of Regex(r'some_regex') is a string
-        > that matches the regex r'some_regex'
+    > 'x in Regex(r'regex')' is True iff:
+        1. 'x in Str' is True
+        2. 're.compile(regex).match(x)' is True
     """
-
     from typed.mods.types.base import Pattern
     if not isinstance(regex, Pattern):
         from typed.mods.types.base import TYPE
@@ -208,45 +249,179 @@ def Regex(regex):
     return Regex_
 
 @cache
-def Range(x, y):
+def Interval(typ, start, end, ops=('<=', '<=')):
     """
-    Build the 'range type' for a given integer range [x, y]:
-        > an object 'z' of Range(x, y) is an integer
-        > such that x <= z <= y
+    Build the 'interval subtype' of given type.
+    > 'x in Interval(X, x1, x2, ops=(op1, op2))' is True iff
+        1. 'x1 in X' is True
+        2. 'x2 in X' is True
+        3. 'op1(x1, x)' is True
+        4. 'op2(x, x2)' is True
+    > op1, op2 could be:
+        1. strings '<=, <, >=, >'
+        2. strings 'le, lr, ge, gt'
+        3. callables from the 'operation' lib
     """
-    from typed.mods.types.base import Int, TYPE
-    if not isinstance(x, Int):
+
+    from typed.mods.types.base import TYPE
+    from typed.mods.factories.meta import ATTR
+
+    if not isinstance(typ, TYPE):
         raise TypeError(
-            "Wrong type in Range factory: \n"
-            f" ==> {x}: has unexpected type\n"
-             "     [expected_type] Int\n"
-            f"     [received_type] {_name(TYPE(x))}"
-        )
-    if not isinstance(y, Int):
-        raise TypeError(
-            "Wrong type in Range factory: \n"
-            f" ==> {y}: has unexpected type\n"
-             "     [expected_type] Int\n"
-            f"     [received_type] {_name(TYPE(y))}"
+            "Wrong type in Interval factory: \n"
+            f" ==> '{_name(typ)}': has unexpected type\n"
+            "     [expected_type] TYPE\n"
+            f"     [received_type] '{_name(TYPE(typ))}'"
         )
 
-    class RANGE(TYPE(Int)):
-        def __new__(cls, name, bases, dct, lower_bound, upper_bound):
+    if not isinstance(start, typ):
+        raise TypeError(
+            "Wrong type in Interval factory: \n"
+            f" ==> {start}: has unexpected type\n"
+            f"     [expected_type] {_name(typ)}\n"
+            f"     [received_type] {_name(TYPE(start))}"
+        )
+    if not isinstance(end, typ):
+        raise TypeError(
+            "Wrong type in Interval factory: \n"
+            f" ==> {end}: has unexpected type\n"
+            f"     [expected_type] {_name(typ)}\n"
+            f"     [received_type] {_name(TYPE(end))}"
+        )
+
+    from operator import le, lt, ge, gt
+
+    def _normalize_one(op):
+        mapping = {
+            'le':  ('__le__', le),
+            '<=':  ('__le__', le),
+            '__le__': ('__le__', le),
+
+            'lt':  ('__lt__', lt),
+            '<':   ('__lt__', lt),
+            '__lt__': ('__lt__', lt),
+
+            'ge':  ('__ge__', ge),
+            '>=':  ('__ge__', ge),
+            '__ge__': ('__ge__', ge),
+
+            'gt':  ('__gt__', gt),
+            '>':   ('__gt__', gt),
+            '__gt__': ('__gt__', gt),
+        }
+
+        if isinstance(op, str):
+            key = op.strip()
+            if key in mapping:
+                return mapping[key]
+
+        if callable(op):
+            func_to_attr = {
+                le: '__le__',
+                lt: '__lt__',
+                ge: '__ge__',
+                gt: '__gt__',
+            }
+            if op in func_to_attr:
+                return func_to_attr[op], op
+
+        raise TypeError(
+            "Wrong operation in Interval factory: \n"
+            f" ==> {op!r}: has unexpected value/type\n"
+            "     [expected] '<', '<=', '>', '>=', 'lt', 'le', 'gt', 'ge', "
+            "or the corresponding functions from 'operator'"
+        )
+
+    if not (isinstance(ops, tuple) and len(ops) == 2):
+        raise TypeError(
+            "Wrong value for 'ops' in Interval factory: \n"
+            f" ==> {ops!r}: has unexpected value\n"
+            "     [expected] tuple of two comparison operators"
+        )
+
+    left_attr,  left_func  = _normalize_one(ops[0])
+    right_attr, right_func = _normalize_one(ops[1])
+
+    for attr_name in (left_attr, right_attr):
+        if not isinstance(typ, ATTR(attr_name)):
+            raise TypeError(
+                "Wrong type in Interval factory: \n"
+                f" ==> '{_name(typ)}': missing comparison '{attr_name}'\n"
+                f"     [expected_type] ATTR('{attr_name}')\n"
+                f"     [received_type] '{_name(TYPE(typ))}'"
+            )
+
+    class INTERVAL(TYPE(typ)):
+        def __new__(
+            cls,
+            name,
+            bases,
+            dct,
+            base_type,
+            lower_bound,
+            upper_bound,
+            left_op,
+            right_op,
+        ):
+            dct['_base_type'] = base_type
             dct['_lower_bound'] = lower_bound
             dct['_upper_bound'] = upper_bound
+            dct['_left_op'] = left_op
+            dct['_right_op'] = right_op
             return super().__new__(cls, name, bases, dct)
 
         def __instancecheck__(cls, instance):
-            return isinstance(instance, Int) and cls._lower_bound <= instance <= cls._upper_bound
+            if not isinstance(instance, cls._base_type):
+                return False
+            return (
+                cls._left_op(cls._lower_bound, instance)
+                and cls._right_op(instance, cls._upper_bound)
+            )
 
         def __subclasscheck__(cls, subclass):
-            return issubclass(subclass, Int)
+            return issubclass(subclass, cls._base_type)
 
-    class_name = f"Range({x}, {y})"
-    return RANGE(class_name, (Int,), {
-        "__display__": class_name,
-        "__null__": x
-    }, lower_bound=x, upper_bound=y)
+    null_value = None
+    try:
+        if (
+            isinstance(start, typ)
+            and left_func(start, start)
+            and right_func(start, end)
+        ):
+            null_value = start
+        else:
+            candidate = _null(typ)
+            if (
+                candidate is not None
+                and isinstance(candidate, typ)
+                and left_func(start, candidate)
+                and right_func(candidate, end)
+            ):
+                null_value = candidate
+    except Exception:
+        null_value = None
+
+    class_name = f"Interval({_name(typ)}, {start}, {end})"
+    return INTERVAL(
+        class_name,
+        (typ,),
+        {
+            "__display__": class_name,
+            "__null__": null_value,
+        },
+        base_type=typ,
+        lower_bound=start,
+        upper_bound=end,
+        left_op=left_func,
+        right_op=right_func,
+    )
+
+@cache
+def Range(x, y, ops=('<=, <=')):
+    from typed.mods.types.base import Int
+    typ = Interval(Int, x, y, ops=ops)
+    typ.__display__ = f'Range({x}, {y}, ops={ops})'
+    return typ
 
 @cache
 def Not(*types):
