@@ -1,6 +1,12 @@
 import inspect
 from typed.mods.meta.base import _TYPE_
-from typed.mods.helper.helper import _name, _issubtype
+from typed.mods.helper.general import _name, _issubtype
+from typed.mods.helper.func import (
+    _unwrap,
+    _get_num_args,
+    _get_num_posargs,
+    _get_num_kwargs
+)
 
 class CALLABLE(_TYPE_):
     def __instancecheck__(cls, instance):
@@ -70,53 +76,352 @@ class LAMBDA(CALLABLE):
 
 class FUNCTION(CALLABLE):
     def __instancecheck__(cls, instance):
-        if super().__instancecheck__(instance):
-            from typed.mods.types.base import TYPE
-            if _issubtype(TYPE(instance), cls):
-                return True
-            unwrapped = instance.func if hasattr(instance, 'func') else instance
-            return (
+        if not super().__instancecheck__(instance):
+            return False
+
+        from typed.mods.types.base import TYPE
+
+        if _issubtype(TYPE(instance), cls):
+            base_ok = True
+        else:
+            unwrapped = instance.func if hasattr(instance, "func") else instance
+            base_ok = (
                 inspect.isfunction(unwrapped)
-                and unwrapped.__name__ != '<lambda>'
+                and unwrapped.__name__ != "<lambda>"
                 and not inspect.ismethod(unwrapped)
                 and not inspect.isbuiltin(unwrapped)
             )
 
-    def __call__(cls, *args, **kwargs):
-        if not args and not kwargs:
-            return cls
-        if len(args)==1 and callable(args[0]) and not kwargs:
-            return super().__call__(*args)
-        if len(args) > 2:
-            raise AttributeError(
-                "Wrong number of args in Function:\n"
-                " ==> received more args than expected\n"
-                "     [expected_args] n<=2\n"
-               f"     [received_args] {len(args)}"
+        if not base_ok:
+            return False
+
+        expected_args = getattr(cls, "__expected_args__", -1)
+        expected_pos = getattr(cls, "__expected_posargs__", -1)
+        expected_kw = getattr(cls, "__expected_kwargs__", -1)
+
+        if expected_args < 0 and expected_pos < 0 and expected_kw < 0:
+            return True
+
+        target = _unwrap(instance)
+
+        if expected_args >= 0 and _get_num_args(target) != expected_args:
+            return False
+        if expected_pos >= 0 and _get_num_posargs(target) != expected_pos:
+            return False
+        if expected_kw >= 0 and _get_num_kwargs(target) != expected_kw:
+            return False
+
+        return True
+
+    def __call__(cls, *call_args, **call_kwargs):
+        if len(call_args) > 1:
+            raise TypeError(
+                "Function(): expected at most one positional argument (a callable), "
+                f"got {len(call_args)}"
             )
-        if len(args) <= 2:
-            for arg in args:
-                if not isinstance(arg, int):
-                    raise AttributeError(
-                        "Wrong type in Function:\n"
-                       f" ==> '{_name(arg)}': has unexpected type\n"
-                        "     [expected_type] Int\n"
-                       f"     [received_type] {_name(type(arg))}"
-                    )
 
-        class_name = f'Function({args})'
+        allowed_kw = {"args", "posargs", "kwargs"}
+        unexpected = set(call_kwargs) - allowed_kw
+        if unexpected:
+            raise TypeError(
+                "Function(): unexpected keyword arguments: "
+                + ", ".join(sorted(unexpected))
+            )
+
+        f = call_args[0] if call_args else None
+
+        arg_count = call_kwargs.get("args", -1)
+        pos_count = call_kwargs.get("posargs", -1)
+        kw_count = call_kwargs.get("kwargs", -1)
+
+        from typed.mods.types.base import TYPE
+
+        for name, value in (("args", arg_count), ("posargs", pos_count), ("kwargs", kw_count)):
+            if not isinstance(value, int):
+                raise TypeError(
+                    "Wrong type in 'Function' call:\n"
+                    f" ==> '{_name(value)}': has unexpected type for parameter '{name}'\n"
+                    "     [expected_type] Int\n"
+                    f"     [received_type] '{_name(TYPE(value))}'"
+                )
+
+        if f is not None:
+            if not callable(f):
+                raise TypeError(
+                    "Wrong type in 'Function' call:\n"
+                    f" ==> '{_name(f)}': first argument is not callable\n"
+                    "     [expected_type] callable\n"
+                    f"     [received_type] '{_name(TYPE(f))}'"
+                )
+
+            if any(v >= 0 for v in (arg_count, pos_count, kw_count)):
+                target = _unwrap(f)
+
+                if arg_count >= 0:
+                    got = _get_num_args(target)
+                    if got != arg_count:
+                        raise TypeError(
+                            f"Function(): callable '{_name(f)}' has wrong total number of arguments\n"
+                            f"     [expected args] {arg_count}\n"
+                            f"     [received args] {got}"
+                        )
+
+                if pos_count >= 0:
+                    got = _get_num_posargs(target)
+                    if got != pos_count:
+                        raise TypeError(
+                            f"Function(): callable '{_name(f)}' has wrong number of positional arguments\n"
+                            f"     [expected posargs] {pos_count}\n"
+                            f"     [received posargs] {got}"
+                        )
+
+                if kw_count >= 0:
+                    got = _get_num_kwargs(target)
+                    if got != kw_count:
+                        raise TypeError(
+                            f"Function(): callable '{_name(f)}' has wrong number of keyword arguments\n"
+                            f"     [expected kwargs] {kw_count}\n"
+                            f"     [received kwargs] {got}"
+                        )
+
+            return f
+
+        if arg_count < 0 and pos_count < 0 and kw_count < 0:
+            return cls
+
         from typed.mods.types.func import Function
-        return FUNCTION(class_name, (Function,), {'__display__': class_name})
 
-class COMPOSABLE(FUNCTION):
-    def __instancecheck__(cls, instance):
-        super().__instancecheck__(instance)
+        parts = []
+        if arg_count >= 0:
+            parts.append(f"args={arg_count}")
+        if pos_count >= 0:
+            parts.append(f"posargs={pos_count}")
+        if kw_count >= 0:
+            parts.append(f"kwargs={kw_count}")
+        inside = ", ".join(parts)
+        class_name = f"Function({inside})" if inside else "Function()"
+
+        return FUNCTION(
+            class_name,
+            (Function,),
+            {
+                "__display__": class_name,
+                "__expected_args__": arg_count,
+                "__expected_posargs__": pos_count,
+                "__expected_kwargs__": kw_count,
+            },
+        )
 
 class PARTIAL(FUNCTION):
     def __instancecheck__(cls, instance):
-        return getattr(instance, 'is_partial', False)
+        return super().__instancecheck__(instance) and getattr(instance, 'is_partial', False)
 
-class HINTED_DOM(PARTIAL, COMPOSABLE):
+class ATTR_FUNC(FUNCTION):
+    def __instancecheck__(cls, instance):
+        if not super().__instancecheck__(instance):
+            return False
+
+        attrs = getattr(cls, "__attrs__", ())
+        attr_values = getattr(cls, "__attr_values__", {})
+
+        for name in attrs:
+            if not hasattr(instance, name):
+                return False
+
+        for name, expected in attr_values.items():
+            if not hasattr(instance, name):
+                return False
+            if getattr(instance, name) != expected:
+                return False
+
+        return True
+
+    def __call__(cls, *args, **kwargs):
+        from typed.mods.types.func import AttrFunc as AttrFunc
+        from typed.mods.helper.helper import _name
+
+        if not args and not kwargs:
+            return cls
+
+        attrs = tuple(a.lstrip('.') for a in args)
+        attr_values = {k.lstrip('.'): v for k, v in kwargs.items()}
+
+        parts = []
+        if attrs:
+            parts.append(", ".join(attrs))
+        if attr_values:
+            vals_str = ", ".join(f"{k}={_name(v)}" for k, v in attr_values.items())
+            parts.append(vals_str)
+        inside = "; ".join(parts)
+
+        class_name = f"AttrFunc({inside})"
+
+        return ATTR_FUNC(
+            class_name,
+            (AttrFunc,),
+            {
+                "__display__": class_name,
+                "__attrs__": attrs,
+                "__attr_values__": attr_values,
+            },
+        )
+
+
+class DOM_FUNC(FUNCTION):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import Function
+
+        if not super().__instancecheck__(instance):
+            return False
+
+        if not isinstance(instance, Function):
+            return False
+
+        dom_value = None
+        if hasattr(instance, "dom"):
+            dom_value = getattr(instance, "dom")
+        elif hasattr(instance, "domain"):
+            dom_value = getattr(instance, "domain")
+        else:
+            return False
+
+        expected_dom = getattr(cls, "__types__", None)
+        if expected_dom is not None:
+            try:
+                actual = tuple(dom_value)
+            except TypeError:
+                actual = (dom_value,)
+            return actual == expected_dom
+
+        if not isinstance(dom_value, tuple):
+            return False
+        return all(isinstance(t, TYPE) for t in dom_value)
+
+    def __call__(cls, *types, **kwargs):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import DomFunc as DomFunc
+        from typed.mods.helper.helper import _name_list
+
+        if not types and not kwargs:
+            return cls
+
+        if types and all(isinstance(t, TYPE) for t in types) and not kwargs:
+            class_name = f"DomFunc({_name_list(*types)})"
+            return DOM_FUNC(
+                class_name,
+                (DomFunc,),
+                {
+                    "__display__": class_name,
+                    "__types__": tuple(types),
+                },
+            )
+
+        raise TypeError("DomFunc(X, Y, ...) expects TYPE arguments only")
+
+class COD_FUNC(FUNCTION):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import Function
+
+        if not super().__instancecheck__(instance):
+            return False
+
+        if not isinstance(instance, Function):
+            return False
+
+        cod_value = None
+        if hasattr(instance, "cod"):
+            cod_value = getattr(instance, "cod")
+        elif hasattr(instance, "codomain"):
+            cod_value = getattr(instance, "codomain")
+        else:
+            return False
+
+        expected = getattr(cls, "__codomain__", None)
+        if expected is not None:
+            return cod_value is expected
+
+        return isinstance(cod_value, TYPE)
+
+    def __call__(cls, cod=None, **kwargs):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import CodFunc
+        from typed.mods.helper.helper import _name
+
+        if cod is None and not kwargs:
+            return cls
+
+        if isinstance(cod, TYPE) and not kwargs:
+            class_name = f"CodFunc({_name(cod)})"
+            return COD_FUNC(
+                class_name,
+                (CodFunc,),
+                {
+                    "__display__": class_name,
+                    "__codomain__": cod,
+                },
+            )
+
+        raise TypeError("CodFunc(X) expects a single TYPE argument")
+
+
+class COMP_FUNC(DOM_FUNC, COD_FUNC):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.func import DomFunc, CodFunc
+
+        if not isinstance(instance, DomFunc):
+            return False
+        if not isinstance(instance, CodFunc):
+            return False
+
+        dom_types = getattr(cls, "__types__", None)
+        cod_type = getattr(cls, "__codomain__", None)
+
+        if dom_types is not None:
+            dom = getattr(instance, "dom", getattr(instance, "domain", None))
+            try:
+                actual_dom = tuple(dom)
+            except TypeError:
+                actual_dom = (dom,)
+            if actual_dom != dom_types:
+                return False
+
+        if cod_type is not None:
+            cod = getattr(instance, "cod", getattr(instance, "codomain", None))
+            if cod is not cod_type:
+                return False
+
+        return True
+
+    def __call__(cls, *types, cod=None, **kwargs):
+        from typed.mods.types.base import TYPE
+        from typed.mods.types.func import CompFunc
+        from typed.mods.helper.helper import _name_list, _name
+
+        if not types and cod is None and not kwargs:
+            return cls
+
+        if (
+            types
+            and all(isinstance(t, TYPE) for t in types)
+            and isinstance(cod, TYPE)
+            and not kwargs
+        ):
+            class_name = f"CompFunc({_name_list(*types)}, cod={_name(cod)})"
+            return COMP_FUNC(
+                class_name,
+                (CompFunc,),
+                {
+                    "__display__": class_name,
+                    "__types__": tuple(types),
+                    "__codomain__": cod,
+                },
+            )
+
+        raise TypeError("CompFunc(X, Y, ..., cod=Z) expects TYPE arguments only")
+
+class DOM_HINTED(DOM_FUNC, PARTIAL):
     """
     Build the 'hinted-domain function type' of types:
         > the objects of 'HintedDom(X, Y, ...)'
@@ -149,7 +454,7 @@ class HINTED_DOM(PARTIAL, COMPOSABLE):
             return _HintedDom_(*args, **kwargs)
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types")
 
-class HINTED_COD(PARTIAL, COMPOSABLE):
+class COD_HINTED(COD_FUNC, PARTIAL):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE
         if _issubtype(TYPE(instance), cls):
@@ -176,7 +481,7 @@ class HINTED_COD(PARTIAL, COMPOSABLE):
             return _HintedCod_(args[0])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or a single type")
 
-class HINTED(HINTED_COD, HINTED_DOM):
+class HINTED(COMP_FUNC, COD_HINTED, DOM_HINTED):
     def __instancecheck__(cls, instance):
         return super().__instancecheck__(instance)
 
@@ -194,7 +499,7 @@ class HINTED(HINTED_COD, HINTED_DOM):
             return _Hinted_(*args, cod=kwargs['cod'])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types+cod=Type")
 
-class TYPED_DOM(HINTED_DOM):
+class DOM_TYPED(DOM_HINTED):
     def __instancecheck__(cls, instance):
         return super().__instancecheck__(instance)
 
@@ -212,7 +517,7 @@ class TYPED_DOM(HINTED_DOM):
             return _TypedDom_(*args)
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or types")
 
-class TYPED_COD(HINTED_COD):
+class COD_TYPED(COD_HINTED):
     def __instancecheck__(cls, instance):
         return super().__instancecheck__(instance)
 
@@ -230,7 +535,7 @@ class TYPED_COD(HINTED_COD):
             return _TypedCod_(args[0])
         raise TypeError(f"{cls.__name__}(): expected 0 args, or a callable, or int>0, or a single type")
 
-class TYPED(HINTED, TYPED_DOM, TYPED_COD):
+class TYPED(HINTED, DOM_TYPED, COD_TYPED):
     def __instancecheck__(cls, instance):
         if getattr(instance, 'is_partial', False):
             orig = getattr(instance, 'original_func', None)

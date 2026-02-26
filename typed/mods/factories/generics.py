@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache as cache
 from typed.mods.helper.null import _null, _null_from_list
-from typed.mods.helper.helper import (
+from typed.mods.helper.general import (
     _name,
     _name_list,
 )
@@ -114,8 +114,8 @@ def Filter(X, *conds):
     normalized_conditions = []
 
     for f in conds:
-        if getattr(f, "__lazy_typed__", False):
-            f = f._materialize()
+        if getattr(f, "is_lazy", False) and hasattr(f, "materialize"):
+            f = f.materialize()
 
         if isinstance(f, Condition) or TYPE(f) is CONDITION:
             normalized_conditions.append(f)

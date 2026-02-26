@@ -1,13 +1,23 @@
 from typed.mods.types.base import TYPE
 from typed.mods.types.func import Function
 from functools import lru_cache, update_wrapper
-from typed.mods.helper.helper import (
-    _name,
+from typed.mods.helper.general import _name
+from typed.mods.helper.func import (
     _has_dependent_type,
     _dependent_signature,
     _check_defaults_match_hints,
     _instrument_locals_check,
 )
+
+def function(*args, **kwargs):
+    if args and callable(args[0]) and len(args) == 1 and not kwargs:
+        f = args[0]
+        return Function(f)
+
+    def decorator(f):
+        return Function(f, **kwargs)
+
+    return decorator
 
 def partial(func):
     def wrapper(*args, **kwargs):
@@ -39,7 +49,6 @@ def partial(func):
             setattr(wrapper, attr, getattr(func, attr))
 
     return wrapper
-
 
 def hinted(func):
     if isinstance(func, Function):

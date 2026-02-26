@@ -3,9 +3,9 @@ from typed.mods.types.base import (
     Any, TYPE, Str, Tuple, Dict, META, PARAMETRIC
 )
 from typed.mods.types.func import Function, Factory
-from typed.mods.helper.helper import _name, _name_list
 from typed.mods.helper.null import _null
 from typed.mods.helper.general import (
+    _name, _name_list,
     Var,
     _is_placeholder_like,
     _resolve_placeholder_value,

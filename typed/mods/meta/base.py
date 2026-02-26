@@ -1,7 +1,9 @@
 from typed.mods.helper.helper import (
     _inner_union,
     _inner_dict_union,
-    _from_typing,
+    _from_typing
+)
+from typed.mods.helper.general import (
     _issubtype,
     _isweaksubtype
 )

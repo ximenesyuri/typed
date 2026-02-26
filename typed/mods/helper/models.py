@@ -1,10 +1,9 @@
 import json
-import inspect
 from threading import local
 from contextlib import contextmanager
 from typed.mods.meta.models import _MODEL_FACTORY_
 from typed.mods.types.base import TYPE
-from typed.mods.helper.helper import _name
+from typed.mods.helper.general import _name
 
 _dynamic_default_state = local()
 
@@ -329,7 +328,10 @@ def _ordered_keys(attributes_and_types, optional_defaults):
 
 def _materialize_if_lazy(model):
     if getattr(model, "is_lazy", False):
-        materialize = getattr(model, "_materialize", None)
+        materialize = getattr(model, "materialize", None)
+        if not callable(materialize):
+            materialize = getattr(model, "_materialize", None)
+
         if callable(materialize):
             try:
                 return materialize()

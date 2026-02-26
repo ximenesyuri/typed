@@ -1,6 +1,6 @@
 from functools import lru_cache as cache
 from typed.mods.helper.null import  _null, _null_from_list
-from typed.mods.helper.helper import (
+from typed.mods.helper.general import (
     _name,
     _name_list,
 )

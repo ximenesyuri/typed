@@ -1,7 +1,7 @@
 from typed.mods.meta.base import _TYPE_, DICT
 from typed.mods.meta.func import FACTORY
 from typed.mods.types.base import TYPE, Set, Dict
-from typed.mods.helper.helper import _issubtype, _name
+from typed.mods.helper.general import _issubtype, _name
 
 def _single_field_inner_type_and_key(mcls):
     try:
@@ -614,6 +614,8 @@ class LAZY_META(MODEL_META):
         cls._real_model = None
         return cls
 
+    is_lazy = True
+
     def _materialize(cls):
         real = cls._real_model
         if real is None:
@@ -621,6 +623,9 @@ class LAZY_META(MODEL_META):
             real = builder()
             cls._real_model = real
         return real
+
+    def materialize(cls):
+        return cls._materialize()
 
     def __call__(cls, *args, **kwargs):
         real = cls._materialize()

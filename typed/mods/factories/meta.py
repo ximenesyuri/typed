@@ -1,7 +1,7 @@
 from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Nill, Str, List
 from typed.mods.meta.base import _TYPE_
-from typed.mods.helper.helper import _name, _name_list
+from typed.mods.helper.general import _name, _name_list
 
 @cache
 def ATTR(attributes):

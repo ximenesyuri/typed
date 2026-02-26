@@ -19,7 +19,7 @@ class TYPE(metaclass=_TYPE_):
 
     @staticmethod
     def __convert__(obj, t, _cls_cache=None, _meta_cache=None):
-        from typed.mods.helper.helper import _name
+        from typed.mods.helper.general import _name
         from inspect import isclass
 
         def _convert_property(prop, t, _cls_cache, _meta_cache):

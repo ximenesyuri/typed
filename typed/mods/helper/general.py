@@ -1,5 +1,50 @@
 import inspect
 
+def _name(obj):
+    if hasattr(obj, '__display__'):
+        return obj.__display__
+    name = getattr(obj, '__name__', None)
+    if name in ['int', 'float', 'str', 'bool']:
+        return name.capitalize()
+    if name == 'NoneType':
+        return "Nill"
+    if name:
+        return name
+    if str(obj):
+        return str(obj)
+    return obj
+
+def _name_list(*objs):
+    return ', '.join(_name(t) for t in objs)
+
+def _type(obj):
+    from typed.mods.types.base import Str, Int, Float, Bool, Nill
+    from typed.mods.types.base import List, Tuple, Set, Dict
+    types_map = {
+        type(None): Nill,
+        bool: Bool,
+        int: Int,
+        float: Float,
+        str: Str,
+        list: List,
+        tuple: Tuple,
+        dict: Dict,
+        set: Set
+    }
+    for k, v in types_map.items():
+        if type(obj) is k:
+            return v
+    return type(obj)
+
+def _issubtype(typ_1, typ_2):
+    return any(base is typ_2 for base in typ_1.__mro__)
+
+def _isweaksubtype(typ_1, typ_2):
+    for base in typ_1.__mro__:
+        if _name(base) == _name(typ_2) and base.__module__ == typ_2.__module__:
+            return True
+    return False
+
 class _Placeholder:
     def __init__(self, base, transform):
         self.base = base

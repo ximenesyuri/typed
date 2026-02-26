@@ -1,15 +1,16 @@
 import inspect
-from typed.mods.helper.helper import (
+from typed.mods.helper.func import (
+    _unwrap,
+    _is_composable,
+    _get_args,
+    _get_kwargs,
+    _get_pos_args,
     _is_domain_hinted,
     _is_codomain_hinted,
     _hinted_domain,
     _hinted_codomain,
     _check_domain,
     _check_codomain,
-    _get_args,
-    _get_kwargs,
-    _get_pos_args,
-    _name,
 )
 from typed.mods.meta.func import (
     CALLABLE,
@@ -21,13 +22,16 @@ from typed.mods.meta.func import (
     UNBOUND_METHOD,
     METHOD,
     FUNCTION,
+    ATTR_FUNC,
+    DOM_FUNC,
+    COD_FUNC,
+    COMP_FUNC,
     PARTIAL,
-    COMPOSABLE,
-    HINTED_DOM,
-    HINTED_COD,
+    DOM_HINTED,
+    COD_HINTED,
     HINTED,
-    TYPED_DOM,
-    TYPED_COD,
+    DOM_TYPED,
+    COD_TYPED,
     TYPED,
     CONDITION,
     FACTORY,
@@ -57,6 +61,39 @@ class Function(Callable, metaclass=FUNCTION):
     @property
     def posargs(self):
         return _get_pos_args(self)
+
+    def unwrap(self):
+        return _unwrap(self)
+
+
+AttrFunc = ATTR_FUNC('AttrFunc', (Function,), {"__display__": "AttrFunc"})
+DomFunc  = DOM_FUNC('DomFunc', (Function,), {"__display__": "DomFunc"})
+CodFunc  = COD_FUNC('CodFunc', (Function,), {"__display__": "CodFunc"})
+
+class CompFunc(DomFunc, CodFunc, metaclass=COMP_FUNC):
+    def __lshift__(self, other):
+        """
+        (f << g)(*args, **kwargs) == g(f(*args, **kwargs))
+        """
+        if not _is_composable(self, other, revert=True):
+            return NotImplemented
+
+        def composed(*args, **kwargs):
+            return other(self(*args, **kwargs))
+
+        return composed
+
+    def __rshift__(self, other):
+        """
+        (f >> g)(*args, **kwargs) == g(f(*args, **kwargs))
+        """
+        if not _is_composable(other, self, revert=False):
+            return NotImplemented
+
+        def composed(*args, **kwargs):
+            return other(self(*args, **kwargs))
+
+        return composed
 
 class Partial(Function, metaclass=PARTIAL):
     def __init__(self, original_func, bound_args, bound_kwargs):
@@ -183,50 +220,29 @@ class Partial(Function, metaclass=PARTIAL):
     def cod(self):
         return self.codomain
 
-class Composable(Function, metaclass=COMPOSABLE):
-    def __init__(self, func):
-        self.func = func
-        self.__name__ = getattr(func, '__name__', 'anonymous')
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-    def __mul__(self, other):
-        if not isinstance(other, Composable):
-            raise TypeError(
-                "Wrong type in composition of functions:\n"
-                f" ==> '{_name(other)}': has unexpected type\n"
-                 "      [expected_type] Composable\n"
-                f"      [received_type] {_name(type(other))}"
-            )
-        def composed(*args, **kwargs):
-            mid = other.func(*args, **kwargs)
-            return self.func(mid) if inspect.signature(self.func).parameters else self.func()
-        c = Composable(composed)
-        c.__name__ = f"({self.__name__} * {other.__name__})"
-        return c
-    def __repr__(self):
-        return f"<Composable: {self.__name__}>"
-    def __str__(self):
-        return self.__name__
 
-class HintedDom(Composable, Partial, metaclass=HINTED_DOM):
+class DomHinted(DomFunc, Partial, metaclass=DOM_HINTED):
     def __init__(self, func):
         _is_domain_hinted(func)
         super().__init__(func)
         self._hinted_domain = _hinted_domain(self.func)
+
     @property
     def domain(self):
         return self._hinted_domain
+
     @property
     def dom(self):
-        return self.domain
+        return self.domai
+
     def __repr__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
-        return f"<HintedDom: {self.__name__}({ds})>"
+        return f"<DomHinted: {self.__name__}({ds})>"
     def __str__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})"
 
-class HintedCod(Composable, Partial, metaclass=HINTED_COD):
+class CodHinted(CodFunc, Partial, metaclass=COD_HINTED):
     def __init__(self, func):
         _is_codomain_hinted(func)
         super().__init__(func)
@@ -239,17 +255,18 @@ class HintedCod(Composable, Partial, metaclass=HINTED_COD):
         return self.codomain
     def __repr__(self):
         c = self.codomain.__name__
-        return f"<HintedCod: {self.__name__} -> {c}>"
+        return f"<CodHinted: {self.__name__} -> {c}>"
     def __str__(self):
         c = self.codomain.__name__
         return f"{self.__name__} -> {c}"
 
-class Hinted(HintedDom, HintedCod, metaclass=HINTED):
+class Hinted(CompFunc, DomHinted, CodHinted, metaclass=HINTED):
     def __init__(self, func):
         _is_domain_hinted(func)
         _is_codomain_hinted(func)
-        HintedDom.__init__(self, func)
-        HintedCod.__init__(self, func)
+        DomHinted.__init__(self, func)
+        CodHinted.__init__(self, func)
+
     @property
     def domain(self):
         return self._hinted_domain
@@ -263,7 +280,7 @@ class Hinted(HintedDom, HintedCod, metaclass=HINTED):
     def cod(self):
         return self.codomain
 
-class TypedDom(HintedDom, metaclass=TYPED_DOM):
+class DomTyped(DomHinted, metaclass=DOM_TYPED):
     def __call__(self, *args, **kwargs):
         sig = inspect.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
@@ -271,12 +288,12 @@ class TypedDom(HintedDom, metaclass=TYPED_DOM):
         return self.func(*b.args, **b.kwargs)
     def __repr__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
-        return f"<TypedDom: {self.__name__}({ds}) runtime-checked>"
+        return f"<DomTyped: {self.__name__}({ds}) runtime-checked>"
     def __str__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})!!"
 
-class TypedCod(HintedCod, metaclass=TYPED_COD):
+class CodTyped(CodHinted, metaclass=COD_TYPED):
     def __call__(self, *args, **kwargs):
         sig = inspect.signature(self.func)
         b = sig.bind(*args, **kwargs); b.apply_defaults()
@@ -286,12 +303,12 @@ class TypedCod(HintedCod, metaclass=TYPED_COD):
         return r
     def __repr__(self):
         c = self.codomain.__name__
-        return f"<TypedCod: {self.__name__} -> {c} runtime-checked>"
+        return f"<CodTyped: {self.__name__} -> {c} runtime-checked>"
     def __str__(self):
         c = self.codomain.__name__
         return f"{self.__name__} -> {c}!"
 
-class Typed(Hinted, TypedDom, TypedCod, metaclass=TYPED):
+class Typed(Hinted, DomTyped, CodTyped, metaclass=TYPED):
     def __call__(self, *args, **kwargs):
         from typed.mods.general import _
         has_underscore = (_ in args) or any(v is _ for v in kwargs.values())
@@ -365,4 +382,3 @@ class Lazy(Hinted, metaclass=LAZY):
 
     def __repr__(self):
         return f"<Lazy for {getattr(self._orig, '__name__', 'anonymous')}>"
-
