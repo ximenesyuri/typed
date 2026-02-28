@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
     "__UNIVERSE__", "_TYPE_", "_ABSTRACT_", "_UNIVERSAL_", "_META_", "_DISCOURSE_", "_PARAMETRIC_",
+    "ABSTRACT", "UNIVERSAL", "META", "DISCOURSE", "PARAMETRIC",
     "NILL", "ANY", "INT", "BOOL", "STR", "FLOAT", "BYTES", "TUPLE", "LIST", "DICT", "SET", "PATTERN",
-
-    "CALLABLE", "BUILTIN", "FUNCTION", "LAMBDA",
+    "CALLABLE", "BUILTIN", "FUNCTION", "LAMBDA", "PARTIAL",
     "CLASS", "BOUND_METHOD", "UNBOUND_METHOD", "METHOD",
-    "HINTED_DOM", "HINTED_COD", "HINTED", "TYPED_DOM", "TYPED_COD", "TYPED",
+    "ATTR_FUNC", "DOM_FUNC", "COD_FUNC", "COMP_FUNC",
+    "DOM_HINTED", "COD_HINTED", "HINTED", "DOM_TYPED", "COD_TYPED", "TYPED",
     "FACTORY", "OPERATION", "DEPENDENT", "CONDITION", "LAZY"
 ]
 
@@ -19,6 +20,11 @@ __lazy__ = {
     "_META_":           ("typed.mods.meta.base", "_META_"),
     "_DISCOURSE_":      ("typed.mods.meta.base", "_DISCOURSE_"),
     "_PARAMETRIC_":     ("typed.mods.meta.base", "_PARAMETRIC_"),
+    "ABSTRACT":         ("typed.mods.types.base", "ABSTRACT"),
+    "UNIVERSAL":        ("typed.mods.types.base", "UNIVERSAL"),
+    "META":             ("typed.mods.types.base", "META"),
+    "DISCOURSE":        ("typed.mods.types.base", "DISCOURSE"),
+    "PARAMETRIC":       ("typed.mods.types.base", "PARAMETRIC"),
     "NILL":             ("typed.mods.meta.base", "NILL"),
     "ANY":              ("typed.mods.meta.base", "ANY"),
     "INT":              ("typed.mods.meta.base", "INT"),
@@ -31,20 +37,24 @@ __lazy__ = {
     "DICT":             ("typed.mods.meta.base", "DICT"),
     "SET":              ("typed.mods.meta.base", "SET"),
     "PATTERN":          ("typed.mods.meta.other", "PATTERN"),
-
     "CALLABLE":         ("typed.mods.meta.func", "CALLABLE"),
     "BUILTIN":          ("typed.mods.meta.func", "BUILTIN"),
     "FUNCTION":         ("typed.mods.meta.func", "FUNCTION"),
+    "PARTIAL":          ("typed.mods.meta.func", "PARTIAL"),
+    "ATTR_FUNC":        ("typed.mods.meta.func", "ATTR_FUNC"),
+    "DOM_FUNC":         ("typed.mods.meta.func", "DOM_FUNC"),
+    "COD_FUNC":         ("typed.mods.meta.func", "COD_FUNC"),
+    "COMP_FUNC":        ("typed.mods.meta.func", "COMP_FUNC"),
     "LAMBDA":           ("typed.mods.meta.func", "LAMBDA"),
     "CLASS":            ("typed.mods.meta.func", "CLASS"),
     "BOUND_METHOD":     ("typed.mods.meta.func", "BOUND_METHOD"),
     "UNBOUND_METHOD":   ("typed.mods.meta.func", "UNBOUND_METHOD"),
     "METHOD":           ("typed.mods.meta.func", "METHOD"),
-    "HINTED_DOM":       ("typed.mods.meta.func", "HINTED_DOM"),
-    "HINTED_COD":       ("typed.mods.meta.func", "HINTED_COD"),
+    "DOM_HINTED":       ("typed.mods.meta.func", "DOM_HINTED"),
+    "COD_HINTED":       ("typed.mods.meta.func", "COD_HINTED"),
     "HINTED":           ("typed.mods.meta.func", "HINTED"),
-    "TYPED_DOM":        ("typed.mods.meta.func", "TYPED_DOM"),
-    "TYPED_COD":        ("typed.mods.meta.func", "TYPED_COD"),
+    "DOM_TYPED":        ("typed.mods.meta.func", "DOM_TYPED"),
+    "COD_TYPED":        ("typed.mods.meta.func", "COD_TYPED"),
     "TYPED":            ("typed.mods.meta.func", "TYPED"),
     "FACTORY":          ("typed.mods.meta.func", "FACTORY"),
     "OPERATION":        ("typed.mods.meta.func", "OPERATION"),
@@ -80,10 +90,11 @@ if __lsp__:
         NILL, ANY, INT, BOOL, STR, FLOAT, BYTES, TUPLE, LIST, DICT, SET, PATTERN
     )
     from typed.mods.meta.func import (
-        CALLABLE, BUILTIN, FUNCTION, LAMBDA,
+        CALLABLE, BUILTIN, FUNCTION, LAMBDA, PARTIAL,
         CLASS, BOUND_METHOD, UNBOUND_METHOD, METHOD,
-        HINTED_DOM, HINTED_COD, HINTED,
-        TYPED_DOM, TYPED_COD, TYPED,
+        ATTR_FUNC, DOM_FUNC, COD_FUNC, COMP_FUNC,
+        DOM_HINTED, COD_HINTED, HINTED,
+        DOM_TYPED, COD_TYPED, TYPED,
         FACTORY, OPERATION, DEPENDENT, CONDITION,
         LAZY
     )

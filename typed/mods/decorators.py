@@ -21,15 +21,11 @@ def function(*args, **kwargs):
 
 def partial(func):
     def wrapper(*args, **kwargs):
-        try:
-            from typed.mods.types.func import _
-            underscore_to_check = _
-        except ImportError:
-            from typed.mods.decorators import _
-            underscore_to_check = _
+        from typed.mods.helper.general import _
+        underscore_to_check = _
         has_underscore = (
-            (underscore_to_check in args) or
-            (any(v is underscore_to_check for v in kwargs.values()))
+            (underscore_to_check in args)
+            or any(v is underscore_to_check for v in kwargs.values())
         )
         if has_underscore:
             from typed.mods.types.func import Partial
@@ -78,12 +74,11 @@ def typed(
     message=None,
     partials=True,
 ):
-    from functools import lru_cache, update_wrapper
-    from typed.mods.err import TypedErr
-
     def _build_typed(res_func):
-        if getattr(res_func, "is_lazy", False):
-            res_func = res_func._orig
+        from typed.mods.types.func import Lazy
+
+        if isinstance(res_func, Lazy):
+            res_func = res_func.func
 
         if _has_dependent_type(res_func):
             if not dependent:
@@ -97,7 +92,9 @@ def typed(
             _check_defaults_match_hints(res_func)
 
         if locals or rigid:
-            res_func = _instrument_locals_check(res_func, force_all_annotated=rigid)
+            res_func = _instrument_locals_check(
+                res_func, force_all_annotated=rigid
+            )
 
         base_func = res_func
         if cache:
@@ -120,7 +117,9 @@ def typed(
 
             res_func = typed_func
         except Exception as e:
-            raise TypedErr(f"Error in the typed function '{_name(res_func)}':\n {e}")
+            raise TypedErr(
+                f"Error in the typed function '{_name(res_func)}':\n {e}"
+            )
 
         if enclose is not None:
             orig = res_func
@@ -133,6 +132,7 @@ def typed(
                     raise enclose(msg) from e
 
             update_wrapper(_enclosed, orig)
+            _enclosed.func = getattr(orig, "func", orig)
             res_func = _enclosed
 
         return res_func
@@ -184,6 +184,7 @@ def condition(func):
          "     [expected_type] subtype of 'Function'\n"
         f"     [received_type] '{_name(TYPE(func))}'"
     )
+
 predicate = condition
 
 def factory(func):
@@ -197,14 +198,19 @@ def factory(func):
                  "     [expected_type] TYPE\n"
                 f"     [received_type]: '{_name(typed_func.codomain)}'"
             )
+
         wrapped_func = lru_cache(maxsize=None)(typed_func)
+
         class FactoryWrapper:
             def __init__(self, original):
-                self._original = original
+                self.func = original
+                self.__wrapped__ = original
 
             def __call__(self, *a, **kw):
-                return self._original(*a, **kw)
+                return self.func(*a, **kw)
+
         return update_wrapper(FactoryWrapper(func), func)
+
     raise TypeError(
         "Wrong type in 'factory' decorator\n"
         f" ==> '{func}': has an unexpected type\n"

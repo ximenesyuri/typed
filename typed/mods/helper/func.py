@@ -2,11 +2,33 @@ from inspect import signature, Parameter, Signature, isclass
 from typing import get_type_hints
 from typed.mods.helper.general import _type, _name, _issubtype
 
-def _unwrap(func):
-    while hasattr(func, '__wrapped__'):
-        func = func.__wrapped__
-    if hasattr(func, 'func'):
-        return _unwrap(func.func)
+def _unwrap(obj):
+    seen = set()
+    func = obj
+    while True:
+        obj_id = id(func)
+        if obj_id in seen:
+            break
+        seen.add(obj_id)
+
+        if hasattr(func, "__wrapped__"):
+            func = func.__wrapped__
+            continue
+
+        if hasattr(func, "original_func"):
+            func = func.original_func
+            continue
+
+        if hasattr(func, "func") and callable(getattr(func, "func")):
+            func = func.func
+            continue
+
+        # Legacy
+        if hasattr(func, "_orig"):
+            func = func._orig
+            continue
+
+        break
     return func
 
 def _get_args(self):
@@ -137,7 +159,6 @@ def _is_domain_hinted(func):
 
     if not parameters:
         return True
-
     type_hints = get_type_hints(func)
     param_hints = {param_name: type_hints.get(param_name) for param_name, param in parameters.items()}
     non_hinted_params = [param_name for param_name, hint in param_hints.items() if hint is None]
@@ -341,7 +362,7 @@ def _check_dependent_signature(dep_type, using_func):
                         f" got {using_anns.get(dep_name)!r}."
                     )
 
-def _dependent_signature(func):
+def _dependent_signature(func) :
     sig = signature(func)
     for name, param in sig.parameters.items():
         ann = param.annotation
@@ -369,10 +390,6 @@ def _check_defaults_match_hints(func):
         )
 
 def _instrument_locals_check(func, force_all_annotated=True):
-    """
-    Wrap the function so that local variable type checks are inserted.
-    The actual instrumentation is deferred until the first call.
-    """
     from inspect import getsourcelines
     from textwrap import dedent
     from ast import parse, walk, AnnAssign, Name, Assign, unparse, FunctionDef
@@ -481,3 +498,30 @@ def _variable_checker(typ):
             )
         return x
     return wrapper
+
+def _get_dom_cod(func_obj):
+    from typed.mods.types.base import TYPE
+
+    if hasattr(func_obj, "dom") and hasattr(func_obj, "cod"):
+        dom_val = func_obj.dom
+        try:
+            dom = tuple(dom_val)
+        except TypeError:
+            dom = (dom_val,)
+        cod = func_obj.cod
+        if not isinstance(cod, TYPE):
+            raise TypeError(
+                "Wrong type in function composition:\n"
+                f" ==> '{_name(func_obj)}': attribute 'cod' is not a TYPE"
+            )
+        return dom, cod
+
+    orig = getattr(func_obj, "func", func_obj)
+    dom = tuple(_hinted_domain(orig))
+    cod = _hinted_codomain(orig)
+    if cod is Signature.empty or not isinstance(cod, TYPE):
+        raise TypeError(
+            "Wrong type in function composition:\n"
+            f" ==> '{_name(func_obj)}' has missing or non-TYPE codomain annotation"
+        )
+    return dom, cod

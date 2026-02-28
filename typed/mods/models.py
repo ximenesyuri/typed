@@ -12,6 +12,7 @@ from typed.mods.meta.models import (
     ORDERED_INSTANCE, ORDERED_META,
     RIGID_INSTANCE, RIGID_META
 )
+
 from typed.mods.helper.models import (
     _Optional,
     MODEL_FACTORY,
@@ -74,7 +75,6 @@ def _cached_model(kind, extends_key, conditions_key, attrs_key):
     extended_models = list(extends_key)
     conditions = list(conditions_key)
     kwargs = dict(attrs_key)
-
     for key in kwargs.keys():
         if not isinstance(key, Str):
             raise TypeError(f"Model keys must be strings. Got: {_name(TYPE(key))}")
