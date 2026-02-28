@@ -142,9 +142,6 @@ def Filter(X, *conds):
                 return False
             return all(cond(instance) for cond in cls.__conditions__)
 
-    from typed.mods.helper.null import _null
-    from typed.mods.helper.helper import _name_list
-
     class_name = f"Filter({_name(X)}; {_name_list(*normalized_conditions)})"
     Filter_ = FILTER(class_name, (X,), {
         "__display__": class_name,
