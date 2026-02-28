@@ -417,7 +417,7 @@ def Interval(typ, start, end, ops=('<=', '<=')):
     )
 
 @cache
-def Range(x, y, ops=('<=, <=')):
+def Range(x, y, ops=('<=', '<=')):
     from typed.mods.types.base import Int
     typ = Interval(Int, x, y, ops=ops)
     typ.__display__ = f'Range({x}, {y}, ops={ops})'
