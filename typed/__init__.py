@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING as __lsp__
 __all__ = [
     "typed",
 
-    "Union", "Prod", "Inter", "Filter", "Compl", "Regex", "Range", "Not", "Enum", "Single", "Null", "Len", "Maybe",
+    "Union", "Prod", "Inter", "Filter", "Compl", "Regex", "Interval",
+    "Range", "Not", "Enum", "Single", "Null", "Len", "Maybe",
 
     "model", "value", "validate",
 
@@ -26,6 +27,7 @@ __lazy__ = {
     "Filter":    ("typed.mods.factories.generics", "Filter"),
     "Compl":     ("typed.mods.factories.generics", "Compl"),
     "Regex":     ("typed.mods.factories.generics", "Regex"),
+    "Interval":  ("typed.mods.factories.generics", "Interval"),
     "Range":     ("typed.mods.factories.generics", "Range"),
     "Not":       ("typed.mods.factories.generics", "Not"),
     "Enum":      ("typed.mods.factories.generics", "Enum"),
@@ -92,7 +94,7 @@ if __lsp__:
 
     from typed.mods.factories.base import Union, Prod
     from typed.mods.factories.generics import (
-        Inter, Filter, Compl, Regex, Range, Not, Enum,
+        Inter, Filter, Compl, Regex, Interval, Range, Not, Enum,
         Single, Null, Len, Maybe
     )
     from typed.mods.models import model, value, validate

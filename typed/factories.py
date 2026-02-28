@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
     "Union", "Prod", "Unprod",
-    "Inter", "Filter", "Compl", "Regex", "Range", "Not", "Enum", "Single", "Null", "NotNull", "Len", "Maybe",
+    "Inter", "Filter", "Compl", "Regex", "Interval", "Range",
+    "Not", "Enum", "Single", "Null", "NotNull", "Len", "Maybe",
     "ATTR", "SUBTYPES", "NOT"
 ]
 
@@ -15,6 +16,7 @@ __lazy__ = {
     "Filter":   ("typed.mods.factories.generics",   "Filter"),
     "Compl":    ("typed.mods.factories.generics",   "Compl"),
     "Regex":    ("typed.mods.factories.generics",   "Regex"),
+    "Interval": ("typed.mods.factories.generics",   "Interval"),
     "Range":    ("typed.mods.factories.generics",   "Range"),
     "Not":      ("typed.mods.factories.generics",   "Not"),
     "Enum":     ("typed.mods.factories.generics",   "Enum"),
@@ -46,6 +48,8 @@ def __dir__():
 
 if __lsp__:
     from typed.mods.factories.base import Union, Prod, Unprod
-    from typed.mods.factories.generics import Inter, Filter, Compl, Regex, Range, Not, Enum, Single, Null, NotNull, Len, Maybe
+    from typed.mods.factories.generics import (
+        Inter, Filter, Compl, Regex, Interval, Range,
+        Not, Enum, Single, Null, NotNull, Len, Maybe
+    )
     from typed.mods.factories.meta import ATTR, SUBTYPES, NOT
-
