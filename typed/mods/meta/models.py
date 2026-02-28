@@ -180,7 +180,7 @@ class _MODEL_FACTORY_(FACTORY):
         from typed.mods.helper.models import (
             _dynamic_default_context
         )
-        from typed.mods.models import Switch
+        from typed.mods.helper.general import Switch
         from typed.mods.helper.models import Expr
 
         optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
