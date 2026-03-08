@@ -4,7 +4,7 @@ def _name(obj):
     if hasattr(obj, '__display__'):
         return obj.__display__
     name = getattr(obj, '__name__', None)
-    if name in ['int', 'float', 'str', 'bool']:
+    if isinstance(name, type) and name in ['int', 'float', 'str', 'bool']:
         return name.capitalize()
     if name == 'NoneType':
         return "Nill"

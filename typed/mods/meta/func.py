@@ -184,7 +184,7 @@ class FUNCTION(CALLABLE):
                             f"     [received kwargs] {got}"
                         )
 
-            return f
+            return type.__call__(cls, f, arg_count, pos_count, kw_count)
 
         if arg_count < 0 and pos_count < 0 and kw_count < 0:
             return cls

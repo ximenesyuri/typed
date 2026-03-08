@@ -53,6 +53,21 @@ UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "Un
 Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
 
 class Function(Callable, metaclass=FUNCTION):
+    def __init__(self, func, args=-1, posargs=-1, kwargs=-1):
+
+        if not callable(func):
+            raise TypeError(f"Function wrapper expects a callable, got {type(func)}")
+
+        self.func = func
+        self.__wrapped__ = func
+
+        self._expected_args = args
+        self._expected_posargs = posargs
+        self._expected_kwargs = kwargs
+
+    def __call__(self, *a, **kw):
+        return self.func(*a, **kw)
+
     @property
     def args(self):
         return _get_args(self)
@@ -67,6 +82,14 @@ class Function(Callable, metaclass=FUNCTION):
 
     def unwrap(self):
         return _unwrap(self)
+
+    @property
+    def __name__(self):
+        return getattr(self.unwrap(), "__name__", type(self).__name__)
+
+    @property
+    def __display__(self):
+        return self.__name__
 
 
 AttrFunc = ATTR_FUNC('AttrFunc', (Function,), {"__display__": "AttrFunc"})
@@ -419,6 +442,7 @@ class DomHinted(DomFunc, Partial, metaclass=DOM_HINTED):
     def __repr__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"<DomHinted: {self.__name__}({ds})>"
+
     def __str__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         return f"{self.__name__}({ds})"
@@ -520,6 +544,7 @@ class Typed(Hinted, DomTyped, CodTyped, metaclass=TYPED):
         ds = ', '.join(t.__name__ for t in self.domain)
         cs = self.codomain.__name__
         return f"<Typed: {self.__name__}({ds}) -> {cs} runtime-checked>"
+
     def __str__(self):
         ds = ', '.join(t.__name__ for t in self.domain)
         cs = self.codomain.__name__
