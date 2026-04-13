@@ -233,11 +233,26 @@ class _ValueRef:
     def __init__(self, attr):
         self._attr = attr
 
+    def _resolve_path(self, entity):
+        parts = self._attr.split(".")
+        cur = entity
+        for part in parts:
+            if cur is None:
+                return None
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            else:
+                cur = getattr(cur, part, None)
+        return cur
+
     def resolve(self):
         model_cls, entity = _get_current_model_and_entity()
         if entity is None:
             return None
-        return entity.get(self._attr)
+        return self._resolve_path(entity)
+
+    def __getattr__(self, name: str):
+        return _ValueRef(f"{self._attr}.{name}")
 
     def __str__(self) -> str:
         v = self.resolve()
@@ -346,6 +361,13 @@ class _ValueRef:
             return _op(left_value, right_value)
 
         return Expr(fn)
+
+class _ValueProxy:
+    def __call__(self, attr: str):
+        return _ValueRef(attr)
+
+    def __getattr__(self, attr: str):
+        return _ValueRef(attr)
 
 class _Optional:
     def __init__(self, typ, default_value):

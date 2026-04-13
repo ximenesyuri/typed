@@ -25,7 +25,8 @@ from typed.mods.helper.models import (
     _lazy_model,
     _expression,
     Expr,
-    _ValueRef
+    _ValueRef,
+    _ValueProxy
 )
 
 MODEL     = _MODEL_('MODEL', (TYPE,), {'__display__': 'MODEL'})
@@ -1049,8 +1050,7 @@ def drop(model, entries):
 
     return Model(**new_kwargs)
 
-def value(attr: Str) -> Any:
-    return _ValueRef(attr)
+value = _ValueProxy()
 
 def expression(_fn=None, *t_args, **t_kwargs):
     def wrap(fn):
