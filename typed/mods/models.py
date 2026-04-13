@@ -54,10 +54,15 @@ def Optional(typ, default_value=None):
             )
         return _Optional(typ, default_value)
 
-    if isinstance(default_value, Expr):
+    if callable(default_value):
         return _Optional(typ, default_value)
 
-    if callable(default_value):
+    if isinstance(default_value, _ValueRef):
+        def _resolve_ref(dv=default_value):
+            return dv.resolve()
+        return _Optional(typ, _resolve_ref)
+
+    if isinstance(default_value, Expr):
         return _Optional(typ, default_value)
 
     if not isinstance(default_value, typ):

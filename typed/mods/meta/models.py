@@ -181,7 +181,7 @@ class _MODEL_FACTORY_(FACTORY):
             _dynamic_default_context
         )
         from typed.mods.helper.general import Switch
-        from typed.mods.helper.models import Expr
+        from typed.mods.helper.models import Expr, _ValueRef
 
         optional_defaults = getattr(cls, '_optional_attributes_and_defaults', {})
         if optional_defaults:
@@ -214,7 +214,10 @@ class _MODEL_FACTORY_(FACTORY):
                         # Plain value
                         value = dv
 
-                    entity_dict[attr] = value 
+                    if isinstance(value, _ValueRef):
+                        value = value.resolve()
+
+                    entity_dict[attr] = value
 
         required_types = dict(getattr(cls, '_required_attributes_and_types', ()))
         optional_wrappers = getattr(cls, '_optional_attributes_and_defaults', {})

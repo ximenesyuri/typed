@@ -233,6 +233,46 @@ class _ValueRef:
     def __init__(self, attr):
         self._attr = attr
 
+    def resolve(self):
+        model_cls, entity = _get_current_model_and_entity()
+        if entity is None:
+            return None
+        return entity.get(self._attr)
+
+    def __str__(self) -> str:
+        v = self.resolve()
+        return "" if v is None else str(v)
+
+    def __repr__(self) -> str:
+        v = self.resolve()
+        return repr(v)
+
+    def __int__(self) -> int:
+        v = self.resolve()
+        return 0 if v is None else int(v)
+
+    def __float__(self) -> float:
+        v = self.resolve()
+        return 0.0 if v is None else float(v)
+
+    def __bool__(self) -> bool:
+        v = self.resolve()
+        return bool(v)
+
+    def __len__(self) -> int:
+        v = self.resolve()
+        return 0 if v is None else len(v)
+
+    def __add__(self, other):
+        from operator import add as _op
+        v = self.resolve()
+        return _op(v, other)
+
+    def __radd__(self, other):
+        from operator import add as _op
+        v = self.resolve()
+        return _op(other, v)
+
     def __eq__(self, other) -> Expr:
         def fn():
             model_cls, entity = _get_current_model_and_entity()
