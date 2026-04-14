@@ -1,10 +1,11 @@
 from typed.mods.meta.base import (
     _TYPE_, _ABSTRACT_, _UNIVERSAL_,
-    _META_, _DISCOURSE_, _PARAMETRIC_,
+    _CONCRETE_, _DISCOURSE_, _PARAMETRIC_,
+    _DYNAMIC_, _STATIC_,
     NILL, ANY,
     STR, INT, FLOAT, BOOL, BYTES,
     TUPLE, LIST, SET, DICT,
-    PATTERN
+    PATTERN, CONTAINER
 )
 
 Nill = NILL("Nill", (), {
@@ -139,18 +140,28 @@ class TYPE(metaclass=_TYPE_):
         _cls_cache[obj] = new_cls
         return new_cls
 
-ABSTRACT = _ABSTRACT_("ABSTRACT", (TYPE,), {
-    "__display__": "ABSTRACT",
-    "__null__": NILL
-})
-
 UNIVERSAL = _UNIVERSAL_("UNIVERSAL", (TYPE,), {
     "__display__": "UNIVERSAL",
     "__null__": NILL
 })
 
-META = _META_("META", (TYPE,), {
-    "__display__": "META",
+ABSTRACT = _ABSTRACT_("ABSTRACT", (TYPE,), {
+    "__display__": "ABSTRACT",
+    "__null__": NILL
+})
+
+CONCRETE = _CONCRETE_("CONCRETE", (TYPE,), {
+    "__display__": "CONCRETE",
+    "__null__": NILL
+})
+
+DYNAMIC = _DYNAMIC_("DYNAMIC", (TYPE,), {
+    "__display__": "DYNAMIC",
+    "__null__": NILL
+})
+
+STATIC = _STATIC_("STATIC", (TYPE,), {
+    "__display__": "STATIC",
     "__null__": NILL
 })
 
@@ -228,3 +239,4 @@ class Dict(metaclass=DICT):
         return key in self.__dict__
 
 Pattern = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})
+Container = CONTAINER("Container", (List, Tuple, Set), {"__display__": "Container", "__null__": []})

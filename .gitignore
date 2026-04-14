@@ -8,3 +8,5 @@ wheels/
 .venv
 *.py[oc]
 __test__.py
+*.py[oc]
+*.py[oc]

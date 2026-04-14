@@ -1,20 +1,19 @@
 from functools import lru_cache as cache
-from typed.mods.types.base import TYPE, Nill, Str, List
+from typed.mods.types.base import TYPE, Nill, Str
 from typed.mods.meta.base import _TYPE_
 from typed.mods.helper.general import _name, _name_list
 
 @cache
-def ATTR(attributes):
-    if isinstance(attributes, Str):
-        attributes = (attributes,)
-    elif not isinstance(attributes, List):
-        raise TypeError("attributes must be a string or a list of strings")
+def ATTR(*attrs):
+    for attr in attrs:
+        if not isinstance(attr, Str):
+            raise TypeError("Attributes must be strings.")
 
     class _ATTR_(_TYPE_):
-        def __init__(cls, name, bases, dct, attributes=None):
+        def __init__(cls, name, bases, dct, attrs=None):
             super().__init__(name, bases, dct)
-            if attributes:
-                setattr(cls, '__attrs__', attributes)
+            if attrs:
+                setattr(cls, '__attrs__', attrs)
 
         def __instancecheck__(cls, instance):
             attrs = getattr(cls, '__attrs__', None)
@@ -22,11 +21,11 @@ def ATTR(attributes):
                 return all(hasattr(instance, attr) for attr in attrs)
             return False
 
-    class_name = f'ATTR({_name_list(*attributes)})'
+    class_name = f'ATTR({_name_list(*attrs)})'
 
     from typed.mods.types.base import Nill
     return _ATTR_(class_name, (TYPE,), {
-        '__attrs__': tuple(attributes),
+        '__attrs__': attrs,
         "__null__": Nill,
         "__display__": class_name
     })

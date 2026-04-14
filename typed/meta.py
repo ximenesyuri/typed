@@ -2,9 +2,13 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "__UNIVERSE__", "_TYPE_", "_ABSTRACT_", "_UNIVERSAL_", "_META_", "_DISCOURSE_", "_PARAMETRIC_",
-    "ABSTRACT", "UNIVERSAL", "META", "DISCOURSE", "PARAMETRIC",
-    "NILL", "ANY", "INT", "BOOL", "STR", "FLOAT", "BYTES", "TUPLE", "LIST", "DICT", "SET", "PATTERN",
+    "__UNIVERSE__", "_TYPE_", "_UNIVERSAL_", 
+    "_ABSTRACT_", "_CONCRETE_", "_DYNAMIC_", "_STATIC_",
+    "_DISCOURSE_", "_PARAMETRIC_",
+
+    "NILL", "ANY", "INT", "BOOL", "STR", "FLOAT", "BYTES", 
+    "TUPLE", "LIST", "DICT", "SET", "PATTERN", "CONTAINER",
+
     "CALLABLE", "BUILTIN", "FUNCTION", "LAMBDA", "PARTIAL",
     "CLASS", "BOUND_METHOD", "UNBOUND_METHOD", "METHOD",
     "ATTR_FUNC", "DOM_FUNC", "COD_FUNC", "COMP_FUNC",
@@ -15,16 +19,14 @@ __all__ = [
 __lazy__ = {
     "__UNIVERSE__":     ("typed.mods.meta.base", "__UNIVERSE__"),
     "_TYPE_":           ("typed.mods.meta.base", "_TYPE_"),
-    "_ABSTRACT_":       ("typed.mods.meta.base", "_ABSTRACT_"),
     "_UNIVERSAL_":      ("typed.mods.meta.base", "_UNIVERSAL_"),
-    "_META_":           ("typed.mods.meta.base", "_META_"),
+    "_ABSTRACT_":       ("typed.mods.meta.base", "_ABSTRACT_"),
+    "_CONCRETE_":       ("typed.mods.meta.base", "_CONCRETE_"),
+    "_DYNAMIC_":        ("typed.mods.meta.base", "_DYNAMIC_"),
+    "_STATIC_":         ("typed.mods.meta.base", "_STATIC_"),
     "_DISCOURSE_":      ("typed.mods.meta.base", "_DISCOURSE_"),
     "_PARAMETRIC_":     ("typed.mods.meta.base", "_PARAMETRIC_"),
-    "ABSTRACT":         ("typed.mods.types.base", "ABSTRACT"),
-    "UNIVERSAL":        ("typed.mods.types.base", "UNIVERSAL"),
-    "META":             ("typed.mods.types.base", "META"),
-    "DISCOURSE":        ("typed.mods.types.base", "DISCOURSE"),
-    "PARAMETRIC":       ("typed.mods.types.base", "PARAMETRIC"),
+
     "NILL":             ("typed.mods.meta.base", "NILL"),
     "ANY":              ("typed.mods.meta.base", "ANY"),
     "INT":              ("typed.mods.meta.base", "INT"),
@@ -36,7 +38,9 @@ __lazy__ = {
     "LIST":             ("typed.mods.meta.base", "LIST"),
     "DICT":             ("typed.mods.meta.base", "DICT"),
     "SET":              ("typed.mods.meta.base", "SET"),
-    "PATTERN":          ("typed.mods.meta.other", "PATTERN"),
+    "PATTERN":          ("typed.mods.meta.base", "PATTERN"),
+    "CONTAINER":        ("typed.mods.meta.base", "CONTAINER"),
+
     "CALLABLE":         ("typed.mods.meta.func", "CALLABLE"),
     "BUILTIN":          ("typed.mods.meta.func", "BUILTIN"),
     "FUNCTION":         ("typed.mods.meta.func", "FUNCTION"),
@@ -86,8 +90,12 @@ def __dir__():
 
 if __lsp__:
     from typed.mods.meta.base import (
-        __UNIVERSE__, _TYPE_, _ABSTRACT_, _UNIVERSAL_, _META_, _DISCOURSE_, _PARAMETRIC_,
-        NILL, ANY, INT, BOOL, STR, FLOAT, BYTES, TUPLE, LIST, DICT, SET, PATTERN
+        __UNIVERSE__, _TYPE_, _UNIVERSAL_, 
+        _ABSTRACT_, _CONCRETE_, _DYNAMIC_, _STATIC_,
+        _DISCOURSE_, _PARAMETRIC_,
+
+        NILL, ANY, INT, BOOL, STR, FLOAT, BYTES,
+        TUPLE, LIST, DICT, SET, PATTERN, CONTAINER
     )
     from typed.mods.meta.func import (
         CALLABLE, BUILTIN, FUNCTION, LAMBDA, PARTIAL,

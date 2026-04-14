@@ -11,9 +11,9 @@ __all__ = [
 
     "Nill", "Any",
     "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
-    "Tuple", "List", "Set", "Dict", "Pattern",
+    "Tuple", "List", "Set", "Dict", "Pattern", "Container"
 
-    "Function", "Hinted", "Typed", "TYPE",
+    "Function", "Condition", "Hinted", "Typed", "TYPE",
 
     "name", "names", "null", "new", "_", "var", "append", "switch", "func"
 ]
@@ -54,9 +54,11 @@ __lazy__ = {
     "Set":       ("typed.mods.types.base", "Set"),
     "Dict":      ("typed.mods.types.base", "Dict"),
     "Pattern":   ("typed.mods.types.base", "Pattern"),
+    "Container": ("typed.mods.types.base", "Container"),
     "TYPE":      ("typed.mods.types.base", "TYPE"),
 
     "Function":  ("typed.mods.types.func", "Function"),
+    "Condition": ("typed.mods.types.func", "Condition"),
     "Hinted":    ("typed.mods.types.func", "Hinted"),
     "Typed":     ("typed.mods.types.func", "Typed"),
     "Lazy":      ("typed.mods.types.func", "Lazy"),
@@ -100,7 +102,7 @@ if __lsp__:
     from typed.mods.models import model, value, validate
     from typed.mods.types.base import (
         Nill, Any, Int, Str, Float, Bool, Bytes, Self, Cls,
-        Tuple, List, Set, Dict, Pattern, TYPE
+        Tuple, List, Set, Dict, Pattern, Container, TYPE
     )
-    from typed.mods.types.func import Function, Hinted, Typed, Lazy
+    from typed.mods.types.func import Function, Condition, Hinted, Typed, Lazy
     from typed.mods.general import name, names, null, new, convert, _, var, switch, func

@@ -135,7 +135,7 @@ class _TYPE_(type, metaclass=__UNIVERSE__):
                 f"got {len(args)}"
             )
 
-        obj = args[0] 
+        obj = args[0]
         from typed.mods.types.base import (
             Str, Int, Float, Bool, Nill, Any,
             List, Tuple, Set, Dict
@@ -165,7 +165,7 @@ class _UNIVERSAL_(_TYPE_):
         from typed.mods.types.base import TYPE
         return TYPE(instance) == __UNIVERSE__
 
-class _META_(_TYPE_):
+class _CONCRETE_(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import TYPE
         return instance in TYPE and _issubtype(instance, _TYPE_)
@@ -180,29 +180,60 @@ class _META_(_TYPE_):
 
 class _DISCOURSE_(_TYPE_):
     def __instancecheck__(cls, instance):
-        from typed.mods.factories.meta import ATTR
         from typed.mods.types.func import Generator
         from typed.mods.types.base import TYPE
-        return (
-            TYPE(instance) in ATTR("__iter__")
-            and TYPE(instance).__iter__ in Generator
-        )
+        if hasattr(TYPE(instance), "__iter__"):
+            return TYPE(instance).__iter__ in Generator
+        return False
 
 class _PARAMETRIC_(_TYPE_):
     def __instancecheck__(cls, instance):
-        from typed.mods.factories.meta import ATTR
         from typed.mods.types.func import Factory
         from typed.mods.types.base import TYPE
-        return (
-            TYPE(instance) in ATTR("__call__")
-            and instance.__call__ in Factory
-        )
+        if hasattr(TYPE(instance), "__call__"):
+            return TYPE(instance).__iter__ in Factory
+        return False
+
+class _DYNAMIC_(_TYPE_):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE
+        from typed.mods.factories.meta import ATTR
+        attrs = ("__setattr__", "__delattr__")
+        if not TYPE(instance) in ATTR(*attrs):
+            return False
+        try:
+            setattr(instance, "__has_dynamic_type__", True)
+            delattr(instance, "__has_dynamic_type__")
+            return True
+        except:
+            return False
+
+
+class _STATIC_(_TYPE_):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import TYPE
+        from typed.mods.factories.meta import ATTR
+        attrs = ("__setattr__", "__delattr__")
+        if all(TYPE(instance) not in ATTR(attr) for attr in attrs):
+            return True
+        try:
+            setattr(instance, "__has_dynamic_type__", True)
+            delattr(instance, "__has_dynamic_type__")
+            return False
+        except:
+            return True
 
 class NILL(_TYPE_):
     def __instancecheck__(cls, instance):
         return instance is None
     def __subclasscheck__(cls, subclass):
         return False
+
+class ANY(_TYPE_):
+    def __instancecheck__(cls, instance):
+        return True
+    def __subclasscheck__(cls, subclass):
+        return True
 
 class INT(_TYPE_):
     def __instancecheck__(cls, instance):
@@ -211,10 +242,10 @@ class INT(_TYPE_):
 
     def __convert__(cls, obj):
         from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
         from typed.mods.helper.helper import _name
-        if TYPE(obj) in ATTR('__int__'):
-            return int(obj)
+        from typed.mods.factories.meta import ATTR
+        if hasattr(TYPE(obj), "__init__"):
+            return TYPE(obj).__init__(obj)
         raise TypeError(
             "Wrong type in Int function.\n"
             f" ==> '{obj}': has an unexpected type."
@@ -231,12 +262,12 @@ class FLOAT(_TYPE_):
         from typed.mods.types.base import TYPE
         from typed.mods.factories.meta import ATTR
         from typed.mods.helper.helper import _name
-        if TYPE(obj) in ATTR('__float__'):
-            return float(obj)
+        if hasattr(TYPE(obj), "__float__"):
+            return TYPE(obj).__float__(obj)
         raise TypeError(
             "Wrong type in Float function.\n"
             f" ==> '{_name(obj)}': has an unexpected type."
-            f"     [expected_type] an instance of {_name(ATTR('__int__'))}"
+            f"     [expected_type] an instance of {_name(ATTR('__float__'))}"
             f"     [received_type] {_name(TYPE(obj))}"
         )
 
@@ -245,22 +276,41 @@ class STR(_TYPE_):
         from typed.mods.types.base import Str, TYPE
         return isinstance(instance, str) or _issubtype(TYPE(instance), Str)
 
+    def __convert__(cls, obj):
+        from typed.mods.types.base import TYPE
+        from typed.mods.factories.meta import ATTR
+        from typed.mods.helper.helper import _name
+        if hasattr(TYPE(obj), "__str__"):
+            return TYPE(obj).__str__(obj)
+        raise TypeError(
+            "Wrong type in Str function.\n"
+            f" ==> '{_name(obj)}': has an unexpected type."
+            f"     [expected_type] an instance of {_name(ATTR('__str__'))}"
+            f"     [received_type] {_name(TYPE(obj))}"
+        )
+
 class BOOL(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Bool, TYPE
         return isinstance(instance, bool) or _issubtype(TYPE(instance), Bool)
 
+    def __convert__(cls, obj):
+        from typed.mods.types.base import TYPE
+        from typed.mods.factories.meta import ATTR
+        from typed.mods.helper.helper import _name
+        if hasattr(TYPE(obj), "__bool__"):
+            return TYPE(obj).__bool__(obj)
+        raise TypeError(
+            "Wrong type in Bool function.\n"
+            f" ==> '{_name(obj)}': has an unexpected type."
+            f"     [expected_type] an instance of {_name(ATTR('__bool__'))}"
+            f"     [received_type] {_name(TYPE(obj))}"
+        )
+
 class BYTES(_TYPE_):
     def __instancecheck__(cls, instance):
         from typed.mods.types.base import Bytes, TYPE
         return isinstance(instance, bytes) or _issubtype(TYPE(instance), Bytes)
-
-class ANY(_TYPE_):
-    def __instancecheck__(cls, instance):
-        return True
-
-    def __subclasscheck__(cls, subclass):
-        return True
 
 class TUPLE(_TYPE_):
     """
@@ -426,3 +476,12 @@ class PATTERN(STR):
             return True
         except re.error:
             return False
+
+class CONTAINER(LIST, TUPLE, SET):
+    def __instancecheck__(cls, instance):
+        from typed.mods.types.base import List, Tuple, Set
+        if instance in List or instance in Tuple or instance in Set:
+            return True
+        if hasattr(type(instance), "__contains__"):
+            return True
+        return False

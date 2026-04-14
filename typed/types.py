@@ -2,12 +2,15 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "TYPE", "ABSTRACT", "UNIVERSAL",
-    "META", "DISCOURSE", "PARAMETRIC",
+    "TYPE", "UNIVERSAL",
+    "ABSTRACT", "CONCRETE", "DYNAMIC", "STATIC",
+    "DISCOURSE", "PARAMETRIC",
+
     "Nill", "Any",
     "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
     "Tuple", "List", "Set", "Dict",
-    "Pattern",
+    "Pattern", "Container",
+
     "Callable", "Builtin", "Lambda", "Function", "Partial",
     "Class", "BoundMethod", "UnboundMethod", "Method",
     "AttrFunc", "DomFunc", "CodFunc", "CompFunc",
@@ -18,6 +21,14 @@ __all__ = [
 
 __lazy__ = {
     "TYPE":         ("typed.mods.types.base", "TYPE"),
+    "UNIVERSAL":    ("typed.mods.types.base", "UNIVERSAL"),
+    "ABSTRACT":     ("typed.mods.types.base", "ABSTRACT"),
+    "CONCRETE":     ("typed.mods.types.base", "CONCRETE"),
+    "DYNAMIC":      ("typed.mods.types.base", "DYNAMIC"),
+    "STATIC":       ("typed.mods.types.base", "STATIC"),
+    "DISCOURSE":    ("typed.mods.types.base", "DISCOURSE"),
+    "PARAMETRIC":   ("typed.mods.types.base", "PARAMETRIC"),
+
     "Nill":         ("typed.mods.types.base", "Nill"),
     "Any":          ("typed.mods.types.base", "Any"),
     "Int":          ("typed.mods.types.base", "Int"),
@@ -32,6 +43,8 @@ __lazy__ = {
     "Set":          ("typed.mods.types.base", "Set"),
     "Dict":         ("typed.mods.types.base", "Dict"),
     "Pattern":      ("typed.mods.types.base", "Pattern"),
+    "Container":    ("typed.mods.types.base", "Container"),
+
     "Callable":     ("typed.mods.types.func", "Callable"),
     "Builtin":      ("typed.mods.types.func", "Builtin"),
     "Lambda":       ("typed.mods.types.func", "Lambda"),
@@ -76,9 +89,13 @@ def __dir__():
 
 if __lsp__:
     from typed.mods.types.base import (
-        TYPE, Nill, Any, Int, Str, Float, Bool, Bytes,
+        TYPE, UNIVERSAL,
+        ABSTRACT, CONCRETE, DYNAMIC, STATIC,
+        DISCOURSE, PARAMETRIC,
+
+        Nill, Any, Int, Str, Float, Bool, Bytes,
         Self, Cls,
-        Tuple, List, Set, Dict, Pattern
+        Tuple, List, Set, Dict, Pattern, Container
     )
     from typed.mods.types.func import (
         Callable, Builtin, Lambda, Function, Partial,
