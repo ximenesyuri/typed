@@ -4,7 +4,6 @@ from typed.mods.meta.base import (
     TYPE, PARAMETRIC,
     STR, INT, FLOAT, BOOL, BYTES,
     TUPLE, LIST, SET, DICT,
-    PATTERN, CONTAINER
 )
 from builtins import (
     type  as __Type__,
@@ -18,28 +17,32 @@ from builtins import (
     dict  as __Dict__,
     bytes as __Bytes__
 )
+from typed.mods.err import NotDefined
 
 class Empty(metaclass=EMPTY):
     """
     The type with no terms.
 
-    > type(Empty)    is EMPTY
-    > term(x, Empty) is always False
-    > sub(T, Empty)  is True iff T is Empty
-    > null(Empty)    is NotDefined
+    : type(Empty)    is  EMPTY
+    : term(x, Empty) :=  False
+    : sub(T, Empty)  iff T is Empty
+    : null(Empty)    is  NotDefined
+    : builtin(Empty) is  NotDefined
     """
     __typesystem__ = TYPESYSTEM
     __type__       = EMPTY
     __display__    = "Empty"
+    __null__       = NotDefined
+    __builtin__    = NotDefined
 
 class Nill(metaclass=NILL):
     """
     The type with None value.
 
-    > type(Nill)    is NILL
-    > term(x, Nill) is True iff x is None
-    > null(Nill)    is None
-    > builtin(Nill) is NotDefined
+    : type(Nill)    is  NILL
+    : term(x, Nill) iff x is None
+    : null(Nill)    is  None
+    : builtin(Nill) is  NotDefined
     """
     __typesystem__ = TYPESYSTEM
     __type__       = NILL
@@ -50,27 +53,25 @@ class Any(metaclass=ANY):
     """
     The type of anything.
 
-    > type(Any)     is ANY
-    > term(x, Any)  is always True
-    > null(Any)     is None
-    > builtin(Any)  is NotDefined
+    : type(Any)     is ANY
+    : term(x, Any)  := True
+    : null(Any)     is None
+    : builtin(Any)  is NotDefined
     """
     __typesystem__ = TYPESYSTEM
     __type__       = ANY
     __display__    = "Any"
     __null__       = None
-
-Cls  = Any
-Self = Any
+    __builtin__    = NotDefined
 
 class Type(metaclass=TYPE):
     """
     The type of all non-universe types.
 
-    > type(Type)    is TYPE
-    > term(x, Type) is True iff
-    > null(Type)    is Nill
-    > builtin(Type) is type
+    : type(Type)    is  TYPE := UNIVERSE(0)
+    : term(x, Type) iff sub(type(x), Type)
+    : null(Type)    is  Nill
+    : builtin(Type) is  type
     """
     __typesystem__ = TYPESYSTEM
     __type__       = TYPE
@@ -82,8 +83,8 @@ class Parametric(metaclass=PARAMETRIC):
     """
     The type of parametric types.
 
-    > type(Parametric) is PARAMETRIC
-    > null(Parametric) is Nill
+    : type(Parametric) is PARAMETRIC
+    : null(Parametric) is NotDefined
 
     """
     __typesystem__ = TYPESYSTEM
@@ -95,9 +96,9 @@ class Int(metaclass=INT):
     """
     The type of integers.
 
-    > type(Int)    is INT
-    > null(Int)    is 0
-    > builtin(Int) is int
+    : type(Int)    is INT
+    : null(Int)    is 0
+    : builtin(Int) is int
     """
     __typesystem__ = TYPESYSTEM
     __type__       = INT
@@ -109,9 +110,9 @@ class Float(metaclass=FLOAT):
     """
     The type of floats.
 
-    > type(Float)    is FLOAT
-    > null(Float)    is 0.0
-    > builtin(Float) is float
+    : type(Float)    is FLOAT
+    : null(Float)    is 0.0
+    : builtin(Float) is float
     """
     __typesystem__ = TYPESYSTEM
     __type__       = FLOAT
@@ -123,9 +124,9 @@ class Bool(metaclass=BOOL):
     """
     The type of booleans.
 
-    > type(Bool)    is BOOL
-    > null(Bool)    is False
-    > builtin(Bool) is bool
+    : type(Bool)    is BOOL
+    : null(Bool)    is False
+    : builtin(Bool) is bool
     """
     __typesystem__ = TYPESYSTEM
     __type__       = BOOL
@@ -137,9 +138,9 @@ class Str(metaclass=STR):
     """
     The type of strings.
 
-    > type(Str)    is STR
-    > null(Str)    is ""
-    > builtin(Str) is str
+    : type(Str)    is STR
+    : null(Str)    is ""
+    : builtin(Str) is str
     """
     def __len__(self, obj):
         return len(obj)
@@ -154,9 +155,9 @@ class Bytes(metaclass=BYTES):
     """
     The type of bytes.
 
-    > type(Bytes)  is BYTES
-    > null(Bytes)  is bytes()
-    > builtin(Str) is bytes
+    : type(Bytes)  is BYTES
+    : null(Bytes)  is bytes()
+    : builtin(Str) is bytes
     """
 
     __typesystem__ = TYPESYSTEM
@@ -170,9 +171,9 @@ class Tuple(metaclass=TUPLE):
     """
     The parametric type of tuples.
 
-    > type(Tuple)    is TUPLE
-    > null(Tuple)    is tuple()
-    > builtin(Tuple) is tuple
+    : type(Tuple)    is TUPLE
+    : null(Tuple)    is tuple()
+    : builtin(Tuple) is tuple
     """
     __typesystem__ = TYPESYSTEM
     __type__       = TUPLE
@@ -185,9 +186,9 @@ class List(metaclass=LIST):
     """
     The parametric type of lists.
 
-    > type(List)    is LIST
-    > null(List)    is []
-    > builtin(List) is list
+    : type(List)    is LIST
+    : null(List)    is []
+    : builtin(List) is list
     """
     __typesystem__ = TYPESYSTEM
     __type__       = LIST
@@ -200,9 +201,9 @@ class Set(metaclass=SET):
     """
     The parametric type of sets.
 
-    > type(Set)    is SET
-    > null(Set)    is set()
-    > builtin(Set) is set
+    : type(Set)    is SET
+    : null(Set)    is set()
+    : builtin(Set) is set
     """
     __typesystem__ = TYPESYSTEM
     __type__       = SET
@@ -214,9 +215,9 @@ class Dict(metaclass=DICT):
     """
     The parametric type of dicts.
 
-    > type(Dict)    is DICT
-    > null(Dict)    is {}
-    > builtin(Dict) is dict
+    : type(Dict)    is DICT
+    : null(Dict)    is {}
+    : builtin(Dict) is dict
     """
     __display__ = "Dict"
     __null__    = {}
@@ -228,6 +229,3 @@ class Dict(metaclass=DICT):
         trm.__dict__[key] = value
     def __contains__(trm, key):
         return key in trm.__dict__
-
-Pattern = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})
-Container = CONTAINER("Container", (List, Tuple, Set), {"__display__": "Container", "__null__": []})

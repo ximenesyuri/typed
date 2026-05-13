@@ -1,7 +1,5 @@
-import sys
-import importlib
-from typing import TYPE_CHECKING as __lsp__
 from typed.mods.err import NotDefined
+from typed.helper.core import __STATEFUL__, __MAGIC__
 from builtins import type as __Type__
 
 def null(typ):
@@ -28,7 +26,11 @@ def names(*terms):
     return ', '.join(name(t) for t in terms)
 
 def lazy(imports):
-    caller_globals = sys._getframe(1).f_globals
+    from sys import _getframe
+    from importlib import import_module
+    from typing import TYPE_CHECKING as __lsp__
+
+    caller_globals = _getframe(1).f_globals
     caller_name = caller_globals.get("__name__", "<unknown>")
 
     all_names = list(imports.keys())
@@ -51,7 +53,7 @@ def lazy(imports):
                 f"module {caller_name!r} has no attribute {name_str!r}"
             ) from None
 
-        module = importlib.import_module(module_name)
+        module = import_module(module_name)
         attr = getattr(module, attr_name)
         caller_globals[name_str] = attr
         return attr
@@ -64,133 +66,36 @@ def lazy(imports):
 
     return __lsp__
 
-_sub_visiting = set()
-
-def sup(typ, other):
+def extends(typ, other):
     mro = getattr(other, "__mro__", None)
     if mro is not None:
         return any(base is typ for base in mro)
     return False
 
-def __sub__(typ, other):
-    key = (id(typ), id(other))
-    if key in _sub_visiting:
-        return False
-    _sub_visiting.add(key)
-    try:
-        if sup(typ, other):
-            return True
-
-        if "__sub__" in getattr(typ, "__dict__", {}):
-            sub_func = typ.__dict__["__sub__"]
-            if sub_func is not __sub__:
-                res = sub_func(typ, other)
-                if res is not NotImplemented: return res
-
-        if "__sub__" in getattr(other, "__dict__", {}):
-            sub_func = other.__dict__["__sub__"]
-            if sub_func is not __sub__:
-                res = sub_func(other, typ)
-                if res is not NotImplemented: return res
-
-        meta_typ = type(typ)
-        if hasattr(meta_typ, "__sub__"):
-            sub_func = getattr(meta_typ, "__sub__")
-            if sub_func is not __sub__:
-                res = sub_func(typ, other)
-                if res is not NotImplemented: return res
-
-        meta_other = type(other)
-        if hasattr(meta_other, "__sub__"):
-            sub_func = getattr(meta_other, "__sub__")
-            if sub_func is not __sub__:
-                res = sub_func(other, typ)
-                if res is not NotImplemented: return res
-
-        return False
-    finally:
-        _sub_visiting.remove(key)
-
-_term_visiting = set()
-
-def __term__(typ, trm):
-    key = (id(typ), id(trm))
-    if key in _term_visiting:
-        return False
-    _term_visiting.add(key)
-    try:
-        if "__term__" in getattr(typ, "__dict__", {}):
-            term_func = typ.__dict__["__term__"]
-            if term_func is not __term__:
-                res = term_func(typ, trm)
-                if res is not NotImplemented: return res
-
-        meta = type(typ)
-        if hasattr(meta, "__term__"):
-            term_func = getattr(meta, "__term__")
-            if term_func is not __term__:
-                res = term_func(typ, trm)
-                if res is not NotImplemented: return res
-
-        if "__sub__" in getattr(typ, "__dict__", {}):
-            sub_func = typ.__dict__["__sub__"]
-            if sub_func is not __sub__:
-                res = sub_func(typ, type(trm))
-                if res: return True
-
-        if hasattr(meta, "__sub__"):
-            sub_func = getattr(meta, "__sub__")
-            if sub_func is not __sub__:
-                res = sub_func(typ, type(trm))
-                if res: return True
-
-        if isinstance(trm, type) and isinstance(typ, type):
-            if issubclass(trm, typ):
-                return True
-
-        return isinstance(trm, typ)
-    finally:
-        _term_visiting.remove(key)
+def sup(other, typ):
+    from typed.helper.core import __sup__
+    return __sup__(typ, other)
 
 def sub(other, typ):
+    from typed.helper.core import __sub__
     return __sub__(typ, other)
 
 def term(trm, typ):
+    from typed.helper.core import __term__
     return __term__(typ, trm)
-
-def __in__(typ, trm):
-    return __term__(typ, trm)
-
-def __le__(typ, other):
-    return __sub__(typ, other)
-
-def __lt__(typ, other):
-    return __sub__(typ, other) and not __sub__(other, typ)
-
-def __ge__(typ, other):
-    return __sub__(other, typ)
-
-def __gt__(typ, other):
-    return __sub__(other, typ) and not __sub__(typ, other)
-
-def __eq__(typ, other):
-    return __sub__(typ, other) and __sub__(other, typ)
-
-def __ne__(typ, other):
-    return not __eq__(typ, other)
 
 class new:
     def universe(
         name="__UNIVERSE__",
-        __term__=__term__,
-        __sub__=__sub__,
-        __in__=__in__,
-        __eq__=__eq__,
-        __le__=__le__,
-        __lt__=__lt__,
-        __ge__=__ge__,
-        __gt__=__gt__,
-        __ne__=__ne__
+        __term__=__STATEFUL__.__term__,
+        __sub__=__STATEFUL__.__sub__,
+        __in__=__MAGIC__.__in__,
+        __eq__=__MAGIC__.__eq__,
+        __le__=__MAGIC__.__le__,
+        __lt__=__MAGIC__.__lt__,
+        __ge__=__MAGIC__.__ge__,
+        __gt__=__MAGIC__.__gt__,
+        __ne__=__MAGIC__.__ne__
     ):
         return __Type__(
             name, 
@@ -217,15 +122,15 @@ class new:
             universe="__UNIVERSE__",
             abstract="__ABSTRACT__",
             typemap=None,
-            __term__=__term__,
-            __sub__=__sub__,
-            __in__=__in__,
-            __eq__=__eq__,
-            __le__=__le__,
-            __lt__=__lt__,
-            __ge__=__ge__,
-            __gt__=__gt__,
-            __ne__=__ne__
+            __term__=__STATEFUL__.__term__,
+            __sub__=__STATEFUL__.__sub__,
+            __in__=__MAGIC__.__in__,
+            __eq__=__MAGIC__.__eq__,
+            __le__=__MAGIC__.__le__,
+            __lt__=__MAGIC__.__lt__,
+            __ge__=__MAGIC__.__ge__,
+            __gt__=__MAGIC__.__gt__,
+            __ne__=__MAGIC__.__ne__
         ):
             if typemap is None:
                 typemap = {}

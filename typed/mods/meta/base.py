@@ -17,8 +17,6 @@ def ABSTRACT(level, typesystem=TYPESYSTEM):
 TYPE = UNIVERSE(0)
 META = ABSTRACT(0)
 
-print(TYPE in META)
-
 class PARAMETRIC(TYPE):
     def __term__(typ, trm):
         from typed.mods.types.func import Factory
@@ -187,21 +185,3 @@ class DICT(TYPE):
     def __call__(type, *args, **kwargs):
         from typed.mods.parametric.base import _Dict_
         return _Dict_(*args, **kwargs)
-
-class PATTERN(STR):
-    def __term__(typ, trm):
-        import re
-        from typed.mods.types.base import Str
-        if not term(trm, Str):
-            return False
-        try:
-            re.compile(trm)
-            return True
-        except re.error:
-            return False
-
-class CONTAINER(TYPE):
-    def __term__(typ, trm):
-        if hasattr(type(trm), "__contains__"):
-            return True
-        return False

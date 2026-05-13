@@ -1,10 +1,150 @@
-def _term(term, typ):
-    if hasattr(typ, "__term__"):
-        try:
-            return typ.__term__(term)
-        except Exception:
+class __STATEFUL__:
+    SUBS  = set()
+    SUPS  = set()
+    TERMS = set()
+
+    def __sup__(typ, other):
+        key = (id(typ), id(other))
+        if key in __STATEFUL__.SUPS:
             return False
-    return False
+
+        __STATEFUL__.sup.add(key)
+        try:
+            from typed.mods.core import extends
+            if extends(typ, other):
+                return True
+
+            if "__sup__" in getattr(typ, "__dict__", {}):
+                sup_func = typ.__dict__["__sup__"]
+                if sup_func is not __STATEFUL__.__sup__:
+                    res = sup_func(typ, other)
+                    if res is not NotImplemented: return res
+
+            if "__sup__" in getattr(other, "__dict__", {}):
+                sup_func = other.__dict__["__sup__"]
+                if sup_func is not __STATEFUL__.__sup__:
+                    res = sup_func(other, typ)
+                    if res is not NotImplemented: return res
+
+            meta_typ = type(typ)
+            if hasattr(meta_typ, "__sup__"):
+                sup_func = getattr(meta_typ, "__sup__")
+                if sup_func is not __STATEFUL__.__sup__:
+                    res = sup_func(typ, other)
+                    if res is not NotImplemented: return res
+
+            meta_other = type(other)
+            if hasattr(meta_other, "__sup__"):
+                sup_func = getattr(meta_other, "__sup__")
+                if sup_func is not __STATEFUL__.__sup__:
+                    res = sup_func(other, typ)
+                    if res is not NotImplemented: return res
+
+            return False
+        finally:
+            __STATEFUL__.SUPS.remove(key)
+
+    def __sub__(typ, other):
+        key = (id(typ), id(other))
+        if key in __STATEFUL__.SUBS:
+            return False
+        __STATEFUL__.SUBS.add(key)
+        try:
+            from typed.mods.core import sup
+            if sup(typ, other):
+                return True
+
+            if "__sub__" in getattr(typ, "__dict__", {}):
+                sub_func = typ.__dict__["__sub__"]
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(typ, other)
+                    if res is not NotImplemented: return res
+
+            if "__sub__" in getattr(other, "__dict__", {}):
+                sub_func = other.__dict__["__sub__"]
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(other, typ)
+                    if res is not NotImplemented: return res
+
+            meta_typ = type(typ)
+            if hasattr(meta_typ, "__sub__"):
+                sub_func = getattr(meta_typ, "__sub__")
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(typ, other)
+                    if res is not NotImplemented: return res
+
+            meta_other = type(other)
+            if hasattr(meta_other, "__sub__"):
+                sub_func = getattr(meta_other, "__sub__")
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(other, typ)
+                    if res is not NotImplemented: return res
+
+            return False
+        finally:
+            __STATEFUL__.SUBS.remove(key)
+
+    def __term__(typ, trm):
+        key = (id(typ), id(trm))
+        if key in __STATEFUL__.TERMS:
+            return False
+        __STATEFUL__.TERMS.add(key)
+        try:
+            if "__term__" in getattr(typ, "__dict__", {}):
+                term_func = typ.__dict__["__term__"]
+                if term_func is not __STATEFUL__.__term__:
+                    res = term_func(typ, trm)
+                    if res is not NotImplemented: return res
+
+            meta = type(typ)
+            if hasattr(meta, "__term__"):
+                term_func = getattr(meta, "__term__")
+                if term_func is not __STATEFUL__.__term__:
+                    res = term_func(typ, trm)
+                    if res is not NotImplemented: return res
+
+            if "__sub__" in getattr(typ, "__dict__", {}):
+                sub_func = typ.__dict__["__sub__"]
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(typ, type(trm))
+                    if res: return True
+
+            if hasattr(meta, "__sub__"):
+                sub_func = getattr(meta, "__sub__")
+                if sub_func is not __STATEFUL__.__sub__:
+                    res = sub_func(typ, type(trm))
+                    if res: return True
+
+            if isinstance(trm, type) and isinstance(typ, type):
+                if issubclass(trm, typ):
+                    return True
+
+            return isinstance(trm, typ)
+        finally:
+            __STATEFUL__.TERMS.remove(key)
+
+class __MAGIC__:
+    def __in__(typ, trm):
+        return __STATEFUL__.__term__(typ, trm)
+
+    def __le__(typ, other):
+        return __STATEFUL__.__sub__(typ, other)
+
+    def __lt__(typ, other):
+        return __STATEFUL__.__sub__(typ, other) and not __STATEFUL__.__sub__(other, typ)
+
+    def __ge__(typ, other):
+        return __STATEFUL__.__sub__(other, typ)
+
+    def __gt__(typ, other):
+        return __STATEFUL__.__sub__(other, typ) and not __STATEFUL__.__sub__(typ, other)
+
+    def __eq__(typ, other):
+        return __STATEFUL__.__sub__(typ, other) and __STATEFUL__.__sub__(other, typ)
+
+    def __ne__(typ, other):
+        return not __MAGIC__.__eq__(typ, other)
+
 
 def _weaksubtype(t1, t2):
     for base in t1.__mro__:
@@ -630,252 +770,6 @@ def _resolve_placeholder_value(val, call_args, call_kwargs):
         if has_var or len(pos) == 0:
             return val(*call_args, **call_kwargs)
     return val
-
-class Switch:
-    def __init__(self, *, value):
-        self.default_value = value
-        self._model_cases = []
-        self._cond_cases = []
-        self._plain_cases = []
-        self._built = None
-
-    def case(self, value, when):
-        from typed.mods.types.func import Condition, Typed
-        from typed.mods.types.base import Bool
-        from typed.mods.helper.models import Expr
-        from typed.mods.helper.helper import _name
-
-        if isinstance(when, Expr):
-            self._model_cases.append((value, when))
-            return self
-
-        if isinstance(when, bool):
-            self._model_cases.append((value, when))
-            self._plain_cases.append((value, (lambda: when)))
-            return self
-
-        if isinstance(when, Condition):
-            if when.cod is not Bool:
-                raise TypeError(
-                    "Wrong codomain in switch condition:\n"
-                    f" ==> '{_name(when)}' does not return Bool\n"
-                    "     [expected_type] Bool\n"
-                    f"     [received_type] '{_name(when.cod)}'"
-                )
-            self._cond_cases.append((value, when))
-            return self
-
-        if callable(when):
-            sig = inspect.signature(when)
-            num_params = len(sig.parameters)
-            is_lambda = inspect.isfunction(when) and when.__name__ == "<lambda>"
-
-            if is_lambda and num_params == 0:
-                self._model_cases.append((value, when))
-                self._plain_cases.append((value, when))
-                return self
-
-            if is_lambda:
-                self._plain_cases.append((value, when))
-                return self
-
-            try:
-                typed_cond = Typed(when)
-            except Exception:
-                raise
-
-            if typed_cond.codomain is not Bool:
-                raise TypeError(
-                    "Wrong codomain in switch condition:\n"
-                    f" ==> '{_name(when)}' does not return Bool\n"
-                    "     [expected_type] Bool\n"
-                    f"     [received_type] '{_name(typed_cond.codomain)}'"
-                )
-
-            self._cond_cases.append((value, typed_cond))
-            return self
-
-        raise TypeError(
-            "Switch.case(value, when): 'when' must be one of:\n"
-            "  - Bool\n"
-            "  - lambda (with 0 or more parameters)\n"
-            "  - function with type hints returning Bool\n"
-            "  - Expr (in model defaults)\n"
-            f"     [received_type] {type(when)}"
-        )
-
-    def _eval_model_condition(self, cond):
-        from typed.mods.helper.models import Expr
-
-        if isinstance(cond, Expr):
-            return bool(cond())
-
-        if isinstance(cond, bool):
-            return cond
-
-        if callable(cond):
-            v = cond()
-            if isinstance(v, Expr):
-                return bool(v())
-            return bool(v)
-
-        return bool(cond)
-
-    def evaluate(self):
-        if not self._model_cases:
-            dv = self.default_value
-            return dv() if callable(dv) else dv
-
-        for val, cond in self._model_cases:
-            if self._eval_model_condition(cond):
-                return val() if callable(val) else val
-
-        dv = self.default_value
-        return dv() if callable(dv) else dv
-
-    def check_type(self, typ):
-        from typed.mods.types.base import TYPE
-        if not isinstance(typ, TYPE):
-            return False
-
-        from typed.mods.helper.models import Expr
-
-        def _value_ok(v):
-            if v is None:
-                return True
-            if isinstance(v, Expr):
-                return True
-            if callable(v):
-                return True
-            try:
-                return v in typ
-            except Exception:
-                return True
-
-        if not _value_ok(self.default_value):
-            return False
-        for v, _cond in self._model_cases:
-            if not _value_ok(v):
-                return False
-        return True
-
-    def _condition_domain(self):
-        if not self._cond_cases:
-            return ()
-        dom0 = self._cond_cases[0][1].domain
-        for _v, cond in self._cond_cases[1:]:
-            if cond.domain != dom0:
-                from typed.mods.helper.helper import _name
-                raise TypeError(
-                    "All typed branches in switch() must have the same domain.\n"
-                    f" ==> first domain: {dom0}\n"
-                    f"     found:        {cond.domain} in '{_name(cond)}'"
-                )
-        return dom0
-
-    def _condition_codomain(self):
-        from typed.mods.types.base import TYPE as TYPE_BASE
-        from typed.mods.factories.base import Union
-        types = []
-        if self.default_value is not None:
-            types.append(TYPE_BASE(self.default_value))
-        for v, _ in self._cond_cases:
-            if v is not None:
-                types.append(TYPE_BASE(v))
-        if not types:
-            from typed.mods.types.base import Any
-            return Any
-        return Union(*types)
-
-    def _build_typed_function(self):
-        from typing import get_type_hints
-        from typed.mods.decorators import typed
-
-        if not self._cond_cases:
-            dv = self.default_value
-            return dv() if callable(dv) else dv
-
-        first_value, first_cond = self._cond_cases[0]
-        orig_func = getattr(first_cond, "func", first_cond)
-
-        sig = inspect.signature(orig_func)
-        type_hints = get_type_hints(orig_func)
-
-        codomain = self._condition_codomain()
-
-        impl_annotations = {}
-        for name, param in sig.parameters.items():
-            if name in type_hints:
-                impl_annotations[name] = type_hints[name]
-        impl_annotations["return"] = codomain
-
-        self._condition_domain()
-
-        def _impl(*args, **kwargs):
-            for v, cond in self._cond_cases:
-                if cond(*args, **kwargs):
-                    return v
-            return self.default_value
-
-        _impl.__name__ = "switch_result"
-        _impl.__annotations__ = impl_annotations
-
-        return typed(_impl)
-
-    def _build_plain(self):
-        if not self._plain_cases:
-            dv = self.default_value
-            return dv() if callable(dv) else dv
-
-        import inspect
-        _, first_pred = self._plain_cases[0]
-        sig = inspect.signature(first_pred)
-        num_params = len(sig.parameters)
-
-        if num_params == 0:
-            for v, pred in self._plain_cases:
-                if pred():
-                    return v
-            return self.default_value
-
-        def _impl(*args, **kwargs):
-            for v, pred in self._plain_cases:
-                if pred(*args, **kwargs):
-                    return v
-            return self.default_value
-
-        _impl.__name__ = "switch_result"
-        return _impl
-
-    def end(self):
-        if self._built is not None:
-            return self._built
-
-        if self._cond_cases and self._plain_cases:
-            raise TypeError(
-                "Cannot mix typed (Condition/Typed Bool) and plain (lambda) "
-                "conditions in the same switch()."
-            )
-
-        if self._cond_cases:
-            dom = self._condition_domain()
-            if len(dom) == 0:
-                for v, cond in self._cond_cases:
-                    if cond():
-                        self._built = v
-                        break
-                else:
-                    self._built = self.default_value
-            else:
-                self._built = self._build_typed_function()
-
-        elif self._plain_cases:
-            self._built = self._build_plain()
-
-        else:
-            self._built = self
-
-        return self._built
 
 class Func:
     def __init__(self, *iterables, **param_types):
