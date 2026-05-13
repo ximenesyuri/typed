@@ -1,487 +1,207 @@
-from typed.mods.helper.helper import (
-    _inner_union,
-    _inner_dict_union,
-    _from_typing
-)
-from typed.mods.helper.general import (
-    _issubtype,
-    _isweaksubtype
-)
+from typed.mods.core import term, sub, TYPESYSTEM
 
-class __UNIVERSE__(type):
-    def __new__(mcls, name, bases, namespace, **kwds):
-        if '__instancecheck__' not in namespace:
-            raise TypeError(f"{name} must implement __instancecheck__")
+def UNIVERSE(level, typesystem=TYPESYSTEM):
+    if level < 0:
+        return typesystem.universe
 
-        if '__subclasscheck__' not in namespace:
-            namespace['__subclasscheck__'] = type.__subclasscheck__
+    typesystem.populate(level=level+1)
+    return typesystem.__universes__[level]
 
-        def __contains__(cls, obj):
-            return isinstance(obj, cls)
-        namespace['__contains__'] = __contains__
-        return type.__new__(mcls, name, bases, namespace, **kwds)
+def ABSTRACT(level, typesystem=TYPESYSTEM):
+    if level < 0:
+        return typesystem.abstract
 
-    def __eq__(cls, other):
-        return _TYPE_.__eq__(cls, other)
-    def __ne__(cls, other):
-        return _TYPE_.__ne__(cls, other)
-    def __le__(cls, other):
-        return _TYPE_.__le__(cls, other)
-    def __lt__(cls, other):
-        return _TYPE_.__lt__(cls, other)
-    def __ge__(cls, other):
-        return _TYPE_.__ge__(cls, other)
-    def __gt__(cls, other):
-        return _TYPE_.__gt__(cls, other)
-    def __lshift__(cls, other):
-        return _TYPE_.__lshift__(cls, other)
-    def __rshift__(cls, other):
-        return _TYPE_.__rshift__(cls, other)
-    def __hash__(cls):
-        return _TYPE_.__hash__(cls)
+    typesystem.populate(level=level+1)
+    return typesystem.__abstracts__[level]
 
-class _TYPE_(type, metaclass=__UNIVERSE__):
-    def __instancecheck__(cls, instance):
-        if _from_typing(type(instance)) or _from_typing(instance):
-            return False
-        return _issubtype(type(instance), _TYPE_)
+TYPE = UNIVERSE(0)
+META = ABSTRACT(0)
 
-    def __invert__(cls):
-        cls.__tilde__=True
-        return cls
+print(TYPE in META)
 
-    def __eq__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            if hasattr(other, "__tilde__"):
-                if other.__tilde__:
-                    return _isweaksubtype(cls, other) and _isweaksubtype(other, cls)
-            return _issubtype(cls, other) and _issubtype(other, cls)
-        except:
-            return False
-
-    def __ne__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return True
-        try:
-            return not (_issubtype(cls, other) or _issubtype(other, cls))
-        except:
-            return True
-
-    def __lt__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _issubtype(cls, other) and not _issubtype(other, cls)
-        except:
-            return False
-
-    def __le__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _issubtype(cls, other)
-        except:
-            return False
-
-    def __gt__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _issubtype(other, cls) and not _issubtype(cls, other)
-        except:
-            return False
-
-    def __ge__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _issubtype(other, cls)
-        except:
-            return False
-
-    def __lshift__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _isweaksubtype(cls, other)
-        except:
-            return False
-
-    def __rshift__(cls, other):
-        if _from_typing(cls) or _from_typing(other):
-            return False
-        try:
-            return _isweaksubtype(other, cls)
-        except:
-            return False
-
-    def __hash__(cls):
-        return id(cls)
-
-    def __subclasscheck__(cls, subclass):
-        if _from_typing(cls) or _from_typing(subclass):
-            return False
-        try:
-            return _issubtype(cls, subclass)
-        except TypeError:
-            return False
-
-    def __call__(cls, *args, **kwargs):
-        if len(args) != 1:
-            raise TypeError(
-                f"{cls.__name__} expected 1 argument (object to type-convert), "
-                f"got {len(args)}"
-            )
-
-        obj = args[0]
-        from typed.mods.types.base import (
-            Str, Int, Float, Bool, Nill, Any,
-            List, Tuple, Set, Dict
-        )
-        types_map = {
-            type(None): Nill,
-            bool: Bool,
-            int: Int,
-            float: Float,
-            str: Str,
-            list: List(Any),
-            tuple: Tuple(Any),
-            dict: Dict(Any),
-            set: Set(Any)
-        }
-        for k, v in types_map.items():
-            if type(obj) is k:
-                return v
-        return type(obj)
-
-class _ABSTRACT_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        return _issubtype(instance, _TYPE_)
-
-class _UNIVERSAL_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import TYPE
-        return TYPE(instance) == __UNIVERSE__
-
-class _CONCRETE_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import TYPE
-        return instance in TYPE and _issubtype(instance, _TYPE_)
-
-    def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import TYPE
-        return (
-                subclass in TYPE
-                and _issubtype(subclass, TYPE)
-                and _issubtype(subclass, cls)
-            )
-
-class _DISCOURSE_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.func import Generator
-        from typed.mods.types.base import TYPE
-        if hasattr(TYPE(instance), "__iter__"):
-            return TYPE(instance).__iter__ in Generator
-        return False
-
-class _PARAMETRIC_(_TYPE_):
-    def __instancecheck__(cls, instance):
+class PARAMETRIC(TYPE):
+    def __term__(typ, trm):
         from typed.mods.types.func import Factory
-        from typed.mods.types.base import TYPE
-        if hasattr(TYPE(instance), "__call__"):
-            return TYPE(instance).__iter__ in Factory
+        from typed.mods.core import type
+        if hasattr(type(trm), "__call__"):
+            return type(trm).__iter__ in Factory
         return False
 
-class _DYNAMIC_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
-        attrs = ("__setattr__", "__delattr__")
-        if not TYPE(instance) in ATTR(*attrs):
-            return False
-        try:
-            setattr(instance, "__has_dynamic_type__", True)
-            delattr(instance, "__has_dynamic_type__")
-            return True
-        except:
-            return False
-
-
-class _STATIC_(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
-        attrs = ("__setattr__", "__delattr__")
-        if all(TYPE(instance) not in ATTR(attr) for attr in attrs):
-            return True
-        try:
-            setattr(instance, "__has_dynamic_type__", True)
-            delattr(instance, "__has_dynamic_type__")
-            return False
-        except:
-            return True
-
-class NILL(_TYPE_):
-    def __instancecheck__(cls, instance):
-        return instance is None
-    def __subclasscheck__(cls, subclass):
+class EMPTY(TYPE):
+    def __term__(typ, trm):
         return False
 
-class ANY(_TYPE_):
-    def __instancecheck__(cls, instance):
+class NILL(TYPE):
+    def __term__(typ, trm):
+        return trm is None
+
+class ANY(TYPE):
+    def __term__(typ, trm):
         return True
-    def __subclasscheck__(cls, subclass):
+    def __sub__(typ, other):
         return True
 
-class INT(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Int, TYPE
-        return isinstance(instance, int) or _issubtype(TYPE(instance), Int)
+class INT(TYPE):
+    def __term__(typ, trm):
+        from builtins import int as __Int__
+        from typed.mods.types.base import Int
+        from typed.mods.core import type
+        return term(trm, __Int__) or sub(type(trm), Int)
 
-    def __convert__(cls, obj):
-        from typed.mods.types.base import TYPE
-        from typed.mods.helper.helper import _name
-        from typed.mods.factories.meta import ATTR
-        if hasattr(TYPE(obj), "__init__"):
-            return TYPE(obj).__init__(obj)
-        raise TypeError(
-            "Wrong type in Int function.\n"
-            f" ==> '{obj}': has an unexpected type."
-            f"     [expected_type] an instance of {_name(ATTR('__int__'))}"
-            f"     [received_type] {_name(TYPE(obj))}"
-        )
+class FLOAT(TYPE):
+    def __term__(typ, trm):
+        from builtins import float as __Float__
+        from typed.mods.types.base import Float
+        from typed.mods.core import type
+        return term(trm, __Float__) or sub(type(trm), Float)
 
-class FLOAT(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Float, TYPE
-        return isinstance(instance, float) or _issubtype(TYPE(instance), Float)
+class STR(TYPE):
+    def __term__(typ, trm):
+        from builtins import str as __Str__
+        from typed.mods.types.base import Str
+        from typed.mods.core import type
+        return term(trm, __Str__) or sub(type(trm), Str)
 
-    def __convert__(cls, obj):
-        from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
-        from typed.mods.helper.helper import _name
-        if hasattr(TYPE(obj), "__float__"):
-            return TYPE(obj).__float__(obj)
-        raise TypeError(
-            "Wrong type in Float function.\n"
-            f" ==> '{_name(obj)}': has an unexpected type."
-            f"     [expected_type] an instance of {_name(ATTR('__float__'))}"
-            f"     [received_type] {_name(TYPE(obj))}"
-        )
+class BOOL(TYPE):
+    def __term__(typ, trm):
+        from builtins import bool as __Bool__
+        from typed.mods.types.base import Bool
+        from typed.mods.core import type
+        return term(trm, __Bool__) or sub(type(trm), Bool)
 
-class STR(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Str, TYPE
-        return isinstance(instance, str) or _issubtype(TYPE(instance), Str)
+class BYTES(TYPE):
+    def __term__(typ, trm):
+        from builtins import bytes as __Bytes__, bytearray as __ByteArray__
+        from typed.mods.types.base import Bytes
+        from typed.mods.core import type
+        return term(trm, __Bytes__) or term(trm, __ByteArray__) or sub(type(trm), Bytes)
 
-    def __convert__(cls, obj):
-        from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
-        from typed.mods.helper.helper import _name
-        if hasattr(TYPE(obj), "__str__"):
-            return TYPE(obj).__str__(obj)
-        raise TypeError(
-            "Wrong type in Str function.\n"
-            f" ==> '{_name(obj)}': has an unexpected type."
-            f"     [expected_type] an instance of {_name(ATTR('__str__'))}"
-            f"     [received_type] {_name(TYPE(obj))}"
-        )
-
-class BOOL(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Bool, TYPE
-        return isinstance(instance, bool) or _issubtype(TYPE(instance), Bool)
-
-    def __convert__(cls, obj):
-        from typed.mods.types.base import TYPE
-        from typed.mods.factories.meta import ATTR
-        from typed.mods.helper.helper import _name
-        if hasattr(TYPE(obj), "__bool__"):
-            return TYPE(obj).__bool__(obj)
-        raise TypeError(
-            "Wrong type in Bool function.\n"
-            f" ==> '{_name(obj)}': has an unexpected type."
-            f"     [expected_type] an instance of {_name(ATTR('__bool__'))}"
-            f"     [received_type] {_name(TYPE(obj))}"
-        )
-
-class BYTES(_TYPE_):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Bytes, TYPE
-        return isinstance(instance, bytes) or _issubtype(TYPE(instance), Bytes)
-
-class TUPLE(_TYPE_):
-    """
-    Build the typed 'Tuple' parametric type:
-        > the objects of 'Tuple' are tuples
-        > the objects of 'Tuple(X, Y, ...)'
-        > are the tuples '(x, y, ...)' such that:
-            1. 'x, y, ... are in Union(X, Y, ...)'
-           and
-            2. The tuple can have any length >= 0.
-    Can be applied to typed functions:
-        > 'Tuple(f): Tuple(f.domain) -> Tuple(f.codomain)'
-    """
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Tuple, TYPE
-        if not isinstance(instance, tuple) and not _issubtype(TYPE(instance), Tuple):
+class TUPLE(TYPE):
+    def __term__(typ, trm):
+        from builtins import tuple as __Tuple__
+        from typed.mods.types.base import Tuple
+        from typed.mods.core import type
+        if not term(trm, __Tuple__) and not sub(type(trm), Tuple):
             return False
-        if hasattr(cls, '__types__'):
-            return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
+        types = getattr(typ, '__types__', None)
+        if types is not None:
+            return all(term(x, types[i]) for x, i in enumerate(trm))
         return True
 
-    def __subclasscheck__(cls, subclass):
+    def __sub__(typ, other):
         from typed.mods.types.base import Any, Tuple
-        if subclass is cls or subclass is Any or _issubtype(subclass, Tuple):
-            return True
-        if hasattr(subclass, '__bases__') and (Tuple in subclass.__bases__) and hasattr(subclass, '__types__'):
-            subclass_element_types = subclass.__types__
-            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+        types = getattr(typ, '__types__', None)
+        if types is None:
+            return sub(typ, other)
+
+        if hasattr(other, '__bases__') and (Tuple in other.__bases__) and hasattr(other, '__types__'):
+            other_element_types = other.__types__
+            return all(any(sub(st, ct) for ct in typ.__types__) for st in other_element_types)
         return False
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(type, *args, **kwargs):
         from typed.mods.parametric.base import _Tuple_
         return _Tuple_(*args, **kwargs)
 
-class LIST(_TYPE_):
-    """
-    Build the typed 'List' parametric type:
-        > the objects of 'List' are lists
-        > the objects of 'List(X, Y, ...)'
-        > are the lists '[x, y, ...]' such that:
-            1. 'x, y, ... are in Union(X, Y, ...)' and
-            2. The list can have any length >= 0.
-    Can be applied to typed functions:
-        > 'List(f): List(f.domain) -> List(f.codomain)'
-    """
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import List, TYPE
-        if not isinstance(instance, list) and not _issubtype(TYPE(instance), List):
+class LIST(TYPE):
+    def __term__(typ, trm):
+        from builtins import list as __List__
+        from typed.mods.types.base import List
+        from typed.mods.core import type
+        if not term(trm, __List__) and not sub(type(trm), List):
             return False
-        if hasattr(cls, '__types__'):
-            return all(isinstance(x, cls.__types__) for x in instance)
+        types = getattr(typ, '__types__', None)
+        if types is not None:
+            return all(term(x, types[i]) for x, i in enumerate(trm))
         return True
 
-    def __subclasscheck__(cls, subclass):
-        from typed.mods.types.base import Any, List
-        if subclass is cls or subclass is Any or _issubtype(subclass, List):
-            return True
-        if hasattr(subclass, '__bases__') and List in subclass.__bases__ and hasattr(subclass, '__types__'):
-            subclass_element_types = subclass.__types__
-            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+    def __sub__(typ, other):
+        from typed.mods.types.base import List
+        if hasattr(other, '__bases__') and List in other.__bases__ and hasattr(other, '__types__'):
+            other_element_types = other.__types__
+            return all(any(sub(st, ct) for ct in typ.__types__) for st in other_element_types)
         return False
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(type, *args, **kwargs):
         from typed.mods.parametric.base import _List_
         return _List_(*args, **kwargs)
 
-class SET(_TYPE_):
-    """
-    The typed 'Set' of parametric type:
-        > the objects of Set are sets
-        > the objects of 'Set(X, Y, ...)'
-        > are the sets '{x, y, ...}' such that:
-            1. 'x, y, ... are in Union(X, Y, ...)'
-           and
-            2. The set can have any size >= 0.
-            3. Elements must be hashable.
-    Can be applied to typed functions:
-        > 'Set(f): Set(f.domain) -> Set(f.codomain)'
-    """
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Set, TYPE
-        if not isinstance(instance, set) and not _issubtype(TYPE(instance), Set):
+class SET(TYPE):
+    def __term__(typ, trm):
+        from builtins import set as __Set__
+        from typed.mods.types.base import Set
+        from typed.mods.core import type
+        if not term(trm, __Set__) and not sub(type(trm), Set):
             return False
         from typed.mods.types.base import Any
-        if Any is cls.__bases__:
+        if Any is typ.__bases__:
             return True
-        if hasattr(cls, "__types__"):
-            return all(isinstance(x, _inner_union(cls.__types__)) for x in instance)
+        if hasattr(type, "__types__"):
+            return all(term(x, _inner_union(type.__types__)) for x in trm)
         return True
 
-    def __subclasscheck__(cls, subclass):
+    def __sub__(typ, other):
         from typed.mods.types.base import Any, Set
-        if subclass is cls or subclass is Any or _issubtype(subclass, Set):
+        if other is typ or other is Any or sub(other, Set):
             return True
-        if hasattr(subclass, '__bases__') and Set in subclass.__bases__ and hasattr(subclass, '__types__'):
-            subclass_element_types = subclass.__types__
-            return all(any(_issubtype(st, ct) for ct in cls.__types__) for st in subclass_element_types)
+        if hasattr(other, '__bases__') and Set in other.__bases__ and hasattr(other, '__types__'):
+            other_element_types = other.__types__
+            return all(any(sub(st, ct) for ct in typ.__types__) for st in other_element_types)
         return False
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(type, *args, **kwargs):
         from typed.mods.parametric.base import _Set_
         return _Set_(*args, **kwargs)
 
-class DICT(_TYPE_):
-    """
-    The typed 'Dict' parametric type:
-        > the objects of 'Dict' are dictionaries
-        > the objects of 'Dict(X, Y, ...)'
-        > are the dictionaries '{k: v, ...}' such that:
-            1. 'v, ... are in Union(X, Y, ...)' (keys are not restricted)
-           and
-            2. The dict can have any size >= 0.
-            3. Keys must be hashable (standard dict behavior).
-    Accept argument 'keys':
-        > the objects of 'Dict(X, Y, ..., keys=K)'
-        > are the objects 'd' of 'Dict(X, Y, ...)' such that:
-            1. 'issubclass(K, Str) is True'
-            2. 'isinstance(key, K) is True' for every 'k in d.keys()'
-    Can be applied to typed functions:
-        > 'Dict(f): Dict(f.domain) -> Dict(f.codomain)' such that
-            1. 'f({k: v}) = {k: f(v)}'
-    """
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import Dict, TYPE
-        if not isinstance(instance, dict) and not _issubtype(TYPE(instance), Dict):
+class DICT(TYPE):
+    def __term__(typ, trm):
+        from builtins import dict as __Dict__
+        from typed.mods.types.base import Dict
+        from typed.mods.core import type
+        if not term(trm, __Dict__) and not sub(type(trm), Dict):
             return False
-        if hasattr(cls, "__types__"):
-            if not all(isinstance(v, _inner_dict_union(cls.__types__)) for v in instance.values()):
+        if hasattr(typ, "__types__"):
+            if not all(term(v, _inner_dict_union(type.__types__)) for v in trm.values()):
                 return False
-        if hasattr(cls, "__key_type__"):
-            if cls.__key_type__ is not None:
-                if not all(isinstance(k, cls.__key_type__) for k in instance.keys()):
+        if hasattr(typ, "__key_type__"):
+            if typ.__key_type__ is not None:
+                if not all(term(k, typ.__key_type__) for k in trm.keys()):
                     return False
         return True
 
-    def __subclasscheck__(cls, subclass):
+    def __sub__(typ, other):
         from typed.mods.types.base import Any, Dict
-        if subclass is cls or subclass is Any or _issubtype(subclass, Dict):
+        if other is typ or other is Any or sub(other, Dict):
             return True
-        if hasattr(subclass, '__bases__') and Dict in subclass.__bases__ and hasattr(subclass, '__types__'):
-            subclass_value_union_types = subclass.__types__
+        if hasattr(other, '__bases__') and Dict in other.__bases__ and hasattr(other, '__types__'):
+            other_value_union_types = other.__types__
             keys_match = True
-            if hasattr(subclass, '__key_type__') and cls.__key_type__ is not None:
-                keys_match = _issubtype(getattr(subclass, '__key_type__'), cls.__key_type__)
+            if hasattr(other, '__key_type__') and typ.__key_type__ is not None:
+                keys_match = sub(getattr(other, '__key_type__'), typ.__key_type__)
             return (
-                all(any(_issubtype(svt, vt) for vt in cls.__types__) for svt in subclass_value_union_types)
+                all(any(sub(svt, vt) for vt in typ.__types__) for svt in other_value_union_types)
                 and keys_match
             )
         return False
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(type, *args, **kwargs):
         from typed.mods.parametric.base import _Dict_
         return _Dict_(*args, **kwargs)
 
 class PATTERN(STR):
-    def __instancecheck__(cls, instance):
+    def __term__(typ, trm):
         import re
         from typed.mods.types.base import Str
-        if not isinstance(instance, Str):
+        if not term(trm, Str):
             return False
         try:
-            re.compile(instance)
+            re.compile(trm)
             return True
         except re.error:
             return False
 
-class CONTAINER(LIST, TUPLE, SET):
-    def __instancecheck__(cls, instance):
-        from typed.mods.types.base import List, Tuple, Set
-        if instance in List or instance in Tuple or instance in Set:
-            return True
-        if hasattr(type(instance), "__contains__"):
+class CONTAINER(TYPE):
+    def __term__(typ, trm):
+        if hasattr(type(trm), "__contains__"):
             return True
         return False

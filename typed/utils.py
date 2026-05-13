@@ -10,8 +10,6 @@ __lazy__ = {
     "names":   ("typed.mods.general", "names"),
     "null":    ("typed.mods.general", "null"),
     "new":     ("typed.mods.general", "new"),
-    "poly":    ("typed.mods.general", "poly"),
-    "convert": ("typed.mods.general", "convert"),
 }
 
 
@@ -31,4 +29,4 @@ def __dir__():
     return sorted(set(globals().keys()) | set(__all__))
 
 if __lsp__:
-    from typed.mods.general import name, names, null, new, poly, convert
+    from typed.mods.utils import name, names, null, new, poly, convert, pullback

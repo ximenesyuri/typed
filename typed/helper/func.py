@@ -1,6 +1,6 @@
 from inspect import signature, Parameter, Signature, isclass
 from typing import get_type_hints
-from typed.mods.helper.general import _type, _name, _issubtype
+from typed.helper.utils import _typeof, _name, _issubtype
 
 def _unwrap(obj):
     seen = set()
@@ -23,7 +23,6 @@ def _unwrap(obj):
             func = func.func
             continue
 
-        # Legacy
         if hasattr(func, "_orig"):
             func = func._orig
             continue
@@ -432,7 +431,7 @@ def _instrument_locals_check(func, force_all_annotated=True):
     name_to_type = {name: unparse(typ) for name, typ in annotated_locs}
 
     original_globals = func.__globals__.copy()
-    original_globals['_type'] = _type
+    original_globals['_typeof'] = _typeof
 
     instrumented = None
 
@@ -454,7 +453,7 @@ def _instrument_locals_check(func, force_all_annotated=True):
                                     "Wrong type in function '{func.__name__}'\\n"
                                     "  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n"
                                     "      [expected_type] {type_str}\\n"
-                                    f"      [received_type] {{_type({name}).__name__}}")
+                                    f"      [received_type] {{_typeof({name}).__name__}}")
                         """
                         for check_line in check.splitlines():
                             instrumented_lines.append(check_line)
@@ -469,7 +468,7 @@ def _instrument_locals_check(func, force_all_annotated=True):
                         "Wrong type in function '{func.__name__}'\\n"
                         "  ==> '{func.__name__}': local var '{name}' has an unexpected type\\n"
                         "      [expected_type] {type_str}\\n"
-                        f"      [received_type] {{_type({name}).__name__}}")
+                        f"      [received_type] {{_typeof({name}).__name__}}")
             """
                     for check_line in reversed(check.splitlines()):
                         instrumented_lines.insert(idx, check_line)
@@ -489,12 +488,11 @@ def _instrument_locals_check(func, force_all_annotated=True):
 def _variable_checker(typ):
     def wrapper(x):
         if not isinstance(x, typ):
-            from typed.mods.types.base import TYPE
             raise TypeError(
                 f"Mismatch type in variable value.\n"
                 f" ==> received value '{x}':\n"
                 f"     [expected_type]: '{_name(typ)}'\n"
-                f"     [received_type]: '{_name(TYPE(x))}'"
+                f"     [received_type]: '{_name(_typeof(x))}'"
             )
         return x
     return wrapper

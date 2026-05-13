@@ -106,7 +106,3 @@ if __lsp__:
         FACTORY, OPERATION, DEPENDENT, CONDITION,
         LAZY
     )
-    from typed.mods.meta.models import (
-        _LAZY_MODEL_, _MODEL_,
-        MODEL_META, MODEL_INSTANCE
-    )

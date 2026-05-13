@@ -36,10 +36,6 @@ __lazy__ = {
     "Len":       ("typed.mods.factories.generics", "Len"),
     "Maybe":     ("typed.mods.factories.generics", "Maybe"),
 
-    "model":     ("typed.mods.models", "model"),
-    "value":     ("typed.mods.models", "value"),
-    "validate":  ("typed.mods.models", "validate"),
-
     "Nill":      ("typed.mods.types.base", "Nill"),
     "Any":       ("typed.mods.types.base", "Any"),
     "Int":       ("typed.mods.types.base", "Int"),
@@ -99,10 +95,9 @@ if __lsp__:
         Inter, Filter, Compl, Regex, Interval, Range, Not, Enum,
         Single, Null, Len, Maybe
     )
-    from typed.mods.models import model, value, validate
     from typed.mods.types.base import (
         Nill, Any, Int, Str, Float, Bool, Bytes, Self, Cls,
         Tuple, List, Set, Dict, Pattern, Container, TYPE
     )
     from typed.mods.types.func import Function, Condition, Hinted, Typed, Lazy
-    from typed.mods.general import name, names, null, new, convert, _, var, switch, func
+    from typed.mods.utils import name, names, null, new, convert, _, var, switch, func

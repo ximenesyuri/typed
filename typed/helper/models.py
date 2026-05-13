@@ -610,61 +610,54 @@ def _canonical_model_key(kind, extends, conditions, attrs):
     attrs_key = tuple(sorted(attrs.items(), key=lambda kv: kv[0]))
     return (kind, extends_key, conditions_key, attrs_key)
 
-def _lazy_model(
-    original_cls,
-    *,
-    builder,
-    is_exact=False,
-    is_ordered=False,
-    is_rigid=False,
-    is_optional=False,
-    is_mandatory=False,
-    extends=(),
-):
-    name = original_cls.__name__
+# def _lazy_model(
+#     original_cls,
+#     *,
+#     builder,
+#     is_exact=False,
+#     is_ordered=False,
+#     is_rigid=False,
+#     is_optional=False,
+#     is_mandatory=False,
+#     extends=(),
+# ):
+#     name = original_cls.__name__
+#     namespace = {
+#         '__module__': original_cls.__module__,
+#         '__doc__':    original_cls.__doc__,
+#         '__builder__': staticmethod(builder),
+#         'is_lazy': True,
+#         'is_model': True,
+#         'is_exact': is_exact,
+#         'is_ordered': is_ordered,
+#         'is_rigid': is_rigid,
+#         'is_optional': is_optional,
+#         'is_mandatory': is_mandatory,
+#         '__lazy_extends__': tuple(extends),
+#     }
+#     if is_optional:
+#         namespace['_required_attribute_keys'] = set()
+#     if is_mandatory:
+#         namespace['_optional_attributes_and_defaults'] = {}
+#     from typed.mods.meta.models import LAZY_META
+#     LazyCls = LAZY_META(name, tuple(extends), namespace)
+#     LazyCls.__qualname__ = original_cls.__qualname__
+#     LazyCls.__display__ = 'LazyModel'
+#     return LazyCls
 
-    namespace = {
-        '__module__': original_cls.__module__,
-        '__doc__':    original_cls.__doc__,
-        '__builder__': staticmethod(builder),
-        'is_lazy': True,
-        'is_model': True,
-        'is_exact': is_exact,
-        'is_ordered': is_ordered,
-        'is_rigid': is_rigid,
-        'is_optional': is_optional,
-        'is_mandatory': is_mandatory,
-        '__lazy_extends__': tuple(extends),
-    }
-
-    if is_optional:
-        namespace['_required_attribute_keys'] = set()
-    if is_mandatory:
-        namespace['_optional_attributes_and_defaults'] = {}
-
-    from typed.mods.meta.models import LAZY_META
-    LazyCls = LAZY_META(name, tuple(extends), namespace)
-    LazyCls.__qualname__ = original_cls.__qualname__
-    LazyCls.__display__ = 'LazyModel'
-    return LazyCls
-
-def _lazy_submodel(subclass, cls):
-    if subclass is cls:
-        return True
-
-    visited = set()
-    stack = [subclass]
-
-    while stack:
-        cur = stack.pop()
-        if cur in visited:
-            continue
-        visited.add(cur)
-
-        bases = getattr(cur, '__bases__', ())
-        for base in bases:
-            if base is cls:
-                return True
-            stack.append(base)
-
-    return False
+# def _lazy_submodel(subclass, cls):
+#     if subclass is cls:
+#         return True
+#     visited = set()
+#     stack = [subclass]
+#     while stack:
+#         cur = stack.pop()
+#         if cur in visited:
+#             continue
+#         visited.add(cur)
+#         bases = getattr(cur, '__bases__', ())
+#         for base in bases:
+#             if base is cls:
+#                 return True
+#             stack.append(base)
+#     return False

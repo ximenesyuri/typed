@@ -267,4 +267,3 @@ def dependent(func):
          "     [expected_type] subtype of 'Function'\n"
         f"     [received_type] '{_name(TYPE(func))}'"
     )
-

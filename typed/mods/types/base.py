@@ -1,242 +1,233 @@
 from typed.mods.meta.base import (
-    _TYPE_, _ABSTRACT_, _UNIVERSAL_,
-    _CONCRETE_, _DISCOURSE_, _PARAMETRIC_,
-    _DYNAMIC_, _STATIC_,
-    NILL, ANY,
+    TYPESYSTEM,
+    EMPTY, NILL, ANY,
+    TYPE, PARAMETRIC,
     STR, INT, FLOAT, BOOL, BYTES,
     TUPLE, LIST, SET, DICT,
     PATTERN, CONTAINER
 )
+from builtins import (
+    type  as __Type__,
+    int   as __Int__,
+    float as __Float__,
+    bool  as __Bool__,
+    str   as __Str__,
+    tuple as __Tuple__,
+    set   as __Set__,
+    list  as __List__,
+    dict  as __Dict__,
+    bytes as __Bytes__
+)
 
-Nill = NILL("Nill", (), {
-    "__display__": "Nill",
-    "__null__": None
-})
+class Empty(metaclass=EMPTY):
+    """
+    The type with no terms.
 
-class TYPE(metaclass=_TYPE_):
-    __display__ = "TYPE"
-    __null__ = Nill
-    __builtin__ = type
+    > type(Empty)    is EMPTY
+    > term(x, Empty) is always False
+    > sub(T, Empty)  is True iff T is Empty
+    > null(Empty)    is NotDefined
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = EMPTY
+    __display__    = "Empty"
 
-    @staticmethod
-    def __convert__(obj, t, _cls_cache=None, _meta_cache=None):
-        from typed.mods.helper.general import _name
-        from inspect import isclass
+class Nill(metaclass=NILL):
+    """
+    The type with None value.
 
-        def _convert_property(prop, t, _cls_cache, _meta_cache):
-            def getter(self):
-                value = prop.fget(self)
-                try:
-                    return TYPE.__convert__(value, t, _cls_cache, _meta_cache)
-                except Exception:
-                    return value
-            setter = None
-            deleter = None
-            if prop.fset:
-                def setter(self, val):
-                    prop.fset(self, val)
-            if prop.fdel:
-                def deleter(self):
-                    prop.fdel(self)
-            return property(getter, setter, deleter, prop.__doc__)
+    > type(Nill)    is NILL
+    > term(x, Nill) is True iff x is None
+    > null(Nill)    is None
+    > builtin(Nill) is NotDefined
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = NILL
+    __display__    = "Nill"
+    __null__       = None
 
-        if t is not TYPE:
-            raise TypeError(
-                "Wrong type in TYPE.__convert__:\n"
-                f" ==> '{_name(t)}': has an unexpected type\n"
-                "     [expected_type] subtype of 'TYPE'\n"
-                f"     [received_type] '{_name(TYPE(t))}'"
-            )
+class Any(metaclass=ANY):
+    """
+    The type of anything.
 
-        if _cls_cache is None:
-            _cls_cache = {}
-        if _meta_cache is None:
-            _meta_cache = {}
+    > type(Any)     is ANY
+    > term(x, Any)  is always True
+    > null(Any)     is None
+    > builtin(Any)  is NotDefined
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = ANY
+    __display__    = "Any"
+    __null__       = None
 
-        if isinstance(obj, TYPE):
-            return obj
-        if obj in _cls_cache:
-            return _cls_cache[obj]
+Cls  = Any
+Self = Any
 
-        if not isclass(obj):
-            raise TypeError("obj must be a class.")
+class Type(metaclass=TYPE):
+    """
+    The type of all non-universe types.
 
-        orig_meta = type(obj)
-        if orig_meta in _meta_cache:
-            meta_in_type = _meta_cache[orig_meta]
-        else:
-            if orig_meta is type:
-                base_metas = (_TYPE_,)
-            else:
-                base_metas = tuple(
-                    TYPE.__convert__(b, t, _cls_cache, _meta_cache)
-                    for b in orig_meta.__bases__
-                ) or (_TYPE_,)
-            meta_name = f"CONVERTED({_name(obj)})"
+    > type(Type)    is TYPE
+    > term(x, Type) is True iff
+    > null(Type)    is Nill
+    > builtin(Type) is type
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = TYPE
+    __display__    = "Type"
+    __null__       = Nill
+    __builtin__    = __Type__
 
-            meta_attrs = {}
-            for name in dir(orig_meta):
-                if name.startswith('__') and name.endswith('__'):
-                    if name in ('__module__', '__qualname__'):
-                        val = getattr(orig_meta, name)
-                        if isinstance(val, str):
-                            meta_attrs[name] = val
-                    continue
-                try:
-                    meta_attrs[name] = getattr(orig_meta, name)
-                except Exception:
-                    pass
+class Parametric(metaclass=PARAMETRIC):
+    """
+    The type of parametric types.
 
-            if '__instancecheck__' not in meta_attrs:
-                meta_attrs['__instancecheck__'] = lambda cls, instance: type.__instancecheck__(obj, instance)
+    > type(Parametric) is PARAMETRIC
+    > null(Parametric) is Nill
 
-            meta_in_type = type(meta_name, base_metas, meta_attrs)
-            _meta_cache[orig_meta] = meta_in_type
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = PARAMETRIC
+    __display__    = "Parametric"
+    __null__       = Nill
 
-        converted_bases = tuple(
-            TYPE.__convert__(base, t, _cls_cache, _meta_cache)
-            for base in obj.__bases__
-        )
+class Int(metaclass=INT):
+    """
+    The type of integers.
 
-        class_name = _name(obj).capitalize()
-        orig_attrs = {}
+    > type(Int)    is INT
+    > null(Int)    is 0
+    > builtin(Int) is int
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = INT
+    __display__    = "Int"
+    __null__       = 0
+    __builtin__    = __Int__
 
-        slots = getattr(obj, '__slots__', ())
-        if isinstance(slots, str):
-            slots = (slots,)
+class Float(metaclass=FLOAT):
+    """
+    The type of floats.
 
-        for name in dir(obj):
-            if name in slots:
-                continue
-            if name.startswith('__') and name.endswith('__'):
-                if name in ('__module__', '__qualname__'):
-                    val = getattr(obj, name)
-                    if isinstance(val, str):
-                        orig_attrs[name] = val
-                elif name == '__doc__':
-                    val = getattr(obj, name, None)
-                    if val:
-                        orig_attrs[name] = val
-                continue
-            try:
-                attr = getattr(obj, name)
-                if isinstance(attr, property):
-                    orig_attrs[name] = _convert_property(attr, t, _cls_cache, _meta_cache)
-                else:
-                    orig_attrs[name] = attr
-            except Exception:
-                pass
+    > type(Float)    is FLOAT
+    > null(Float)    is 0.0
+    > builtin(Float) is float
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = FLOAT
+    __display__    = "Float"
+    __null__       = 0.0
+    __builtin__    = __Float__
 
-        orig_attrs.update({"__display__": class_name})
+class Bool(metaclass=BOOL):
+    """
+    The type of booleans.
 
-        if slots:
-            orig_attrs['__slots__'] = slots
-
-        for slot in slots:
-            if slot in orig_attrs:
-                del orig_attrs[slot]
-
-        new_cls = meta_in_type(class_name, converted_bases, orig_attrs)
-        _cls_cache[obj] = new_cls
-        return new_cls
-
-UNIVERSAL = _UNIVERSAL_("UNIVERSAL", (TYPE,), {
-    "__display__": "UNIVERSAL",
-    "__null__": NILL
-})
-
-ABSTRACT = _ABSTRACT_("ABSTRACT", (TYPE,), {
-    "__display__": "ABSTRACT",
-    "__null__": NILL
-})
-
-CONCRETE = _CONCRETE_("CONCRETE", (TYPE,), {
-    "__display__": "CONCRETE",
-    "__null__": NILL
-})
-
-DYNAMIC = _DYNAMIC_("DYNAMIC", (TYPE,), {
-    "__display__": "DYNAMIC",
-    "__null__": NILL
-})
-
-STATIC = _STATIC_("STATIC", (TYPE,), {
-    "__display__": "STATIC",
-    "__null__": NILL
-})
-
-DISCOURSE = _DISCOURSE_("DISCOURSE", (TYPE,), {
-    "__display__": "DISCOURSE",
-    "__null__": NILL
-})
-
-PARAMETRIC = _PARAMETRIC_("PARAMETRIC", (TYPE,), {
-    "__display__": "PARAMETRIC",
-    "__null__": NILL
-})
-
-Int = INT("Int", (), {
-    "__display__": "Int",
-    "__null__": 0,
-    "__builtin__": int
-})
-Float = FLOAT("Int", (), {
-    "__display__": "Float",
-    "__null__": 0.0,
-    "__builtin__": float
-})
-Bool = BOOL("Bool", (), {
-    "__display__": "Bool",
-    "__null__": False,
-    "__builtin__": bool
-})
+    > type(Bool)    is BOOL
+    > null(Bool)    is False
+    > builtin(Bool) is bool
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = BOOL
+    __display__    = "Bool"
+    __null__       = False
+    __builtin__    = __Bool__
 
 class Str(metaclass=STR):
+    """
+    The type of strings.
+
+    > type(Str)    is STR
+    > null(Str)    is ""
+    > builtin(Str) is str
+    """
     def __len__(self, obj):
         return len(obj)
 
-    __display__ = "Str"
-    __null__ = ""
-    __builtin__ = str
+    __typesystem__ = TYPESYSTEM
+    __type__       = STR
+    __display__    = "Str"
+    __null__       = ""
+    __builtin__    = __Str__
 
-Any = ANY("Any", (), {
-    "__display__": "Any",
-    "__null__": None
-})
-Self = Any
-Cls  = Any
-Bytes = BYTES("Bytes", (), {
-    "__display__": "Bytes",
-    "__null__": bytes(),
-    "__builtin__": bytes
-})
-Tuple = TUPLE("Tuple", (), {
-    "__display__": "Tuple",
-    "__null__": tuple(),
-    "__builtin__": tuple
-})
-List = LIST("List", (), {
-    "__display__": "List",
-    "__null__": list(),
-    "__builtin__": list
-})
-Set = SET("Set", (), {
-    "__display__": "Set",
-    "__null__": set(),
-    "__builtin__": set
-})
+class Bytes(metaclass=BYTES):
+    """
+    The type of bytes.
+
+    > type(Bytes)  is BYTES
+    > null(Bytes)  is bytes()
+    > builtin(Str) is bytes
+    """
+
+    __typesystem__ = TYPESYSTEM
+    __type__       = BYTES
+    __display__    = "Bytes"
+    __null__       = __Bytes__()
+    __builtin__    = __Bytes__
+
+
+class Tuple(metaclass=TUPLE):
+    """
+    The parametric type of tuples.
+
+    > type(Tuple)    is TUPLE
+    > null(Tuple)    is tuple()
+    > builtin(Tuple) is tuple
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = TUPLE
+    __display__    = "Tuple"
+    __null__       = tuple()
+    __builtin__    = __Tuple__
+
+
+class List(metaclass=LIST):
+    """
+    The parametric type of lists.
+
+    > type(List)    is LIST
+    > null(List)    is []
+    > builtin(List) is list
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = LIST
+    __display__    = "List"
+    __null__       = []
+    __builtin__    = __List__
+
+
+class Set(metaclass=SET):
+    """
+    The parametric type of sets.
+
+    > type(Set)    is SET
+    > null(Set)    is set()
+    > builtin(Set) is set
+    """
+    __typesystem__ = TYPESYSTEM
+    __type__       = SET
+    __display__    = "Set"
+    __null__       = __Set__()
+    __builtin__    = __Set__
 
 class Dict(metaclass=DICT):
-    __display__ = "Dict"
-    __null__    = dict()
-    __builtin__ = dict
+    """
+    The parametric type of dicts.
 
-    def __getitem__(self, key):
-        return self.__dict__[key]
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __contains__(self, key):
-        return key in self.__dict__
+    > type(Dict)    is DICT
+    > null(Dict)    is {}
+    > builtin(Dict) is dict
+    """
+    __display__ = "Dict"
+    __null__    = {}
+    __builtin__ = __Dict__
+
+    def __getitem__(trm, key):
+        return trm.__dict__[key]
+    def __setitem__(trm, key, value):
+        trm.__dict__[key] = value
+    def __contains__(trm, key):
+        return key in trm.__dict__
 
 Pattern = PATTERN("Pattern", (Str,), {"__display__": "Pattern", "__null__": ""})
 Container = CONTAINER("Container", (List, Tuple, Set), {"__display__": "Container", "__null__": []})

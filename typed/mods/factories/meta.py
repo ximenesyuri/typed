@@ -1,7 +1,7 @@
 from functools import lru_cache as cache
 from typed.mods.types.base import TYPE, Nill, Str
 from typed.mods.meta.base import _TYPE_
-from typed.mods.helper.general import _name, _name_list
+from typed.helper.utils import _name, _names
 
 @cache
 def ATTR(*attrs):
@@ -21,7 +21,7 @@ def ATTR(*attrs):
                 return all(hasattr(instance, attr) for attr in attrs)
             return False
 
-    class_name = f'ATTR({_name_list(*attrs)})'
+    class_name = f'ATTR({_names(*attrs)})'
 
     from typed.mods.types.base import Nill
     return _ATTR_(class_name, (TYPE,), {
@@ -29,6 +29,57 @@ def ATTR(*attrs):
         "__null__": Nill,
         "__display__": class_name
     })
+
+@cache
+class ATTR_FUNC(*attrs):
+    def __instancecheck__(cls, instance):
+        if not super().__instancecheck__(instance):
+            return False
+
+        attrs = getattr(cls, "__attrs__", ())
+        attr_values = getattr(cls, "__attr_values__", {})
+
+        for name in attrs:
+            if not hasattr(instance, name):
+                return False
+
+        for name, expected in attr_values.items():
+            if not hasattr(instance, name):
+                return False
+            if getattr(instance, name) != expected:
+                return False
+
+        return True
+
+    def __call__(cls, *args, **kwargs):
+        from typed.mods.types.func import AttrFunc
+        from typed.helper.utils import _name
+
+        if not args and not kwargs:
+            return cls
+
+        attrs = tuple(a.lstrip('.') for a in args)
+        attr_values = {k.lstrip('.'): v for k, v in kwargs.items()}
+
+        parts = []
+        if attrs:
+            parts.append(", ".join(attrs))
+        if attr_values:
+            vals_str = ", ".join(f"{k}={_name(v)}" for k, v in attr_values.items())
+            parts.append(vals_str)
+        inside = "; ".join(parts)
+
+        class_name = f"AttrFunc({inside})"
+
+        return ATTR_FUNC(
+            class_name,
+            (AttrFunc,),
+            {
+                "__display__": class_name,
+                "__attrs__": attrs,
+                "__attr_values__": attr_values,
+            },
+        )
 
 @cache
 def SUBTYPES(*types):
@@ -57,7 +108,7 @@ def SUBTYPES(*types):
         def __subclasscheck__(cls, subclass):
             return issubclass(subclass, cls)
 
-    class_name = f"SUBTYPES({_name_list(*types)})"
+    class_name = f"SUBTYPES({_names(*types)})"
     return _SUBTYPES_(class_name, (), {
         "__display__": class_name,
         "__null__": Nill
@@ -86,7 +137,7 @@ def NOT(*types):
         def __instancecheck__(cls, instance):
             return not any(instance is t for t in types)
 
-    class_name = f"NOT({_name_list(*types)})"
+    class_name = f"NOT({_names(*types)})"
     return _NOT_(class_name, (), {
         "__display__": class_name,
         "__null__": Nill
