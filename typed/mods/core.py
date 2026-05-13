@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING as __lsp__
 from typed.mods.err import NotDefined
 from builtins import type as __Type__
 
-
 def null(typ):
     return getattr(typ, "__null__", NotDefined)
 
@@ -67,7 +66,7 @@ def lazy(imports):
 
 _sub_visiting = set()
 
-def extends(typ, other):
+def sup(typ, other):
     mro = getattr(other, "__mro__", None)
     if mro is not None:
         return any(base is typ for base in mro)
@@ -79,35 +78,35 @@ def __sub__(typ, other):
         return False
     _sub_visiting.add(key)
     try:
-        if extends(typ, other):
+        if sup(typ, other):
             return True
-            
+
         if "__sub__" in getattr(typ, "__dict__", {}):
             sub_func = typ.__dict__["__sub__"]
             if sub_func is not __sub__:
                 res = sub_func(typ, other)
                 if res is not NotImplemented: return res
-                
+
         if "__sub__" in getattr(other, "__dict__", {}):
             sub_func = other.__dict__["__sub__"]
             if sub_func is not __sub__:
                 res = sub_func(other, typ)
                 if res is not NotImplemented: return res
-                
+
         meta_typ = type(typ)
         if hasattr(meta_typ, "__sub__"):
             sub_func = getattr(meta_typ, "__sub__")
             if sub_func is not __sub__:
                 res = sub_func(typ, other)
                 if res is not NotImplemented: return res
-                
+
         meta_other = type(other)
         if hasattr(meta_other, "__sub__"):
             sub_func = getattr(meta_other, "__sub__")
             if sub_func is not __sub__:
                 res = sub_func(other, typ)
                 if res is not NotImplemented: return res
-                
+
         return False
     finally:
         _sub_visiting.remove(key)
@@ -125,30 +124,30 @@ def __term__(typ, trm):
             if term_func is not __term__:
                 res = term_func(typ, trm)
                 if res is not NotImplemented: return res
-                
+
         meta = type(typ)
         if hasattr(meta, "__term__"):
             term_func = getattr(meta, "__term__")
             if term_func is not __term__:
                 res = term_func(typ, trm)
                 if res is not NotImplemented: return res
-        
+
         if "__sub__" in getattr(typ, "__dict__", {}):
             sub_func = typ.__dict__["__sub__"]
             if sub_func is not __sub__:
                 res = sub_func(typ, type(trm))
                 if res: return True
-                
+
         if hasattr(meta, "__sub__"):
             sub_func = getattr(meta, "__sub__")
             if sub_func is not __sub__:
                 res = sub_func(typ, type(trm))
                 if res: return True
-        
+
         if isinstance(trm, type) and isinstance(typ, type):
             if issubclass(trm, typ):
                 return True
-                
+
         return isinstance(trm, typ)
     finally:
         _term_visiting.remove(key)
@@ -207,7 +206,8 @@ class new:
                 "__lt_":__lt__,
                 "__ge_": __ge__,
                 "__gt_": __gt__,
-                "__ne__": __ne__
+                "__ne__": __ne__,
+                "__hash__": __Type__.__hash__
             }
         )
 
@@ -229,7 +229,7 @@ class new:
         ):
             if typemap is None:
                 typemap = {}
-                
+
             self.universe = new.universe(
                 name=universe,
                 __term__=__term__,
@@ -304,7 +304,8 @@ class new:
                             "__ne__": __ne__,
                             "level": level,
                             "__display__": univ_name,
-                            "is_universe": True
+                            "is_universe": True,
+                            "__hash__": __Type__.__hash__
                         }
                     )
 
@@ -390,16 +391,35 @@ def __typemap__():
     TYPESYSTEM.typemap[__Dict__]      = Dict
     TYPESYSTEM.typemap[__Type__]      = TYPESYSTEM.universe
 
-__typemap__()
-
 def typemap(typ, typesystem=TYPESYSTEM):
-    if __Type__(typ) in typesystem.__universes__:
-        return typ
-    if typ in typesystem.typemap:
-        return typesystem.typemap[typ]
+    try:
+        if __Type__(typ) in typesystem.__universes__:
+            return typ
+    except TypeError:
+        pass
+
+    if typesystem is TYPESYSTEM:
+        __typemap__()
+
+    try:
+        if typ in typesystem.typemap:
+            return typesystem.typemap[typ]
+    except TypeError:
+        pass
+
     return NotDefined
 
 def type(trm, typesystem=TYPESYSTEM):
+    if typesystem is TYPESYSTEM:
+        __typemap__()
+
+    try:
+        if trm in typesystem.typemap:
+            trm = typesystem.typemap[trm]
+    except TypeError:
+        pass
+
     __typ__ = __Type__(trm)
-    typ = typesystem.typemap(__typ__)
+    typ = typemap(__typ__, typesystem)
+
     return typ if typ is not NotDefined else __typ__
