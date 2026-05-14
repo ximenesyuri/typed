@@ -24,12 +24,13 @@ class Empty(metaclass=EMPTY):
     The type with no terms.
 
     : type(Empty)    is  EMPTY
-    : term(x, Empty) :=  False
-    : sub(T, Empty)  iff T is Empty
+    : isterm(x, Empty) :=  False
+    : issub(T, Empty)  iff T is Empty
     : null(Empty)    is  NotDefined
     : builtin(Empty) is  NotDefined
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = EMPTY
     __display__    = "Empty"
     __null__       = NotDefined
@@ -40,11 +41,12 @@ class Nill(metaclass=NILL):
     The type with None value.
 
     : type(Nill)    is  NILL
-    : term(x, Nill) iff x is None
+    : isterm(x, Nill) iff x is None
     : null(Nill)    is  None
     : builtin(Nill) is  NotDefined
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = NILL
     __display__    = "Nill"
     __null__       = None
@@ -54,11 +56,12 @@ class Any(metaclass=ANY):
     The type of anything.
 
     : type(Any)     is ANY
-    : term(x, Any)  := True
+    : isterm(x, Any)  := True
     : null(Any)     is None
     : builtin(Any)  is NotDefined
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = ANY
     __display__    = "Any"
     __null__       = None
@@ -69,11 +72,12 @@ class Type(metaclass=TYPE):
     The type of all non-universe types.
 
     : type(Type)    is  TYPE := UNIVERSE(0)
-    : term(x, Type) iff sub(type(x), Type)
+    : isterm(x, Type) iff issub(type(x), Type)
     : null(Type)    is  Nill
     : builtin(Type) is  type
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = TYPE
     __display__    = "Type"
     __null__       = Nill
@@ -85,9 +89,9 @@ class Parametric(metaclass=PARAMETRIC):
 
     : type(Parametric) is PARAMETRIC
     : null(Parametric) is NotDefined
-
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = PARAMETRIC
     __display__    = "Parametric"
     __null__       = Nill
@@ -100,7 +104,8 @@ class Int(metaclass=INT):
     : null(Int)    is 0
     : builtin(Int) is int
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = INT
     __display__    = "Int"
     __null__       = 0
@@ -114,7 +119,8 @@ class Float(metaclass=FLOAT):
     : null(Float)    is 0.0
     : builtin(Float) is float
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = FLOAT
     __display__    = "Float"
     __null__       = 0.0
@@ -128,7 +134,8 @@ class Bool(metaclass=BOOL):
     : null(Bool)    is False
     : builtin(Bool) is bool
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = BOOL
     __display__    = "Bool"
     __null__       = False
@@ -145,7 +152,8 @@ class Str(metaclass=STR):
     def __len__(self, obj):
         return len(obj)
 
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = STR
     __display__    = "Str"
     __null__       = ""
@@ -159,8 +167,8 @@ class Bytes(metaclass=BYTES):
     : null(Bytes)  is bytes()
     : builtin(Str) is bytes
     """
-
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = BYTES
     __display__    = "Bytes"
     __null__       = __Bytes__()
@@ -175,7 +183,8 @@ class Tuple(metaclass=TUPLE):
     : null(Tuple)    is tuple()
     : builtin(Tuple) is tuple
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = TUPLE
     __display__    = "Tuple"
     __null__       = tuple()
@@ -190,7 +199,8 @@ class List(metaclass=LIST):
     : null(List)    is []
     : builtin(List) is list
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = LIST
     __display__    = "List"
     __null__       = []
@@ -205,7 +215,8 @@ class Set(metaclass=SET):
     : null(Set)    is set()
     : builtin(Set) is set
     """
-    __typesystem__ = TYPESYSTEM
+    is_type        = True
+    __typesystems__ = [TYPESYSTEM]
     __type__       = SET
     __display__    = "Set"
     __null__       = __Set__()
@@ -219,6 +230,8 @@ class Dict(metaclass=DICT):
     : null(Dict)    is {}
     : builtin(Dict) is dict
     """
+    is_type     = True
+    __typesystems__ = [TYPESYSTEM]
     __display__ = "Dict"
     __null__    = {}
     __builtin__ = __Dict__
@@ -229,3 +242,10 @@ class Dict(metaclass=DICT):
         trm.__dict__[key] = value
     def __contains__(trm, key):
         return key in trm.__dict__
+
+TYPESYSTEM.add(
+    Type,
+    Empty, Nill, Any,
+    Int, Float, Str, Bool, Bytes,
+    List, Tuple, Set, Dict    
+)

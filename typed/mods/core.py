@@ -5,22 +5,12 @@ from builtins import type as __Type__
 def null(t):
     """
     The 'null' polymorphism.
-        
-    : t: Any
-
-    : null(t) is t.__null__
-    :         or NotDefined
     """
     return getattr(t, "__null__", NotDefined)
 
 def display(t):
     """
     The 'display' polymorphism.
-
-    : t: Any
-
-    : display(t) is t.__display__
-    :            or NotDefined
     """
     return getattr(t, "__display__", NotDefined)
 
@@ -35,16 +25,15 @@ def lazy(imports):
     caller_globals = _getframe(1).f_globals
     caller_name = caller_globals.get("__name__", "<unknown>")
 
-    all_names = list(imports.keys())
-    caller_globals["__all__"] = all_names
-
+    all_names = []
     lazy_map = {}
-    for name_key, module_path in imports.items():
-        if name_key == "dt" and "datetime" in imports and imports["datetime"] == module_path:
-            lazy_map[name_key] = (imports["datetime"], "datetime")
-        else:
-            lazy_map[name_key] = (module_path, name_key)
 
+    for module_path, attr_names in imports.items():
+        for attr_name in attr_names:
+            all_names.append(attr_name)
+            lazy_map[attr_name] = (module_path, attr_name)
+
+    caller_globals["__all__"] = all_names
     caller_globals["__lazy__"] = lazy_map
 
     def __getattr__(name_str):
@@ -74,33 +63,33 @@ def extends(typ, other):
         return any(base is typ for base in mro)
     return False
 
-def sup(other, typ):
-    from typed.helper.core import __sup__
-    return __sup__(typ, other)
+def issup(typ, other):
+    from typed.helper.core import __STATEFUL__
+    return __STATEFUL__.__issup__(typ, other)
 
-def sub(other, typ):
-    from typed.helper.core import __sub__
-    return __sub__(typ, other)
+sup = issup
 
-def term(trm, typ):
-    from typed.helper.core import __term__
-    return __term__(typ, trm)
+def issub(typ, other):
+    from typed.helper.core import __STATEFUL__
+    return __STATEFUL__.__issub__(typ, other)
+
+sub = issub
+
+def isterm(trm, typ):
+    from typed.helper.core import __STATEFUL__
+    return __STATEFUL__.__isterm__(typ, trm)
+
+term = isterm
 
 class new:
     """
     Namespace to build typesystem entities.
-
-    : new.universe   := creates typesystem universe
-    : new.enricher   := creates typesystem enricher
-    : new.typesystem := creates a typesystem
-    : new.meta       := creates a metatype in a typesystem
-    : new.type       := creates a type in a typesystem
-    : new.err        := creates a err in a typesystem
     """
+    @staticmethod
     def universe(
         name="__UNIVERSE__",
-        __term__=__STATEFUL__.__term__,
-        __sub__=__STATEFUL__.__sub__,
+        __isterm__=__STATEFUL__.__isterm__,
+        __issub__=__STATEFUL__.__issub__,
         __in__=__MAGIC__.__in__,
         __eq__=__MAGIC__.__eq__,
         __le__=__MAGIC__.__le__,
@@ -115,14 +104,14 @@ class new:
             {
                 "is_universe": True,
                 "level": -1,
-                "__term__": __term__,
-                "__sub__": __sub__,
+                "__isterm__": __isterm__,
+                "__issub__": __issub__,
                 "__contains__": __in__,
                 "__eq__": __eq__,
-                "__le_":__le__,
-                "__lt_":__lt__,
-                "__ge_": __ge__,
-                "__gt_": __gt__,
+                "__le__": __le__,
+                "__lt__": __lt__,
+                "__ge__": __ge__,
+                "__gt__": __gt__,
                 "__ne__": __ne__,
                 "__hash__": __Type__.__hash__
             }
@@ -134,8 +123,8 @@ class new:
             universe="__UNIVERSE__",
             abstract="__ABSTRACT__",
             typemap=None,
-            __term__=__STATEFUL__.__term__,
-            __sub__=__STATEFUL__.__sub__,
+            __isterm__=__STATEFUL__.__isterm__,
+            __issub__=__STATEFUL__.__issub__,
             __in__=__MAGIC__.__in__,
             __eq__=__MAGIC__.__eq__,
             __le__=__MAGIC__.__le__,
@@ -144,13 +133,17 @@ class new:
             __gt__=__MAGIC__.__gt__,
             __ne__=__MAGIC__.__ne__
         ):
+            self.is_restrictive = True
+            self.__types__ = set()
+            self.__metas__ = set()
+
             if typemap is None:
                 typemap = {}
 
             self.universe = new.universe(
                 name=universe,
-                __term__=__term__,
-                __sub__=__sub__,
+                __isterm__=__isterm__,
+                __issub__=__issub__,
                 __in__=__in__,
                 __eq__=__eq__,
                 __le__=__le__,
@@ -161,10 +154,10 @@ class new:
             )
 
             def root_term(typ, trm):
-                return getattr(trm, "is_abstract", False)
+                return "is_abstract" in getattr(trm, "__dict__", {})
 
             def root_sub(typ, other):
-                return getattr(other, "is_abstract", False)
+                return "is_abstract" in getattr(other, "__dict__", {})
 
             self.typemap = typemap
 
@@ -174,8 +167,8 @@ class new:
                 {
                     "is_abstract": True,
                     "level": -1,
-                    "__term__": root_term,
-                    "__sub__": root_sub,
+                    "__isterm__": root_term,
+                    "__issub__": root_sub,
                     "__display__": abstract
                 }
             )
@@ -183,15 +176,15 @@ class new:
             self.__universes__ = {}
             self.__abstracts__ = {}
 
-            def sub(univ, other):
-                if hasattr(other, "is_universe"):
+            def sub_fn(univ, other):
+                if "is_universe" in getattr(other, "__dict__", {}) and "is_universe" in getattr(univ, "__dict__", {}):
                     return getattr(other, "level", -1) <= getattr(univ, "level", -1)
-                return __sub__(univ, other)
+                return __issub__(univ, other)
 
             def abs_sub(abs, other):
-                if getattr(other, "is_abstract", False):
+                if "is_abstract" in getattr(other, "__dict__", {}) and "is_abstract" in getattr(abs, "__dict__", {}):
                     return getattr(other, "level", -1) <= getattr(abs, "level", -1)
-                return __sub__(abs, other)
+                return __issub__(abs, other)
 
             def __new__(univ, typ, bases, namespace, **kwds):
                 return __Type__.__new__(univ, typ, bases, namespace, **kwds)
@@ -209,8 +202,8 @@ class new:
                         univ_name,
                         (__Type__,),
                         {
-                            "__term__": __term__,
-                            "__sub__": sub,
+                            "__isterm__": __isterm__,
+                            "__issub__": sub_fn,
                             "__new__": __new__,
                             "__contains__": __in__,
                             "__eq__": __eq__,
@@ -228,7 +221,7 @@ class new:
 
                     def make_abs_term(u_cls):
                         def abs_term(typ, trm):
-                            return __sub__(trm, u_cls)
+                            return __issub__(trm, u_cls)
                         return abs_term
 
                     abs_cls = self.universe(
@@ -236,8 +229,8 @@ class new:
                         (univ_cls,),
                         {
                             "__display__": abs_name,
-                            "__term__": make_abs_term(univ_cls),
-                            "__sub__": abs_sub,
+                            "__isterm__": make_abs_term(univ_cls),
+                            "__issub__": abs_sub,
                             "is_abstract": True,
                             "level": level
                         }
@@ -256,7 +249,7 @@ class new:
 
             self.enricher = enricher()
 
-        def populate(self, level):
+        def enrich(self, level):
             while len(self.__universes__) <= level:
                 u, a = next(self.enricher)
                 u_level = getattr(u, "level", -1)
@@ -266,15 +259,81 @@ class new:
                 if u_level not in self.__abstracts__:
                     self.__abstracts__[u_level] = a
 
-    def meta():
-        pass
+        def add(self, *T):
+            for t in T:
+                systems = getattr(t, '__typesystems__', [])
+                sys_single = getattr(t, '__typesystem__', None)
+                if self in systems or self is sys_single:
+                    if getattr(t, 'is_type', False):
+                        self.__types__.add(t)
+                    if getattr(t, 'is_meta', False):
+                        self.__metas__.add(t)
 
-    def type():
-        pass
+        def rm(self, *T):
+            for t in T:
+                if t in self.__types__:
+                    self.__types__.remove(t)
+                if t in self.__metas__:
+                    self.__metas__.remove(t)
 
+        def prune(self):
+            self.__types__.clear()
+            self.__metas__.clear()
+
+        def __contains__(self, X):
+            return (
+                X in self.__types__ or
+                X in self.__metas__ or
+                X in self.__abstracts__.values() or
+                X in self.__universes__.values()
+            )
+
+    @staticmethod
+    def meta(name, sups=(), attrs={}, typesystem=None):
+        if typesystem is None:
+            typesystem = TYPESYSTEM
+        for sup in sups:
+            if sup not in typesystem.__metas__:
+                raise TypeError(f"sup {sup} not in typesystem.__metas__")
+
+        typesystem.enrich(0)
+        base_meta = typesystem.__abstracts__[0]
+
+        attrs["__display__"] = name
+        attrs["is_meta"] = True
+        attrs["__typesystems__"] = [typesystem]
+
+        bases = tuple(sups) if sups else (base_meta,)
+
+        M = base_meta(name, bases, attrs)
+        typesystem.add(M)
+        return M
+
+    @staticmethod
+    def type(name, meta, sups=(), attrs={}, typesystem=None):
+        if typesystem is None:
+            typesystem = TYPESYSTEM
+        if meta not in typesystem.__metas__:
+            raise TypeError(f"meta {meta} not in typesystem.__metas__")
+
+        for s in sups:
+            if s not in typesystem.__types__:
+                raise TypeError(f"sup {s} not in typesystem.__types__")
+            if type(s, typesystem) not in typesystem.__metas__:
+                raise TypeError(f"type(s) not in typesystem.__metas__")
+
+        attrs["__display__"] = name
+        attrs["is_type"] = True
+        attrs["__typesystems__"] = [typesystem]
+
+        T = meta(name, tuple(sups), attrs)
+        typesystem.add(T)
+        return T
+
+    @staticmethod
     def err(name):
         from typed.mods.err import Err
-        return new.type(name, (Err,), {"__name__": name, "__display__": name})
+        return __Type__(name, (Err,), {"__name__": name, "__display__": name})
 
 TYPESYSTEM = new.typesystem()
 
@@ -311,16 +370,9 @@ def __typemap__():
 def typemap(typ, typesystem=TYPESYSTEM):
     """
     The typemap function.
-
-    : typ: Any
-    : typesystem: typesystem
-
-    : typemap(typ, typesystem) is typ [ if type(typ) in typesystem.__universes__ ]
-    :                          or typesystem.typemap[typ]
-    :                          or NotDefined
     """
     try:
-        if __Type__(typ) in typesystem.__universes__:
+        if __Type__(typ) in typesystem.__universes__.values():
             return typ
     except TypeError:
         pass
@@ -351,17 +403,21 @@ def type(t, typesystem=TYPESYSTEM):
 
     return typ if typ is not NotDefined else __typ__
 
+def kind(x, typesystem=TYPESYSTEM):
+    # Use identity matching with `any` rather than `in` to circumvent faulty `__eq__` overloads
+    if any(x is a for a in typesystem.__abstracts__.values()):
+        return "abstract"
+    if any(x is u for u in typesystem.__universes__.values()):
+        return "universe"
+    if x in typesystem.__metas__:
+        return "meta"
+    if x in typesystem.__types__:
+        return "type"
+    return NotDefined
+
 def name(t, typesystem=TYPESYSTEM):
     """
     The 'name' polymorphism.
-
-    : t: Any
-    : typesystem: typesystem
-
-    : name(t) is t.__display__
-    :         or typemap(t, typesystem).__display__
-    :         or t.__name__
-    :         or Anonymous
     """
     d = display(t)
     if d is not NotDefined:
@@ -375,3 +431,43 @@ def name(t, typesystem=TYPESYSTEM):
             return d
 
     return getattr(t, '__name__', Anonymous.__name__)
+
+__UNIVERSE__ = TYPESYSTEM.universe
+__UNIVERSE__.__typesystems__ = [TYPESYSTEM]
+__UNIVERSE__.__type__ = __Type__
+
+__ABSTRACT__ = TYPESYSTEM.abstract
+__ABSTRACT__.__typesystems__ = [TYPESYSTEM]
+__ABSTRACT__.__type__ = __Type__
+
+def UNIVERSE(n: int, typesystem=TYPESYSTEM) -> __Type__:
+    """
+    The universe hyerarchy factory.
+    """
+
+    if n < 0:
+        return typesystem.universe
+
+    typesystem.enrich(level=n+1)
+    UNI = typesystem.__universes__[n]
+    UNI.__typesystems__ = [TYPESYSTEM]
+    UNI.__type__ = typesystem.__universes__[n+1]
+    UNI.__builtin__ = NotDefined
+    UNI.__null__ = NotDefined
+    return UNI
+
+def ABSTRACT(n: int, typesystem=TYPESYSTEM) -> __Type__:
+    """
+    The abstracts (universe subtypes) hyerarchy factory
+    """
+
+    if n < 0:
+        return typesystem.abstract
+
+    typesystem.enrich(level=n+1)
+    ABS = typesystem.__abstracts__[n]
+    ABS.__typesystems__ = [TYPESYSTEM]
+    ABS.__type__ = typesystem.__universes__[n+1]
+    ABS.__builtin__ = NotDefined
+    ABS.__null__ = NotDefined
+    return ABS

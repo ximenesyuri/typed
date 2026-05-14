@@ -3,9 +3,10 @@ from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
     "TYPESYSTEM",
-    "type", "typemap", "new",
-    "term", "sub", "sup",
-    "display", "name", "null"
+    "type", "typemap", "new", "kind",
+    "isterm", "issub", "issup",
+    "display", "name", "null",
+    "lazy"
 ]
 
 __lazy__ = {
@@ -14,13 +15,16 @@ __lazy__ = {
     "type":    ("typed.mods.core", "type"),
     "typemap": ("typed.mods.core", "typemap"),
     "new":     ("typed.mods.core", "new"),
+    "kind":    ("typed.mods.core", "kind"),
     
-    "term":   ("typed.mods.core", "term"),
-    "sub":    ("typed.mods.core", "sub"),
-    "sup":     ("typed.mods.core", "sup"),
+    "isterm":  ("typed.mods.core", "isterm"),
+    "issub":   ("typed.mods.core", "issub"),
+    "issup":   ("typed.mods.core", "issup"),
     "display": ("typed.mods.core", "display"),
     "name":    ("typed.mods.core", "name"),
-    "null":    ("typed.mods.core", "null")
+    "null":    ("typed.mods.core", "null"),
+    
+    "lazy":    ("typed.mods.core", "lazy"),
     }
 
 def __getattr__(name):
@@ -41,7 +45,8 @@ def __dir__():
 if __lsp__:
     from typed.mods.core import (
         TYPESYSTEM,
-        type, typemap, new,
-        term, sub, sup,
-        display, name, null
+        type, typemap, new, kind,
+        isterm, issub, issup,
+        display, name, null,
+        lazy
 )

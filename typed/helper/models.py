@@ -156,12 +156,12 @@ class Expr:
         from operator import add as _op
         return self._rbinop_expr(other, _op)
 
-    def __sub__(self, other):
-        from operator import sub as _op
+    def __issub__(self, other):
+        from operator import issub as _op
         return self._binop_expr(other, _op)
 
     def __rsub__(self, other):
-        from operator import sub as _op
+        from operator import issub as _op
         return self._rbinop_expr(other, _op)
 
     def __mul__(self, other):

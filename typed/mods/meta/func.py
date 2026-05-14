@@ -1,5 +1,5 @@
 from typed.mods.meta.base import TYPE, UNIVERSE
-from typed.mods.core import TYPESYSTEM, type, term, sub
+from typed.mods.core import TYPESYSTEM, type, isterm, issub
 from typed.mods.err import NotDefined
 
 class CALLABLE(TYPE):
@@ -7,14 +7,14 @@ class CALLABLE(TYPE):
     The universe of callables.
 
     type(CALLABLE)    is  UNIVERSE(1)
-    term(T, CALLABLE) iff sub(type(T), CALLABLE)
+    isterm(T, CALLABLE) iff issub(type(T), CALLABLE)
     builtin(CALLABLE) is  NotDefined
     null(CALLABLE)    is  TYPE.__null__
     """
 
-    def __term__(typ, trm):
-        if not super().__term__(trm): return False
-        if sub(type(trm), typ): return True
+    def __isterm__(typ, trm):
+        if not super().__isterm__(trm): return False
+        if issub(type(trm), typ): return True
 
         from typed.helper.func import _unwrap
         from inspect import isbuiltin, ismethod, isfunction, isclass
@@ -34,9 +34,9 @@ class CALLABLE(TYPE):
     __null__    = TYPE.__null__
 
 class GENERATOR(TYPE):
-    def __term__(typ, trm):
-        if not super().__term__(trm): return False
-        if sub(type(trm), typ): return True
+    def __isterm__(typ, trm):
+        if not super().__isterm__(trm): return False
+        if issub(type(trm), typ): return True
 
         from inspect import isgeneratorfunction, isasyncgenfunction
 
@@ -46,13 +46,13 @@ class GENERATOR(TYPE):
         )
 
 class FUNC(CALLABLE):
-    def __term__(typ, trm):
-        if sub(type(trm), typ): return True
-        if not super().__term__(trm): return False
+    def __isterm__(typ, trm):
+        if issub(type(trm), typ): return True
+        if not super().__isterm__(trm): return False
 
         unwrapped = _unwrap(trm)
 
-        if sub(type(trm), typ) or sub(type(unwrapped), typ):
+        if issub(type(trm), typ) or issub(type(unwrapped), typ):
             return True
         return (
             isfunction(unwrapped)
@@ -85,7 +85,7 @@ class FUNC(CALLABLE):
         from typed.mods.types.base import TYPE
 
         for name, value in (("args", arg_count), ("posargs", pos_count), ("kwargs", kw_count)):
-            if not term(value, int):
+            if not isterm(value, int):
                 raise TypeError(
                     "Wrong type in 'Function' call:\n"
                     f" ==> '{_name(value)}': has unexpected type for parameter '{name}'\n"
@@ -161,18 +161,18 @@ class FUNC(CALLABLE):
         )
 
 class PARTIAL(FUNC):
-    def __term__(typ, trm):
-        return super().__term__(trm) and getattr(trm, 'is_partial', False)
+    def __isterm__(typ, trm):
+        return super().__isterm__(trm) and getattr(trm, 'is_partial', False)
 
 class DOM_FUNC(FUNC):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import TYPE
         from typed.mods.types.func import Function
 
-        if not super().__term__(trm):
+        if not super().__isterm__(trm):
             return False
 
-        if not term(trm, Function):
+        if not isterm(trm, Function):
             return False
 
         dom_value = None
@@ -191,9 +191,9 @@ class DOM_FUNC(FUNC):
                 actual = (dom_value,)
             return actual == expected_dom
 
-        if not term(dom_value, tuple):
+        if not isterm(dom_value, tuple):
             return False
-        return all(term(t, TYPE) for t in dom_value)
+        return all(isterm(t, TYPE) for t in dom_value)
 
     def __call__(typ, *types, **kwargs):
         from typed.mods.types.base import TYPE
@@ -203,7 +203,7 @@ class DOM_FUNC(FUNC):
         if not types and not kwargs:
             return typ
 
-        if types and all(term(t, TYPE) for t in types) and not kwargs:
+        if types and all(isterm(t, TYPE) for t in types) and not kwargs:
             class_name = f"DomFunc({_name_list(*types)})"
             return DOM_FUNC(
                 class_name,
@@ -217,14 +217,14 @@ class DOM_FUNC(FUNC):
         raise TypeError("DomFunc(X, Y, ...) expects TYPE arguments only")
 
 class COD_FUNC(FUNC):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import TYPE
         from typed.mods.types.func import Function
 
-        if not super().__term__(trm):
+        if not super().__isterm__(trm):
             return False
 
-        if not term(trm, Function):
+        if not isterm(trm, Function):
             return False
 
         cod_value = None
@@ -239,7 +239,7 @@ class COD_FUNC(FUNC):
         if expected is not None:
             return cod_value is expected
 
-        return term(cod_value, TYPE)
+        return isterm(cod_value, TYPE)
 
     def __call__(typ, cod=None, **kwargs):
         from typed.mods.types.base import TYPE
@@ -249,7 +249,7 @@ class COD_FUNC(FUNC):
         if cod is None and not kwargs:
             return typ
 
-        if term(cod, TYPE) and not kwargs:
+        if isterm(cod, TYPE) and not kwargs:
             class_name = f"CodFunc({_name(cod)})"
             return COD_FUNC(
                 class_name,
@@ -264,12 +264,12 @@ class COD_FUNC(FUNC):
 
 
 class COMP_FUNC(DOM_FUNC, COD_FUNC):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.func import DomFunc, CodFunc
 
-        if not term(trm, DomFunc):
+        if not isterm(trm, DomFunc):
             return False
-        if not term(trm, CodFunc):
+        if not isterm(trm, CodFunc):
             return False
 
         dom_types = getattr(typ, "__types__", None)
@@ -301,8 +301,8 @@ class COMP_FUNC(DOM_FUNC, COD_FUNC):
 
         if (
             types
-            and all(term(t, TYPE) for t in types)
-            and term(cod, TYPE)
+            and all(isterm(t, TYPE) for t in types)
+            and isterm(cod, TYPE)
             and not kwargs
         ):
             class_name = f"CompFunc({_name_list(*types)}, cod={_name(cod)})"
@@ -327,10 +327,10 @@ class DOM_HINTED(DOM_FUNC, PARTIAL):
       1) DOM_HINTED(f) where f in DomFunc  -> DomHinted(f)
       2) DOM_HINTED(T1, T2, ...) (Ti in TYPE) -> parametric DomHinted(T1,T2,...)
     """
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         if issubclass(type(trm), typ):
             return True
-        if not super().__term__(trm):
+        if not super().__isterm__(trm):
             return False
         from typed.mods.helper.func import _is_domain_hinted
         try:
@@ -347,12 +347,12 @@ class DOM_HINTED(DOM_FUNC, PARTIAL):
             return typ
 
         # 1) DOM_HINTED(f) where f is DomFunc -> DomHinted(f)
-        if len(args) == 1 and term(args[0], DomFuncType) and not kwargs:
+        if len(args) == 1 and isterm(args[0], DomFuncType) and not kwargs:
             f = args[0]
             return type.__call__(DomHintedType, f)
 
         # 2) DOM_HINTED(T1, T2, ...)  all Ti in TYPE -> a DomHinted parametric type
-        if args and all(term(t, TYPE) for t in args) and not kwargs:
+        if args and all(isterm(t, TYPE) for t in args) and not kwargs:
             types = tuple(args)
             class_name = f"DomHinted({_name_list(*types)})"
 
@@ -361,8 +361,8 @@ class DOM_HINTED(DOM_FUNC, PARTIAL):
                 __display__ = class_name
                 __types__   = types
 
-                def __term__(self, trm):
-                    if not term(trm, DomHintedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, DomHintedType):
                         return False
                     domain_hints = set(_hinted_domain(trm.func))
                     return domain_hints == set(self.__types__)
@@ -388,13 +388,13 @@ class COD_HINTED(COD_FUNC, PARTIAL):
       1) COD_HINTED(f) where f in CodFunc -> CodHinted(f)
       2) COD_HINTED(R) where R in TYPE   -> parametric CodHinted(R)
     """
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import TYPE
         from typed.mods.helper.func import _is_codomain_hinted
 
         if _issubtype(TYPE(trm), typ):
             return True
-        if not super().__term__(trm):
+        if not super().__isterm__(trm):
             return False
         try:
             return _is_codomain_hinted(trm.func)
@@ -410,12 +410,12 @@ class COD_HINTED(COD_FUNC, PARTIAL):
             return typ
 
         # 1) COD_HINTED(f) where f is CodFunc -> CodHinted(f)
-        if len(args) == 1 and term(args[0], CodFuncType) and not kwargs:
+        if len(args) == 1 and isterm(args[0], CodFuncType) and not kwargs:
             f = args[0]
             return type.__call__(CodHintedType, f)
 
         # 2) COD_HINTED(R) where R in TYPE -> parametric CodHinted(R)
-        if len(args) == 1 and term(args[0], TYPE) and not kwargs:
+        if len(args) == 1 and isterm(args[0], TYPE) and not kwargs:
             cod = args[0]
             class_name = f"CodHinted(cod={_name(cod)})"
 
@@ -423,8 +423,8 @@ class COD_HINTED(COD_FUNC, PARTIAL):
                 __display__  = class_name
                 __codomain__ = cod
 
-                def __term__(self, trm):
-                    if not term(trm, CodHintedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, CodHintedType):
                         return False
                     return_hint = _hinted_codomain(trm.func)
                     return return_hint == self.__codomain__
@@ -450,8 +450,8 @@ class HINTED(COMP_FUNC, COD_HINTED, DOM_HINTED):
       1) HINTED(f) where f is callable/dom+cod hinted -> Hinted(f)
       2) HINTED(T1, ..., cod=R)  -> parametric Hinted(T1,...; cod=R)
     """
-    def __term__(typ, trm):
-        return super().__term__(trm)
+    def __isterm__(typ, trm):
+        return super().__isterm__(trm)
 
     def __call__(typ, *args, **kwargs):
         from typed.mods.types.base  import TYPE
@@ -462,7 +462,7 @@ class HINTED(COMP_FUNC, COD_HINTED, DOM_HINTED):
             return typ
 
         # 1) HINTED(f) where f is already Hinted or callable compatible
-        if len(args) == 1 and term(args[0], HintedType) and not kwargs:
+        if len(args) == 1 and isterm(args[0], HintedType) and not kwargs:
             return args[0]
 
         if len(args) == 1 and callable(args[0]) and not kwargs:
@@ -471,9 +471,9 @@ class HINTED(COMP_FUNC, COD_HINTED, DOM_HINTED):
             return type.__call__(HintedType, f)
 
         # 2) HINTED(T1,...,Tk, cod=R)  with Ti,R in TYPE -> parametric type
-        if "cod" in kwargs and all(term(t, TYPE) for t in args):
+        if "cod" in kwargs and all(isterm(t, TYPE) for t in args):
             cod = kwargs["cod"]
-            if not term(cod, TYPE):
+            if not isterm(cod, TYPE):
                 raise TypeError(
                     f"Hinted(..., cod=R): R must be TYPE, got '{_name(type(cod))}'"
                 )
@@ -485,8 +485,8 @@ class HINTED(COMP_FUNC, COD_HINTED, DOM_HINTED):
                 __types__    = types
                 __codomain__ = cod
 
-                def __term__(self, trm):
-                    if not term(trm, HintedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, HintedType):
                         return False
                     domain_hints = set(_hinted_domain(trm.func))
                     return_hint  = _hinted_codomain(trm.func)
@@ -525,8 +525,8 @@ class DOM_TYPED(DOM_HINTED):
       1) DOM_TYPED(f) where f in DomFunc  -> DomTyped(f)
       2) DOM_TYPED(T1, ..., Tk) (Ti in TYPE) -> parametric DomTyped(T1,...,Tk)
     """
-    def __term__(typ, trm):
-        return super().__term__(trm)
+    def __isterm__(typ, trm):
+        return super().__isterm__(trm)
 
     def __call__(typ, *args, **kwargs):
         from typed.mods.types.base  import TYPE
@@ -537,12 +537,12 @@ class DOM_TYPED(DOM_HINTED):
             return typ
 
         # 1) DomFunc trm -> DomTyped trm
-        if len(args) == 1 and term(args[0], DomFuncType) and not kwargs:
+        if len(args) == 1 and isterm(args[0], DomFuncType) and not kwargs:
             f = args[0]
             return type.__call__(DomTypedType, f)
 
         # 2) DOM_TYPED(T1, ..., Tk)
-        if args and all(term(t, TYPE) for t in args) and not kwargs:
+        if args and all(isterm(t, TYPE) for t in args) and not kwargs:
             types = tuple(args)
             class_name = f"DomTyped({_name_list(*types)})"
 
@@ -550,8 +550,8 @@ class DOM_TYPED(DOM_HINTED):
                 __display__ = class_name
                 __types__   = types
 
-                def __term__(self, trm):
-                    if not term(trm, DomTypedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, DomTypedType):
                         return False
                     domain_hints = set(_hinted_domain(trm.func))
                     return domain_hints == set(self.__types__)
@@ -577,8 +577,8 @@ class COD_TYPED(COD_HINTED):
       1) COD_TYPED(f) where f in CodFunc -> CodTyped(f)
       2) COD_TYPED(R) where R in TYPE    -> parametric CodTyped(R)
     """
-    def __term__(typ, trm):
-        return super().__term__(trm)
+    def __isterm__(typ, trm):
+        return super().__isterm__(trm)
 
     def __call__(typ, *args, **kwargs):
         from typed.mods.types.base  import TYPE
@@ -589,12 +589,12 @@ class COD_TYPED(COD_HINTED):
             return typ
 
         # 1) CodFunc trm -> CodTyped trm
-        if len(args) == 1 and term(args[0], CodFuncType) and not kwargs:
+        if len(args) == 1 and isterm(args[0], CodFuncType) and not kwargs:
             f = args[0]
             return type.__call__(CodTypedType, f)
 
         # 2) Single TYPE codomain
-        if len(args) == 1 and term(args[0], TYPE) and not kwargs:
+        if len(args) == 1 and isterm(args[0], TYPE) and not kwargs:
             cod = args[0]
             class_name = f"CodTyped(cod={_name(cod)})"
 
@@ -602,8 +602,8 @@ class COD_TYPED(COD_HINTED):
                 __display__  = class_name
                 __codomain__ = cod
 
-                def __term__(self, trm):
-                    if not term(trm, CodTypedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, CodTypedType):
                         return False
                     return_hint = _hinted_codomain(trm.func)
                     return return_hint == self.__codomain__
@@ -629,7 +629,7 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
       1) TYPED(f) where f is a plain function -> Typed(f)
       2) TYPED(T1,..., Tk, cod=R) -> parametric Typed(T1,...,Tk; cod=R)
     """
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         if getattr(trm, 'is_partial', False):
             orig = getattr(trm, 'original_func', None)
             if orig is None:
@@ -638,12 +638,12 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
             if getattr(orig, 'is_lazy', False):
                 return False
 
-            return term(orig, typ)
+            return isterm(orig, typ)
 
         if getattr(trm, "is_lazy", False):
             return False
 
-        return super().__term__(trm)
+        return super().__isterm__(trm)
 
     def check(self, trm):
         if hasattr(self, "__types__"):
@@ -659,7 +659,7 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
 
         # Typed(f) for raw function -> trm
         if typ is TypedType or issubclass(typ, TypedType):
-            if len(args) == 1 and inspect.isfunction(args[0]) and not term(args[0], TypedType) and not kwargs:
+            if len(args) == 1 and inspect.isfunction(args[0]) and not isterm(args[0], TypedType) and not kwargs:
                 return type.__call__(TypedType, args[0])
 
         if not args and not kwargs:
@@ -671,9 +671,9 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
             return type.__call__(TypedType, f)
 
         # Case #2: parametric Typed(T1,...,Tk, cod=R)
-        if "cod" in kwargs and all(term(t, TYPE) for t in args):
+        if "cod" in kwargs and all(isterm(t, TYPE) for t in args):
             cod = kwargs["cod"]
-            if not term(cod, TYPE):
+            if not isterm(cod, TYPE):
                 raise TypeError(
                     f"Typed(..., cod=R): R must be TYPE, got '{_name(type(cod))}'"
                 )
@@ -685,8 +685,8 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
                 __types__    = types
                 __codomain__ = cod
 
-                def __term__(self, trm):
-                    if not term(trm, TypedType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, TypedType):
                         return False
                     domain_hints = set(_hinted_domain(trm.func))
                     return_hint  = _hinted_codomain(trm.func)
@@ -720,9 +720,9 @@ class TYPED(HINTED, DOM_TYPED, COD_TYPED):
 
 
 class CONDITION(TYPED):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import Bool
-        return super().__term__(trm) and trm.cod is Bool
+        return super().__isterm__(trm) and trm.cod is Bool
 
     def __call__(typ, *args, **kwargs):
         from typed.mods.types.func import Condition as ConditionType, Typed as TypedType
@@ -730,7 +730,7 @@ class CONDITION(TYPED):
         from typed.mods.helper.general import _name, _name_list
 
         if typ is ConditionType or issubclass(typ, ConditionType):
-            if len(args) == 1 and inspect.isfunction(args[0]) and not term(args[0], ConditionType) and not kwargs:
+            if len(args) == 1 and inspect.isfunction(args[0]) and not isterm(args[0], ConditionType) and not kwargs:
                 typed = TypedType(args[0])
                 if typed.cod is not Bool:
                     raise TypeError(
@@ -751,7 +751,7 @@ class CONDITION(TYPED):
                 )
             return type.__call__(ConditionType, args[0])
 
-        if args and all(term(t, TYPE) for t in args) and not kwargs:
+        if args and all(isterm(t, TYPE) for t in args) and not kwargs:
             types = tuple(args)
             class_name = f"Condition({_name_list(*types)})"
 
@@ -760,8 +760,8 @@ class CONDITION(TYPED):
                 __types__    = types
                 __codomain__ = Bool
 
-                def __term__(self, trm):
-                    if not term(trm, ConditionType):
+                def __isterm__(self, trm):
+                    if not isterm(trm, ConditionType):
                         return False
                     domain_hints = set(_hinted_domain(trm.func))
                     return_hint  = _hinted_codomain(trm.func)
@@ -792,30 +792,30 @@ class CONDITION(TYPED):
 
 
 class FACTORY(TYPED):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import TYPE
         from typed.mods.types.func import Typed
         if trm == Typed.__call__:
             return True
-        return term(trm, Typed) and _issubtype(trm.cod, TYPE)
+        return isterm(trm, Typed) and _issubtype(trm.cod, TYPE)
 
 class OPERATION(FACTORY):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         from typed.mods.types.base import TYPE, Tuple
-        return super().__term__(trm) and _issubtype(trm.dom, Tuple(TYPE))
+        return super().__isterm__(trm) and _issubtype(trm.dom, Tuple(TYPE))
 
 class DEPENDENT(FACTORY):
-    def __term__(typ, trm):
-        if super().__term__(trm) and hasattr(trm, "is_dependent_type"):
+    def __isterm__(typ, trm):
+        if super().__isterm__(trm) and hasattr(trm, "is_dependent_type"):
             return trm.is_dependent_type
         return False
 
 class LAZY(HINTED):
-    def __term__(typ, trm):
+    def __isterm__(typ, trm):
         if getattr(trm, "is_partial", False):
             orig = getattr(trm, "original_func", None)
             if orig is not None:
-                return term(orig, typ)
+                return isterm(orig, typ)
             return False
 
         if getattr(trm, "is_lazy", False):
@@ -830,7 +830,7 @@ class LAZY(HINTED):
         if (typ is Lazy or issubclass(typ, Lazy)) \
            and len(args) == 1 \
            and inspect.isfunction(args[0]) \
-           and not term(args[0], Lazy):
+           and not isterm(args[0], Lazy):
             return type.__call__(Lazy, args[0])
 
         return super().__call__(*args, **kwargs)

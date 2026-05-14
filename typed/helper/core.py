@@ -3,117 +3,156 @@ class __STATEFUL__:
     SUPS  = set()
     TERMS = set()
 
-    def __sup__(typ, other):
+    @staticmethod
+    def __issup__(typ, other):
         key = (id(typ), id(other))
         if key in __STATEFUL__.SUPS:
             return False
 
-        __STATEFUL__.sup.add(key)
+        __STATEFUL__.SUPS.add(key)
         try:
             from typed.mods.core import extends
             if extends(typ, other):
                 return True
 
-            if "__sup__" in getattr(typ, "__dict__", {}):
-                sup_func = typ.__dict__["__sup__"]
-                if sup_func is not __STATEFUL__.__sup__:
-                    res = sup_func(typ, other)
-                    if res is not NotImplemented: return res
-
-            if "__sup__" in getattr(other, "__dict__", {}):
-                sup_func = other.__dict__["__sup__"]
-                if sup_func is not __STATEFUL__.__sup__:
-                    res = sup_func(other, typ)
-                    if res is not NotImplemented: return res
+            if "__issup__" in getattr(typ, "__dict__", {}):
+                issup_func = typ.__dict__["__issup__"]
+                if issup_func is not __STATEFUL__.__issup__:
+                    try:
+                        res = issup_func(typ, other)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             meta_typ = type(typ)
-            if hasattr(meta_typ, "__sup__"):
-                sup_func = getattr(meta_typ, "__sup__")
-                if sup_func is not __STATEFUL__.__sup__:
-                    res = sup_func(typ, other)
-                    if res is not NotImplemented: return res
+            if hasattr(meta_typ, "__issup__"):
+                issup_func = getattr(meta_typ, "__issup__")
+                if issup_func is not __STATEFUL__.__issup__:
+                    try:
+                        res = issup_func(typ, other)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
+
+            if "__issub__" in getattr(other, "__dict__", {}):
+                issub_func = other.__dict__["__issub__"]
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(other, typ)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             meta_other = type(other)
-            if hasattr(meta_other, "__sup__"):
-                sup_func = getattr(meta_other, "__sup__")
-                if sup_func is not __STATEFUL__.__sup__:
-                    res = sup_func(other, typ)
-                    if res is not NotImplemented: return res
+            if hasattr(meta_other, "__issub__"):
+                issub_func = getattr(meta_other, "__issub__")
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(other, typ)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             return False
         finally:
             __STATEFUL__.SUPS.remove(key)
 
-    def __sub__(typ, other):
+    @staticmethod
+    def __issub__(typ, other):
         key = (id(typ), id(other))
         if key in __STATEFUL__.SUBS:
             return False
         __STATEFUL__.SUBS.add(key)
         try:
-            from typed.mods.core import sup
-            if sup(typ, other):
+            from typed.mods.core import extends
+            if extends(other, typ):
                 return True
 
-            if "__sub__" in getattr(typ, "__dict__", {}):
-                sub_func = typ.__dict__["__sub__"]
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(typ, other)
-                    if res is not NotImplemented: return res
-
-            if "__sub__" in getattr(other, "__dict__", {}):
-                sub_func = other.__dict__["__sub__"]
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(other, typ)
-                    if res is not NotImplemented: return res
+            if "__issub__" in getattr(typ, "__dict__", {}):
+                issub_func = typ.__dict__["__issub__"]
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(typ, other)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             meta_typ = type(typ)
-            if hasattr(meta_typ, "__sub__"):
-                sub_func = getattr(meta_typ, "__sub__")
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(typ, other)
-                    if res is not NotImplemented: return res
+            if hasattr(meta_typ, "__issub__"):
+                issub_func = getattr(meta_typ, "__issub__")
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(typ, other)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
+
+            if "__issup__" in getattr(other, "__dict__", {}):
+                issup_func = other.__dict__["__issup__"]
+                if issup_func is not __STATEFUL__.__issup__:
+                    try:
+                        res = issup_func(other, typ)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             meta_other = type(other)
-            if hasattr(meta_other, "__sub__"):
-                sub_func = getattr(meta_other, "__sub__")
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(other, typ)
-                    if res is not NotImplemented: return res
+            if hasattr(meta_other, "__issup__"):
+                issup_func = getattr(meta_other, "__issup__")
+                if issup_func is not __STATEFUL__.__issup__:
+                    try:
+                        res = issup_func(other, typ)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             return False
         finally:
             __STATEFUL__.SUBS.remove(key)
 
-    def __term__(typ, trm):
+    @staticmethod
+    def __isterm__(typ, trm):
         key = (id(typ), id(trm))
         if key in __STATEFUL__.TERMS:
             return False
         __STATEFUL__.TERMS.add(key)
         try:
-            if "__term__" in getattr(typ, "__dict__", {}):
-                term_func = typ.__dict__["__term__"]
-                if term_func is not __STATEFUL__.__term__:
-                    res = term_func(typ, trm)
-                    if res is not NotImplemented: return res
+            if "__isterm__" in getattr(typ, "__dict__", {}):
+                isterm_func = typ.__dict__["__isterm__"]
+                if isterm_func is not __STATEFUL__.__isterm__:
+                    try:
+                        res = isterm_func(typ, trm)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
             meta = type(typ)
-            if hasattr(meta, "__term__"):
-                term_func = getattr(meta, "__term__")
-                if term_func is not __STATEFUL__.__term__:
-                    res = term_func(typ, trm)
-                    if res is not NotImplemented: return res
+            if hasattr(meta, "__isterm__"):
+                isterm_func = getattr(meta, "__isterm__")
+                if isterm_func is not __STATEFUL__.__isterm__:
+                    try:
+                        res = isterm_func(typ, trm)
+                        if res is not NotImplemented: return res
+                    except TypeError:
+                        pass
 
-            if "__sub__" in getattr(typ, "__dict__", {}):
-                sub_func = typ.__dict__["__sub__"]
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(typ, type(trm))
-                    if res: return True
+            if "__issub__" in getattr(type(trm), "__dict__", {}):
+                issub_func = type(trm).__dict__["__issub__"]
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(type(trm), typ)
+                        if res: return True
+                    except TypeError:
+                        pass
 
-            if hasattr(meta, "__sub__"):
-                sub_func = getattr(meta, "__sub__")
-                if sub_func is not __STATEFUL__.__sub__:
-                    res = sub_func(typ, type(trm))
-                    if res: return True
+            if hasattr(type(type(trm)), "__issub__"):
+                issub_func = getattr(type(type(trm)), "__issub__")
+                if issub_func is not __STATEFUL__.__issub__:
+                    try:
+                        res = issub_func(type(trm), typ)
+                        if res: return True
+                    except TypeError:
+                        pass
 
             if isinstance(trm, type) and isinstance(typ, type):
                 if issubclass(trm, typ):
@@ -125,28 +164,29 @@ class __STATEFUL__:
 
 class __MAGIC__:
     def __in__(typ, trm):
-        return __STATEFUL__.__term__(typ, trm)
+        return __STATEFUL__.__isterm__(typ, trm)
 
     def __le__(typ, other):
-        return __STATEFUL__.__sub__(typ, other)
+        return __STATEFUL__.__issub__(typ, other)
 
     def __lt__(typ, other):
-        return __STATEFUL__.__sub__(typ, other) and not __STATEFUL__.__sub__(other, typ)
+        return __STATEFUL__.__issub__(typ, other) and not __STATEFUL__.__issub__(other, typ)
 
     def __ge__(typ, other):
-        return __STATEFUL__.__sub__(other, typ)
+        return __STATEFUL__.__issub__(other, typ)
 
     def __gt__(typ, other):
-        return __STATEFUL__.__sub__(other, typ) and not __STATEFUL__.__sub__(typ, other)
+        return __STATEFUL__.__issub__(other, typ) and not __STATEFUL__.__issub__(typ, other)
 
     def __eq__(typ, other):
-        return __STATEFUL__.__sub__(typ, other) and __STATEFUL__.__sub__(other, typ)
+        return __STATEFUL__.__issub__(typ, other) and __STATEFUL__.__issub__(other, typ)
 
     def __ne__(typ, other):
         return not __MAGIC__.__eq__(typ, other)
 
 
 def _weaksubtype(t1, t2):
+    from typed.mods.helper.general import _name
     for base in t1.__mro__:
         if _name(base) == _name(t2) and base.__module__ == t2.__module__:
             return True
@@ -640,6 +680,7 @@ class Placeholder:
 
         def method_caller(*args, **kwargs):
             def func(*call_args, **call_kwargs):
+                import inspect
                 obj = self._get_value(call_args, call_kwargs)
                 if obj is None:
                     return None
@@ -736,6 +777,7 @@ class Var:
         raise AttributeError(f"'var' object has no attribute '{name}'")
 
 def _is_placeholder_like(x):
+    import inspect
     if isinstance(x, (Placeholder, _Placeholder)):
         return True
     if callable(x):
@@ -754,6 +796,7 @@ def _is_placeholder_like(x):
 
 
 def _resolve_placeholder_value(val, call_args, call_kwargs):
+    import inspect
     if isinstance(val, (Placeholder, _Placeholder)):
         return val._get_value(call_args, call_kwargs)
     if callable(val):
@@ -825,6 +868,7 @@ class Func:
         )
 
     def _analyze_callable(self, fn):
+        import inspect
         sig = inspect.signature(fn)
         params = list(sig.parameters.values())
         positional = [
@@ -956,6 +1000,7 @@ class Func:
         return self
 
     def do(self, action):
+        import inspect
         num_loops = len(self._loops)
         extra_names = list(self._param_types.keys())
         num_extra = len(extra_names)

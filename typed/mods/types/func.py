@@ -99,7 +99,7 @@ class Func(Callable, metaclass=FUNC):
     The type of functions.
 
     : type(Func)    is FUNC
-    : term(f, Func) iff term(f, Callable), not term(f, Lambda, Class, Builtin)
+    : isterm(f, Func) iff isterm(f, Callable), not isterm(f, Lambda, Class, Builtin)
     : builtin(Func) is NotDefined
     : null(Func)    is nill
     """

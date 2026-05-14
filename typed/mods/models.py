@@ -427,7 +427,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a isterm of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     elif model in ORDERED:
@@ -459,7 +459,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a isterm of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     elif model in EXACT:
@@ -494,7 +494,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
             if not cond(entity):
                 errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
         if errors:
-            raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
+            raise TypeError(f"{repr(entity)} is not a isterm of type {model_name}:\n" + "\n".join(errors))
         return entity
 
     for k in required_attribute_keys:
@@ -528,7 +528,7 @@ def validate(entity: Dict, model: MODEL) -> Dict:
         if not cond(entity):
             errors.append(f" ==> Condition {getattr(cond, '__name__', cond)} failed for {entity}")
     if errors:
-        raise TypeError(f"{repr(entity)} is not a term of type {model_name}:\n" + "\n".join(errors))
+        raise TypeError(f"{repr(entity)} is not a isterm of type {model_name}:\n" + "\n".join(errors))
     return entity
 
 @dataclass_transform()
