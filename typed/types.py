@@ -2,16 +2,12 @@ from importlib import import_module as __import__
 from typing import TYPE_CHECKING as __lsp__
 
 __all__ = [
-    "TYPE", "UNIVERSAL",
-    "ABSTRACT", "CONCRETE", "DYNAMIC", "STATIC",
-    "DISCOURSE", "PARAMETRIC",
-
+    "Type",
     "Nill", "Any",
-    "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
+    "Int", "Str", "Float", "Bool", "Bytes",
     "Tuple", "List", "Set", "Dict",
-    "Pattern", "Container",
 
-    "Callable", "Builtin", "Lambda", "Function", "Partial",
+    "Callable", "Function", "Partial",
     "Class", "BoundMethod", "UnboundMethod", "Method",
     "AttrFunc", "DomFunc", "CodFunc", "CompFunc",
     "DomHinted", "CodHinted", "Hinted",
@@ -20,14 +16,8 @@ __all__ = [
 ]
 
 __lazy__ = {
-    "TYPE":         ("typed.mods.types.base", "TYPE"),
-    "UNIVERSAL":    ("typed.mods.types.base", "UNIVERSAL"),
-    "ABSTRACT":     ("typed.mods.types.base", "ABSTRACT"),
-    "CONCRETE":     ("typed.mods.types.base", "CONCRETE"),
-    "DYNAMIC":      ("typed.mods.types.base", "DYNAMIC"),
-    "STATIC":       ("typed.mods.types.base", "STATIC"),
-    "DISCOURSE":    ("typed.mods.types.base", "DISCOURSE"),
-    "PARAMETRIC":   ("typed.mods.types.base", "PARAMETRIC"),
+    "Type":         ("typed.mods.types.base", "TYPE"),
+    "Parametric":   ("typed.mods.types.base", "Parametric"),
 
     "Nill":         ("typed.mods.types.base", "Nill"),
     "Any":          ("typed.mods.types.base", "Any"),
@@ -36,14 +26,10 @@ __lazy__ = {
     "Float":        ("typed.mods.types.base", "Float"),
     "Bool":         ("typed.mods.types.base", "Bool"),
     "Bytes":        ("typed.mods.types.base", "Bytes"),
-    "Self":         ("typed.mods.types.base", "Self"),
-    "Cls":          ("typed.mods.types.base", "Cls"),
     "Tuple":        ("typed.mods.types.base", "Tuple"),
     "List":         ("typed.mods.types.base", "List"),
     "Set":          ("typed.mods.types.base", "Set"),
     "Dict":         ("typed.mods.types.base", "Dict"),
-    "Pattern":      ("typed.mods.types.base", "Pattern"),
-    "Container":    ("typed.mods.types.base", "Container"),
 
     "Callable":     ("typed.mods.types.func", "Callable"),
     "Builtin":      ("typed.mods.types.func", "Builtin"),

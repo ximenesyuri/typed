@@ -10,20 +10,18 @@ __all__ = [
 
 __lazy__ = {
     "TYPESYSTEM": ("typed.mods.core", "TYPESYSTEM"), 
-
+    
     "type":    ("typed.mods.core", "type"),
     "typemap": ("typed.mods.core", "typemap"),
     "new":     ("typed.mods.core", "new"),
-
-    "term":    ("typed.mods.core", "term"),
-    "sub":     ("typed.mods.core", "sub"),
-    "sup":     ("typed.mods.core", "sup"),
     
+    "term":   ("typed.mods.core", "term"),
+    "sub":    ("typed.mods.core", "sub"),
+    "sup":     ("typed.mods.core", "sup"),
     "display": ("typed.mods.core", "display"),
     "name":    ("typed.mods.core", "name"),
     "null":    ("typed.mods.core", "null")
-}
-
+    }
 
 def __getattr__(name):
     try:

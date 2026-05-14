@@ -1,31 +1,27 @@
-from inspect import signature
-from typing import get_type_hints
-from typed.mods.helper.func import (
+from builtins import callable as __Callable__
+from typed.mods.err import NotDefined
+from typed.mods.core import type, TYPESYSTEM
+from typed.helper.func  import (
     _unwrap,
     _is_composable,
-    _get_args,
-    _get_kwargs,
-    _get_pos_args,
     _is_domain_hinted,
     _is_codomain_hinted,
     _hinted_domain,
     _hinted_codomain,
     _check_domain,
     _check_codomain,
-    _get_dom_cod
+    
 )
 from typed.mods.helper.general import _name
 from typed.mods.meta.func import (
     CALLABLE,
     GENERATOR,
-    BUILTIN,
     LAMBDA,
     CLASS,
     BOUND_METHOD,
     UNBOUND_METHOD,
     METHOD,
-    FUNCTION,
-    ATTR_FUNC,
+    FUNC,
     DOM_FUNC,
     COD_FUNC,
     COMP_FUNC,
@@ -43,44 +39,38 @@ from typed.mods.meta.func import (
     LAZY
 )
 
-Callable      = CALLABLE('Callable', (), {"__display__": "Callable"})
-Generator     = GENERATOR('Generator', (), {"__display__": "Generator"})
-Builtin       = BUILTIN('Builtin', (Callable,), {"__display__": "Builtin"})
-Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
-Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
-BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
-UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
-Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
-
-class Function(Callable, metaclass=FUNCTION):
-    def __init__(self, func, args=-1, posargs=-1, kwargs=-1):
+class Callable(metaclass=CALLABLE):
+    """
+    """
+    def __init__(self, func):
 
         if not callable(func):
-            raise TypeError(f"Function wrapper expects a callable, got {type(func)}")
+            raise TypeError(f"Func wrapper expects a callable, got {type(func)}")
 
-        self.func = func
+        self.func        = func
         self.__wrapped__ = func
-
-        self._expected_args = args
-        self._expected_posargs = posargs
-        self._expected_kwargs = kwargs
 
     def __call__(self, *a, **kw):
         return self.func(*a, **kw)
 
     @property
     def args(self):
-        return _get_args(self)
+        from typed.helper.func import _args
+        return _args(self)
 
     @property
     def kwargs(self):
-        return _get_kwargs(self)
+        from typed.helper.func import _kwargs
+        return _kwargs(self)
 
     @property
     def posargs(self):
-        return _get_pos_args(self)
+        from typed.helper.func import _pos_args
+        return _pos_args(self)
 
+    @property
     def unwrap(self):
+        from typed.helper.func import _unwrap
         return _unwrap(self)
 
     @property
@@ -91,10 +81,31 @@ class Function(Callable, metaclass=FUNCTION):
     def __display__(self):
         return self.__name__
 
+    __typesystem__ = TYPESYSTEM
+    __type__       = CALLABLE
+    __display__    = "Callable"
+    __name__       = "Callable"
+    __builtin__    = __Callable__
 
-AttrFunc = ATTR_FUNC('AttrFunc', (Function,), {"__display__": "AttrFunc"})
-DomFunc  = DOM_FUNC('DomFunc', (Function,), {"__display__": "DomFunc"})
-CodFunc  = COD_FUNC('CodFunc', (Function,), {"__display__": "CodFunc"})
+Generator     = GENERATOR('Generator', (), {"__display__": "Generator"})
+Lambda        = LAMBDA('Lambda', (Callable,), {"__display__": "Lambda"})
+Class         = CLASS('Class', (Callable,), {"__display__": "Class"})
+BoundMethod   = BOUND_METHOD('BoundMethod', (Callable,), {"__display__": "BoundMethod"})
+UnboundMethod = UNBOUND_METHOD('UnboundMethod', (Callable,), {"__display__": "UnboundMethod"})
+Method        = METHOD('Method', (Callable,), {"__display__": "Method"})
+
+class Func(Callable, metaclass=FUNC):
+    """
+    The type of functions.
+
+    : type(Func)    is FUNC
+    : term(f, Func) iff term(f, Callable), not term(f, Lambda, Class, Builtin)
+    : builtin(Func) is NotDefined
+    : null(Func)    is nill
+    """
+
+DomFunc  = DOM_FUNC('DomFunc', (Func,), {"__display__": "DomFunc"})
+CodFunc  = COD_FUNC('CodFunc', (Func,), {"__display__": "CodFunc"})
 
 class CompFunc(DomFunc, CodFunc, metaclass=COMP_FUNC):
     def __rlshift__(self, other):
@@ -231,7 +242,7 @@ class CompFunc(DomFunc, CodFunc, metaclass=COMP_FUNC):
 
         return composed_orig
 
-class Partial(Function, metaclass=PARTIAL):
+class Partial(Func, metaclass=PARTIAL):
     def __init__(self, func, bound_args, bound_kwargs):
         self.original_func = func
         self.func = func

@@ -8,8 +8,15 @@ class Err(BaseException):
         else:
             super().__init__()
 
+class FuncErr(Err): pass
+class DomErr(Err): pass
+class CodErr(Err): pass
+
 class TypedErr(Err): pass
 
-class NotDefined(Err): pass
+class TypeSystemErr(Err): pass
+class UniverseErr(TypeSystemErr): pass
+class AbstractErr(TypeSystemErr): pass
 
-class UniverseErr(TypedErr): pass
+class NotDefined(Err): pass
+class Anonymous(Err): pass

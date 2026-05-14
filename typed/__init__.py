@@ -13,7 +13,7 @@ __all__ = [
     "Int", "Str", "Float", "Bool", "Bytes", "Self", "Cls",
     "Tuple", "List", "Set", "Dict", "Pattern", "Container"
 
-    "Function", "Condition", "Hinted", "Typed", "TYPE",
+    "Function", "Condition", "Hinted", "Typed", "Type",
 
     "name", "names", "null", "new", "_", "var", "append", "switch", "func"
 ]
@@ -50,8 +50,7 @@ __lazy__ = {
     "Set":       ("typed.mods.types.base", "Set"),
     "Dict":      ("typed.mods.types.base", "Dict"),
     "Pattern":   ("typed.mods.types.base", "Pattern"),
-    "Container": ("typed.mods.types.base", "Container"),
-    "TYPE":      ("typed.mods.types.base", "TYPE"),
+    "Type":      ("typed.mods.types.base", "TYPE"),
 
     "Function":  ("typed.mods.types.func", "Function"),
     "Condition": ("typed.mods.types.func", "Condition"),

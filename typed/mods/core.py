@@ -1,26 +1,28 @@
-from typed.mods.err import NotDefined
+from typed.mods.err import NotDefined, Anonymous
 from typed.helper.core import __STATEFUL__, __MAGIC__
 from builtins import type as __Type__
 
-def null(typ):
-    return getattr(typ, "__null__", NotDefined)
+def null(t):
+    """
+    The 'null' polymorphism.
+        
+    : t: Any
 
-def display(typ):
-    return getattr(typ, "__display__", NotDefined)
+    : null(t) is t.__null__
+    :         or NotDefined
+    """
+    return getattr(t, "__null__", NotDefined)
 
-def name(trm):
-    d = display(trm)
-    if d is not NotDefined:
-        return d
+def display(t):
+    """
+    The 'display' polymorphism.
 
-    typ = typemap(trm)
+    : t: Any
 
-    if typ is not NotDefined:
-        d = display(typ)
-        if d is not NotDefined:
-            return d
-
-    return getattr(trm, '__name__', "Anonymous")
+    : display(t) is t.__display__
+    :            or NotDefined
+    """
+    return getattr(t, "__display__", NotDefined)
 
 def names(*terms):
     return ', '.join(name(t) for t in terms)
@@ -85,6 +87,16 @@ def term(trm, typ):
     return __term__(typ, trm)
 
 class new:
+    """
+    Namespace to build typesystem entities.
+
+    : new.universe   := creates typesystem universe
+    : new.enricher   := creates typesystem enricher
+    : new.typesystem := creates a typesystem
+    : new.meta       := creates a metatype in a typesystem
+    : new.type       := creates a type in a typesystem
+    : new.err        := creates a err in a typesystem
+    """
     def universe(
         name="__UNIVERSE__",
         __term__=__STATEFUL__.__term__,
@@ -297,6 +309,16 @@ def __typemap__():
     TYPESYSTEM.typemap[__Type__]      = TYPESYSTEM.universe
 
 def typemap(typ, typesystem=TYPESYSTEM):
+    """
+    The typemap function.
+
+    : typ: Any
+    : typesystem: typesystem
+
+    : typemap(typ, typesystem) is typ [ if type(typ) in typesystem.__universes__ ]
+    :                          or typesystem.typemap[typ]
+    :                          or NotDefined
+    """
     try:
         if __Type__(typ) in typesystem.__universes__:
             return typ
@@ -314,17 +336,42 @@ def typemap(typ, typesystem=TYPESYSTEM):
 
     return NotDefined
 
-def type(trm, typesystem=TYPESYSTEM):
+def type(t, typesystem=TYPESYSTEM):
     if typesystem is TYPESYSTEM:
         __typemap__()
 
     try:
-        if trm in typesystem.typemap:
-            trm = typesystem.typemap[trm]
+        if t in typesystem.typemap:
+            t = typesystem.typemap[t]
     except TypeError:
         pass
 
-    __typ__ = __Type__(trm)
+    __typ__ = __Type__(t)
     typ = typemap(__typ__, typesystem)
 
     return typ if typ is not NotDefined else __typ__
+
+def name(t, typesystem=TYPESYSTEM):
+    """
+    The 'name' polymorphism.
+
+    : t: Any
+    : typesystem: typesystem
+
+    : name(t) is t.__display__
+    :         or typemap(t, typesystem).__display__
+    :         or t.__name__
+    :         or Anonymous
+    """
+    d = display(t)
+    if d is not NotDefined:
+        return d
+
+    typ = typemap(t)
+
+    if typ is not NotDefined:
+        d = display(typ)
+        if d is not NotDefined:
+            return d
+
+    return getattr(t, '__name__', Anonymous.__name__)
