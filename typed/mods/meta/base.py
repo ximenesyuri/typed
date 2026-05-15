@@ -1,5 +1,5 @@
 from builtins import type as __Type__
-from typed.mods.core import isterm, issub, TYPESYSTEM, UNIVERSE, ABSTRACT
+from typed.mods.core import TYPESYSTEM, UNIVERSE, ABSTRACT
 from typed.mods.err import NotDefined
 
 TYPE = UNIVERSE(0)
@@ -15,6 +15,8 @@ META.__builtin__ = NotDefined
 class EMPTY(TYPE):
     """
     The metatype of nothing.
+
+    type(EMTPY) is UNIVERSE(1)
     """
     def __isterm__(typ, trm):
         return False
@@ -35,6 +37,8 @@ class EMPTY(TYPE):
 class PARAMETRIC(TYPE):
     """
     The metatype of parametric types.
+
+
     """
     def __isterm__(typ, trm):
         from typed.mods.types.func import Factory
@@ -183,10 +187,10 @@ class TUPLE(TYPE):
         from builtins import tuple as __Tuple__
         from typed.mods.types.base import Tuple
         from typed.mods.core import type, issub, isterm
-        
+
         if not (isinstance(trm, __Tuple__) or issub(type(trm), Tuple)):
             return False
-        
+
         types = getattr(typ, '__types__', None)
         if types is not None:
             for x in trm:
@@ -213,15 +217,15 @@ class TUPLE(TYPE):
         from typed.mods.core import TYPESYSTEM, names
         if typesystem is None:
             typesystem = TYPESYSTEM
-            
+
         types_set = set(types)
         if typesystem.is_restrictive:
             for t in types_set:
                 if t not in typesystem.__types__:
                     raise TypeError(f"Type {t} not in typesystem.__types__")
-                    
-        name = f"Tuple({names(*types_set)})" if types_set else "Tuple()"
-        
+
+        name = f"Tuple({names(*types_set)})" if types_set else "Tuple"
+
         return __Type__.__new__(typ.__class__, name, (typ,), {
             "__display__": name,
             "__types__": types_set,
@@ -245,10 +249,10 @@ class LIST(TYPE):
         from builtins import list as __List__
         from typed.mods.types.base import List
         from typed.mods.core import type, issub, isterm
-        
+
         if not (isinstance(trm, __List__) or issub(type(trm), List)):
             return False
-            
+
         types = getattr(typ, '__types__', None)
         if types is not None:
             for x in trm:
@@ -275,15 +279,15 @@ class LIST(TYPE):
         from typed.mods.core import TYPESYSTEM, names
         if typesystem is None:
             typesystem = TYPESYSTEM
-            
+
         types_set = set(types)
         if typesystem.is_restrictive:
             for t in types_set:
                 if t not in typesystem.__types__:
                     raise TypeError(f"Type {t} not in typesystem.__types__")
-                    
-        name = f"List({names(*types_set)})" if types_set else "List()"
-        
+
+        name = f"List({names(*types_set)})" if types_set else "List"
+
         return __Type__.__new__(typ.__class__, name, (typ,), {
             "__display__": name,
             "__types__": types_set,
@@ -307,10 +311,10 @@ class SET(TYPE):
         from builtins import set as __Set__
         from typed.mods.types.base import Set
         from typed.mods.core import type, issub, isterm
-        
+
         if not (isinstance(trm, __Set__) or issub(type(trm), Set)):
             return False
-            
+
         types = getattr(typ, '__types__', None)
         if types is not None:
             for x in trm:
@@ -337,15 +341,15 @@ class SET(TYPE):
         from typed.mods.core import TYPESYSTEM, names
         if typesystem is None:
             typesystem = TYPESYSTEM
-            
+
         types_set = set(types)
         if typesystem.is_restrictive:
             for t in types_set:
                 if t not in typesystem.__types__:
                     raise TypeError(f"Type {t} not in typesystem.__types__")
-                    
+
         name = f"Set({names(*types_set)})" if types_set else "Set()"
-        
+
         return __Type__.__new__(typ.__class__, name, (typ,), {
             "__display__": name,
             "__types__": types_set,
@@ -369,23 +373,23 @@ class DICT(TYPE):
         from builtins import dict as __Dict__
         from typed.mods.types.base import Dict
         from typed.mods.core import type, issub, isterm
-        
+
         if not (isinstance(trm, __Dict__) or issub(type(trm), Dict)):
             return False
-        
+
         types = getattr(typ, "__types__", None)
         key_type = getattr(typ, "__key_type__", None)
-        
+
         if types is not None:
             for v in trm.values():
                 if not any(isterm(v, t) for t in types):
                     return False
-                    
+
         if key_type is not None:
             for k in trm.keys():
                 if not isterm(k, key_type):
                     return False
-                    
+
         return True
 
     def __issub__(typ, other):
@@ -395,21 +399,21 @@ class DICT(TYPE):
             other_types = getattr(other, '__types__', None)
             typ_key = getattr(typ, '__key_type__', None)
             other_key = getattr(other, '__key_type__', None)
-            
+
             if typ_types is None and other_types is not None:
                 return False
             if typ_key is None and other_key is not None:
                 return False
-                
+
             if typ_types is not None and other_types is not None:
                 for t1 in typ_types:
                     if not any(issub(t1, t2) for t2 in other_types):
                         return False
-            
+
             if typ_key is not None and other_key is not None:
                 if not issub(typ_key, other_key):
                     return False
-                    
+
             return True
         return False
 
@@ -417,7 +421,7 @@ class DICT(TYPE):
         from typed.mods.core import TYPESYSTEM, names, name
         if typesystem is None:
             typesystem = TYPESYSTEM
-        
+
         types_set = set(types)
         if typesystem.is_restrictive:
             for t in types_set:
@@ -425,12 +429,12 @@ class DICT(TYPE):
                     raise TypeError(f"Type {t} not in typesystem.__types__")
             if key is not None and key not in typesystem.__types__:
                 raise TypeError(f"Type {key} not in typesystem.__types__")
-        
+
         if key is not None:
             display_name = f"Dict({names(*types_set)}, key={name(key)})" if types_set else f"Dict(key={name(key)})"
         else:
             display_name = f"Dict({names(*types_set)})" if types_set else "Dict()"
-            
+
         return __Type__.__new__(typ.__class__, display_name, (typ,), {
             "__display__": display_name,
             "__types__": types_set,
