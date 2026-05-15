@@ -1,6 +1,5 @@
 from typed.mods.err import NotDefined, Anonymous
 from typed.helper.core import __STATEFUL__, __MAGIC__
-from builtins import type as __Type__
 
 def null(t):
     """
@@ -164,7 +163,7 @@ class TypeSystem:
             return __issub__(abs, other)
 
         def __new__(univ, typ, bases, namespace, **kwds):
-            return __Type__.__new__(univ, typ, bases, namespace, **kwds)
+            return type.__new__(univ, typ, bases, namespace, **kwds)
 
         def enricher():
             level = 0
@@ -177,7 +176,7 @@ class TypeSystem:
 
                 univ_cls = self.universe(
                     univ_name,
-                    (__Type__,),
+                    (type,),
                     {
                         "__isterm__": __isterm__,
                         "__issub__": sub_fn,
@@ -192,7 +191,7 @@ class TypeSystem:
                         "level": level,
                         "__display__": univ_name,
                         "is_universe": True,
-                        "__hash__": __Type__.__hash__
+                        "__hash__": type.__hash__
                     }
                 )
 
@@ -282,9 +281,9 @@ class new:
         __gt__=__MAGIC__.__gt__,
         __ne__=__MAGIC__.__ne__
     ):
-        return __Type__(
+        return type(
             name, 
-            (__Type__,),
+            (type,),
             {
                 "is_universe": True,
                 "level": -1,
@@ -297,7 +296,7 @@ class new:
                 "__ge__": __ge__,
                 "__gt__": __gt__,
                 "__ne__": __ne__,
-                "__hash__": __Type__.__hash__
+                "__hash__": type.__hash__
             }
         )
 
@@ -350,7 +349,7 @@ class new:
     @staticmethod
     def err(name):
         from typed.mods.err import Err
-        return __Type__(name, (Err,), {"__name__": name, "__display__": name})
+        return type(name, (Err,), {"__name__": name, "__display__": name})
 
 TYPESYSTEM = new.typesystem()
 
@@ -386,7 +385,7 @@ def __typemap__():
 
 def typemap(typ, typesystem=TYPESYSTEM):
     try:
-        if __Type__(typ) in typesystem.__members__["universe"].values():
+        if type(typ) in typesystem.__members__["universe"].values():
             return typ
     except TypeError:
         pass
@@ -402,7 +401,7 @@ def typemap(typ, typesystem=TYPESYSTEM):
 
     return NotDefined
 
-def type(t, typesystem=TYPESYSTEM):
+def typeof(t, typesystem=TYPESYSTEM):
     if typesystem is TYPESYSTEM:
         __typemap__()
 
@@ -412,7 +411,7 @@ def type(t, typesystem=TYPESYSTEM):
     except TypeError:
         pass
 
-    __typ__ = __Type__(t)
+    __typ__ = type(t)
     typ = typemap(__typ__, typesystem)
 
     return typ if typ is not NotDefined else __typ__
@@ -447,13 +446,13 @@ def name(t, typesystem=TYPESYSTEM):
 
 __UNIVERSE__ = TYPESYSTEM.universe
 __UNIVERSE__.__typesystems__ = [TYPESYSTEM]
-__UNIVERSE__.__type__ = __Type__
+__UNIVERSE__.__type__ = type
 
 __ABSTRACT__ = TYPESYSTEM.abstract
 __ABSTRACT__.__typesystems__ = [TYPESYSTEM]
-__ABSTRACT__.__type__ = __Type__
+__ABSTRACT__.__type__ = type
 
-def UNIVERSE(n: int, typesystem=TYPESYSTEM) -> __Type__:
+def UNIVERSE(n: int, typesystem=TYPESYSTEM) -> type:
     if n < 0:
         return typesystem.universe
 
@@ -465,7 +464,7 @@ def UNIVERSE(n: int, typesystem=TYPESYSTEM) -> __Type__:
     UNI.__null__ = NotDefined
     return UNI
 
-def ABSTRACT(n: int, typesystem=TYPESYSTEM) -> __Type__:
+def ABSTRACT(n: int, typesystem=TYPESYSTEM) -> type:
     if n < 0:
         return typesystem.abstract
 

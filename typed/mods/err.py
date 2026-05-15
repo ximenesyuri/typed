@@ -55,14 +55,6 @@ class FuncErr(Err):
                 **kwargs
             )
 
-class CallErr(FuncErr):
-    def __init__(self, message="Error while calling a function", details=NotDefined, func=NotDefined, **kwargs):
-        super().__init__(
-            message=message,
-            details=details,
-            **kwargs
-        )
-
 class HintErr(Err):
     def __init__(
         self,
