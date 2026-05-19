@@ -10,3 +10,5 @@ wheels/
 __test__.py
 *.py[oc]
 *.py[oc]
+models.py
+*.py[oc]

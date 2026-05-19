@@ -1,60 +1,49 @@
-from typed.mods.err import NotDefined, Anonymous
-from typed.helper.core import __STATEFUL__, __MAGIC__
-
 def null(t):
     """
     The 'null' polymorphism.
     """
+    from typed.mods.err import NotDefined
     return getattr(t, "__null__", NotDefined)
 
 def display(t):
     """
     The 'display' polymorphism.
     """
+    from typed.mods.err import NotDefined
     return getattr(t, "__display__", NotDefined)
+
+def builtin(t):
+    """
+    The 'builtin' polymorphism.
+    """
+    from typed.mods.err import NotDefined
+    return getattr(t, "__builtin__", NotDefined)
+
+def track(t):
+    from typed.mods.err import NotDefined
+    if builtin(t) is not NotDefined:
+        name = f"Track({name(t)})"
+        attrs = {
+            "__display__": name,
+            "is_track": True,
+            "__builtin__": t
+        }
+        return type.__call__(name, (t,), attrs)
+
+    return NotDefined
+
+def terms(t):
+    """
+    The 'terms' polymorphism.
+    """
+    from typed.mods.err import NotDefined
+    __terms__ = getattr(t, "__terms__", NotDefined)
+    if __terms__ is not NotDefined:
+        return set(__terms__)
+    return
 
 def names(*terms):
     return ', '.join(name(t) for t in terms)
-
-def lazy(imports):
-    from sys import _getframe
-    from importlib import import_module
-    from typing import TYPE_CHECKING as __lsp__
-
-    caller_globals = _getframe(1).f_globals
-    caller_name = caller_globals.get("__name__", "<unknown>")
-
-    all_names = []
-    lazy_map = {}
-
-    for module_path, attr_names in imports.items():
-        for attr_name in attr_names:
-            all_names.append(attr_name)
-            lazy_map[attr_name] = (module_path, attr_name)
-
-    caller_globals["__all__"] = all_names
-    caller_globals["__lazy__"] = lazy_map
-
-    def __getattr__(name_str):
-        try:
-            module_name, attr_name = caller_globals["__lazy__"][name_str]
-        except KeyError:
-            raise AttributeError(
-                f"module {caller_name!r} has no attribute {name_str!r}"
-            ) from None
-
-        module = import_module(module_name)
-        attr = getattr(module, attr_name)
-        caller_globals[name_str] = attr
-        return attr
-
-    def __dir__():
-        return sorted(set(caller_globals.keys()) | set(caller_globals["__all__"]))
-
-    caller_globals["__getattr__"] = __getattr__
-    caller_globals["__dir__"] = __dir__
-
-    return __lsp__
 
 def extends(typ, *others):
     for other in others:
@@ -65,49 +54,191 @@ def extends(typ, *others):
     return False
 
 def issup(typ, *others):
-    from typed.helper.core import __STATEFUL__
+    from typed.helper.core import STATEFUL
     for other in others:
-        if __STATEFUL__.__issup__(typ, other):
+        if STATEFUL.__issup__(typ, other):
             return True
     return False
-
-sup = issup
 
 def issub(typ, *others):
-    from typed.helper.core import __STATEFUL__
+    from typed.helper.core import STATEFUL
     for other in others:
-        if __STATEFUL__.__issub__(typ, other):
+        if STATEFUL.__issub__(typ, other):
             return True
     return False
-
-sub = issub
 
 def isterm(trm, *types):
-    from typed.helper.core import __STATEFUL__
+    from typed.helper.core import STATEFUL
     for t in types:
-        if __STATEFUL__.__isterm__(t, trm):
+        if STATEFUL.__isterm__(t, trm):
             return True
     return False
 
-term = isterm
+class ___UNIVERSE___(type):
+    def __new__(mcls, name, bases, dct, **kwds):
+        cls = super().__new__(mcls, name, bases, dct, **kwds)
 
-class TypeSystem:
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            cls.__terms__ = WeakSet()
+
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            mcls.__terms__ = WeakSet()
+
+        try:
+            mcls.__terms__.add(cls)
+        except AttributeError:
+            pass
+
+        return cls
+
+    def __iter__(cls):
+        systems = getattr(cls, "__typesystems__", [])
+        for typesystem in systems:
+            yield from typesystem.__members__["universe"].values()
+
+
+class ___ABSTRACT___(___UNIVERSE___):
+    def __new__(mcls, name, bases, dct, **kwds):
+        cls = super().__new__(mcls, name, bases, dct, **kwds)
+
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            cls.__terms__ = WeakSet()
+
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            mcls.__terms__ = WeakSet()
+
+        try:
+            mcls.__terms__.add(cls)
+        except AttributeError:
+            pass
+
+        return cls
+
+    def __iter__(cls):
+        systems = getattr(cls, "__typesystems__", [])
+        for typesystem in systems:
+            yield from typesystem.__members__["abstract"].values()
+
+
+class __UNIVERSE__(type, metaclass=___UNIVERSE___):
+    def __new__(mcls, name, bases, dct, **kwds):
+        cls = super().__new__(mcls, name, bases, dct, **kwds)
+
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            cls.__terms__ = WeakSet()
+
+        if "__terms__" not in mcls.__dict__:
+            from weakref import WeakSet
+            mcls.__terms__ = WeakSet()
+
+        try:
+            mcls.__terms__.add(cls)
+        except AttributeError:
+            pass
+
+        return cls
+
+    def __iter__(typ):
+        from typed.helper.core import MAGIC
+        return MAGIC.__iter__(typ)
+
+    def __call__(typ, *args, typesystem=None, **kwargs):
+        if len(args) == 3 and isinstance(args[0], str) and isinstance(args[1], tuple) and isinstance(args[2], dict):
+            return super().__call__(*args, **kwargs)
+
+        if typesystem is None:
+            typesystem = TYPESYSTEM
+
+        from typed.mods.err import NotDefined
+        if len(args) == 1 and isinstance(args[0], int):
+            n = args[0]
+            if n < 0:
+                return typesystem.universe
+
+            typesystem.enrich(level=n+1)
+            UNI = typesystem.__members__["universe"][n]
+            UNI.__typesystems__ = [typesystem]
+            UNI.__type__ = typesystem.__members__["universe"][n+1]
+            UNI.__builtin__ = NotDefined
+            UNI.__null__ = NotDefined
+            return UNI
+
+        if len(args) == 0 and typesystem is not NotDefined:
+            return typesystem.universe
+
+        return super().__call__(*args, **kwargs)
+
+
+class __ABSTRACT__(__UNIVERSE__, metaclass=___ABSTRACT___):
+    def __iter__(typ):
+        from typed.helper.core import MAGIC
+        return MAGIC.__iter__(typ)
+
+    def __call__(typ, *args, typesystem=None, **kwargs):
+        if len(args) == 3 and isinstance(args[0], str) and isinstance(args[1], tuple) and isinstance(args[2], dict):
+            return super().__call__(*args, **kwargs)
+
+        if typesystem is None:
+            typesystem = TYPESYSTEM
+
+        if len(args) == 1 and isinstance(args[0], int):
+            n = args[0]
+            if n < 0:
+                return typesystem.abstract
+
+            from typed.mods.err import NotDefined
+            typesystem.enrich(level=n+1)
+            ABS = typesystem.__members__["abstract"][n]
+            ABS.__typesystems__ = [typesystem]
+            ABS.__type__ = typesystem.__members__["universe"][n+1]
+            ABS.__builtin__ = NotDefined
+            ABS.__null__ = NotDefined
+            return ABS
+
+        if len(args) == 0 and typesystem is not NotDefined:
+            return typesystem.abstract
+
+        return super().__call__(*args, **kwargs)
+
+
+class __TYPESYSTEM__:
     def __init__(
         self,
         universe="__UNIVERSE__",
         abstract="__ABSTRACT__",
         typemap=None,
-        __isterm__=__STATEFUL__.__isterm__,
-        __issub__=__STATEFUL__.__issub__,
-        __in__=__MAGIC__.__in__,
-        __eq__=__MAGIC__.__eq__,
-        __le__=__MAGIC__.__le__,
-        __lt__=__MAGIC__.__lt__,
-        __ge__=__MAGIC__.__ge__,
-        __gt__=__MAGIC__.__gt__,
-        __ne__=__MAGIC__.__ne__
+        __isterm__=None,
+        __issub__=None,
+        __in__=None,
+        __eq__=None,
+        __le__=None,
+        __lt__=None,
+        __ge__=None,
+        __gt__=None,
+        __ne__=None
     ):
         self.is_restrictive = True
+
+        if None in (__isterm__, __issub__):
+            from typed.helper.core import STATEFUL
+
+        if None in (__in__, __eq__, __le__, __lt__, __ge__, __gt__, __ne__):
+            from typed.helper.core import MAGIC
+
+        __isterm__ = __isterm__ if __isterm__ is not None else STATEFUL.__isterm__
+        __issub__ = __issub__ if __issub__ is not None else STATEFUL.__issub__
+        __in__ = __in__ if __in__ is not None else MAGIC.__in__
+        __eq__ = __eq__ if __eq__ is not None else MAGIC.__eq__
+        __le__ = __le__ if __le__ is not None else MAGIC.__le__
+        __lt__ = __lt__ if __lt__ is not None else MAGIC.__lt__
+        __ge__ = __ge__ if __ge__ is not None else MAGIC.__ge__
+        __gt__ = __gt__ if __gt__ is not None else MAGIC.__gt__
+        __ne__ = __ne__ if __ne__ is not None else MAGIC.__ne__
 
         self.__members__ = {
             "universe": {},
@@ -129,8 +260,14 @@ class TypeSystem:
             __lt__=__lt__,
             __ge__=__ge__,
             __gt__=__gt__,
-            __ne__=__ne__
+            __ne__=__ne__,
+            __display__=universe
         )
+
+        self.universe.__typesystems__ = [self]
+        self.universe.__type__ = type
+
+        self.__members__["universe"][-1] = self.universe
 
         def root_term(typ, trm):
             return "is_abstract" in getattr(trm, "__dict__", {})
@@ -140,17 +277,25 @@ class TypeSystem:
 
         self.typemap = typemap
 
-        self.abstract = self.universe(
-            abstract,
-            (self.universe,),
-            {
-                "is_abstract": True,
-                "level": -1,
-                "__isterm__": root_term,
-                "__issub__": root_sub,
-                "__display__": abstract
-            }
+        self.abstract = new.abstract(
+            name=abstract,
+            bases=(self.universe,),
+            __isterm__=root_term,
+            __issub__=root_sub,
+            __in__=__in__,
+            __eq__=__eq__,
+            __le__=__le__,
+            __lt__=__lt__,
+            __ge__=__ge__,
+            __gt__=__gt__,
+            __ne__=__ne__,
+            __display__=abstract
         )
+
+        self.abstract.__typesystems__ = [self]
+        self.abstract.__type__ = type
+
+        self.__members__["abstract"][-1] = self.abstract
 
         def sub_fn(univ, other):
             if "is_universe" in getattr(other, "__dict__", {}) and "is_universe" in getattr(univ, "__dict__", {}):
@@ -163,7 +308,19 @@ class TypeSystem:
             return __issub__(abs, other)
 
         def __new__(univ, typ, bases, namespace, **kwds):
-            return type.__new__(univ, typ, bases, namespace, **kwds)
+            cls = type.__new__(univ, typ, bases, namespace, **kwds)
+
+            if "__terms__" not in cls.__dict__:
+                from weakref import WeakSet
+                cls.__terms__ = WeakSet()
+            if "__terms__" not in univ.__dict__:
+                from weakref import WeakSet
+                univ.__terms__ = WeakSet()
+            try:
+                univ.__terms__.add(cls)
+            except AttributeError:
+                pass
+            return cls
 
         def enricher():
             level = 0
@@ -174,25 +331,21 @@ class TypeSystem:
                 univ_name = f"UNIVERSE({level})"
                 abs_name  = f"ABSTRACT({level})"
 
-                univ_cls = self.universe(
-                    univ_name,
-                    (type,),
-                    {
-                        "__isterm__": __isterm__,
-                        "__issub__": sub_fn,
-                        "__new__": __new__,
-                        "__contains__": __in__,
-                        "__eq__": __eq__,
-                        "__le__": __le__,
-                        "__lt__": __lt__,
-                        "__ge__": __ge__,
-                        "__gt__": __gt__,
-                        "__ne__": __ne__,
-                        "level": level,
-                        "__display__": univ_name,
-                        "is_universe": True,
-                        "__hash__": type.__hash__
-                    }
+                univ_cls = new.universe(
+                    name=univ_name,
+                    bases=(type,),
+                    __isterm__=__isterm__,
+                    __issub__=sub_fn,
+                    __in__=__in__,
+                    __eq__=__eq__,
+                    __le__=__le__,
+                    __lt__=__lt__,
+                    __ge__=__ge__,
+                    __gt__=__gt__,
+                    __ne__=__ne__,
+                    __new__=__new__,
+                    level=level,
+                    __display__=univ_name
                 )
 
                 def make_abs_term(u_cls):
@@ -200,17 +353,26 @@ class TypeSystem:
                         return __issub__(trm, u_cls)
                     return abs_term
 
-                abs_cls = self.universe(
-                    abs_name,
-                    (univ_cls,),
-                    {
-                        "__display__": abs_name,
-                        "__isterm__": make_abs_term(univ_cls),
-                        "__issub__": abs_sub,
-                        "is_abstract": True,
-                        "level": level
-                    }
+                abs_cls = new.abstract(
+                    name=abs_name,
+                    bases=(univ_cls,),
+                    __isterm__=make_abs_term(univ_cls),
+                    __issub__=abs_sub,
+                    __in__=__in__,
+                    __eq__=__eq__,
+                    __le__=__le__,
+                    __lt__=__lt__,
+                    __ge__=__ge__,
+                    __gt__=__gt__,
+                    __ne__=__ne__,
+                    level=level,
+                    __display__=abs_name
                 )
+
+                if hasattr(self.universe, "__terms__"):
+                    self.universe.__terms__.add(univ_cls)
+                if hasattr(self.abstract, "__terms__"):
+                    self.abstract.__terms__.add(abs_cls)
 
                 if prev is not None:
                     prev.__class__ = univ_cls
@@ -226,14 +388,14 @@ class TypeSystem:
         self.enricher = enricher()
 
     def enrich(self, level):
-        while len(self.__members__["universe"]) <= level:
+        while len(self.__members__["universe"]) <= level + 1:
             u, a = next(self.enricher)
             u_level = getattr(u, "level", -1)
 
             if u_level not in self.__members__["universe"]:
                 self.__members__["universe"][u_level] = u
             if u_level not in self.__members__["abstract"]:
-                self.__members__["abstract"][u_level] = a
+                self.__members__["abstract"][u_level] = a 
 
     def add(self, *T):
         for t in T:
@@ -264,45 +426,124 @@ class TypeSystem:
             X in self.__members__["universe"].values()
         )
 
+    def __iter__(self):
+        yield from self.__members__["universe"].values()
+        yield from self.__members__["abstract"].values()
+        yield from self.__members__["meta"]
+        yield from self.__members__["type"]
+
 class new:
-    """
-    Namespace to build typesystem entities.
-    """
     @staticmethod
     def universe(
-        name="__UNIVERSE__",
-        __isterm__=__STATEFUL__.__isterm__,
-        __issub__=__STATEFUL__.__issub__,
-        __in__=__MAGIC__.__in__,
-        __eq__=__MAGIC__.__eq__,
-        __le__=__MAGIC__.__le__,
-        __lt__=__MAGIC__.__lt__,
-        __ge__=__MAGIC__.__ge__,
-        __gt__=__MAGIC__.__gt__,
-        __ne__=__MAGIC__.__ne__
+        name="UNIVERSE",
+        bases=(type,),
+        __isterm__=None,
+        __issub__=None,
+        __in__=None,
+        __eq__=None,
+        __le__=None,
+        __lt__=None,
+        __ge__=None,
+        __gt__=None,
+        __ne__=None,
+        __iter__=None,
+        **kwargs
     ):
-        return type(
-            name, 
-            (type,),
-            {
-                "is_universe": True,
-                "level": -1,
-                "__isterm__": __isterm__,
-                "__issub__": __issub__,
-                "__contains__": __in__,
-                "__eq__": __eq__,
-                "__le__": __le__,
-                "__lt__": __lt__,
-                "__ge__": __ge__,
-                "__gt__": __gt__,
-                "__ne__": __ne__,
-                "__hash__": type.__hash__
-            }
-        )
+
+        if None in (__isterm__, __issub__):
+            from typed.helper.core import STATEFUL
+
+        if None in (__in__, __eq__, __le__, __lt__, __ge__, __gt__, __ne__, __iter__):
+            from typed.helper.core import MAGIC
+
+        __isterm__ = __isterm__ if __isterm__ is not None else STATEFUL.__isterm__
+        __issub__ = __issub__ if __issub__ is not None else STATEFUL.__issub__
+        __in__ = __in__ if __in__ is not None else MAGIC.__in__
+        __eq__ = __eq__ if __eq__ is not None else MAGIC.__eq__
+        __le__ = __le__ if __le__ is not None else MAGIC.__le__
+        __lt__ = __lt__ if __lt__ is not None else MAGIC.__lt__
+        __ge__ = __ge__ if __ge__ is not None else MAGIC.__ge__
+        __gt__ = __gt__ if __gt__ is not None else MAGIC.__gt__
+        __ne__ = __ne__ if __ne__ is not None else MAGIC.__ne__
+        __iter__ = __iter__ if __iter__ is not None else MAGIC.__iter__
+
+        from builtins import type as __Type__
+        attrs = {
+            "is_universe": True,
+            "is_universe_parametric": True,
+            "level": -1,
+            "__isterm__": __isterm__,
+            "__issub__": __issub__,
+            "__contains__": __in__,
+            "__eq__": __eq__,
+            "__le__": __le__,
+            "__lt__": __lt__,
+            "__ge__": __ge__,
+            "__gt__": __gt__,
+            "__ne__": __ne__,
+            "__iter__": __iter__,
+            "__hash__": __Type__.__hash__
+        }
+        attrs.update(kwargs)
+        return __UNIVERSE__(name, bases, attrs)
+
+    @staticmethod
+    def abstract(
+        name="ABSTRACT",
+        bases=(type,),
+        __isterm__=None,
+        __issub__=None,
+        __in__=None,
+        __eq__=None,
+        __le__=None,
+        __lt__=None,
+        __ge__=None,
+        __gt__=None,
+        __ne__=None,
+        __iter__=None,
+        **kwargs
+    ):
+
+        if None in (__isterm__, __issub__):
+            from typed.helper.core import STATEFUL
+
+        if None in (__in__, __eq__, __le__, __lt__, __ge__, __gt__, __ne__, __iter__):
+            from typed.helper.core import MAGIC
+
+        __isterm__ = __isterm__ if __isterm__ is not None else STATEFUL.__isterm__
+        __issub__ = __issub__ if __issub__ is not None else STATEFUL.__issub__
+        __in__ = __in__ if __in__ is not None else MAGIC.__in__
+        __eq__ = __eq__ if __eq__ is not None else MAGIC.__eq__
+        __le__ = __le__ if __le__ is not None else MAGIC.__le__
+        __lt__ = __lt__ if __lt__ is not None else MAGIC.__lt__
+        __ge__ = __ge__ if __ge__ is not None else MAGIC.__ge__
+        __gt__ = __gt__ if __gt__ is not None else MAGIC.__gt__
+        __ne__ = __ne__ if __ne__ is not None else MAGIC.__ne__
+        __iter__ = __iter__ if __iter__ is not None else MAGIC.__iter__
+
+        from builtins import type as __Type__
+        attrs = {
+            "is_abstract": True,
+            "is_abstract_parametric": True,
+            "level": -1,
+            "__isterm__": __isterm__,
+            "__issub__": __issub__,
+            "__contains__": __in__,
+            "__eq__": __eq__,
+            "__le__": __le__,
+            "__lt__": __lt__,
+            "__ge__": __ge__,
+            "__gt__": __gt__,
+            "__ne__": __ne__,
+            "__iter__": __iter__,
+            "__hash__": __Type__.__hash__
+        }
+        attrs.update(kwargs)
+        return __ABSTRACT__(name, bases, attrs)
 
     @staticmethod
     def typesystem(*args, **kwargs):
-        return TypeSystem(*args, **kwargs)
+        return __TYPESYSTEM__(*args, **kwargs)
 
     @staticmethod
     def meta(name, sups=(), attrs={}, typesystem=None):
@@ -354,34 +595,20 @@ class new:
 TYPESYSTEM = new.typesystem()
 
 def __typemap__():
-    from builtins import (
-        int       as __Int__,
-        float     as __Float__,
-        bool      as __Bool__,
-        str       as __Str__,
-        bytes     as __Bytes__,
-        bytearray as __ByteArray__,
-        list      as __List__,
-        tuple     as __Tuple__,
-        set       as __Set__,
-        dict      as __Dict__,
-        type      as __Type__
-    )
     from typed.mods.types.base import (
         Int, Float, Bool, Str, Bytes,
         List, Tuple, Set, Dict
     )
-    TYPESYSTEM.typemap[__Int__]       = Int
-    TYPESYSTEM.typemap[__Float__]     = Float
-    TYPESYSTEM.typemap[__Bool__]      = Bool
-    TYPESYSTEM.typemap[__Str__]       = Str
-    TYPESYSTEM.typemap[__Bytes__]     = Bytes
-    TYPESYSTEM.typemap[__ByteArray__] = Bytes
-    TYPESYSTEM.typemap[__List__]      = List
-    TYPESYSTEM.typemap[__Tuple__]     = Tuple
-    TYPESYSTEM.typemap[__Set__]       = Set
-    TYPESYSTEM.typemap[__Dict__]      = Dict
-    TYPESYSTEM.typemap[__Type__]      = TYPESYSTEM.universe
+    TYPESYSTEM.typemap[int]       = Int
+    TYPESYSTEM.typemap[float]     = Float
+    TYPESYSTEM.typemap[bool]      = Bool
+    TYPESYSTEM.typemap[str]       = Str
+    TYPESYSTEM.typemap[bytes]     = Bytes
+    TYPESYSTEM.typemap[bytearray] = Bytes
+    TYPESYSTEM.typemap[list]      = List
+    TYPESYSTEM.typemap[tuple]     = Tuple
+    TYPESYSTEM.typemap[set]       = Set
+    TYPESYSTEM.typemap[dict]      = Dict
 
 def typemap(typ, typesystem=TYPESYSTEM):
     try:
@@ -399,22 +626,11 @@ def typemap(typ, typesystem=TYPESYSTEM):
     except TypeError:
         pass
 
+    from typed.mods.err import NotDefined
     return NotDefined
 
 def typeof(t, typesystem=TYPESYSTEM):
-    if typesystem is TYPESYSTEM:
-        __typemap__()
-
-    try:
-        if t in typesystem.typemap:
-            t = typesystem.typemap[t]
-    except TypeError:
-        pass
-
-    __typ__ = type(t)
-    typ = typemap(__typ__, typesystem)
-
-    return typ if typ is not NotDefined else __typ__
+    return typemap(type(t), typesystem)
 
 def kind(x, typesystem=TYPESYSTEM):
     if any(x is a for a in typesystem.__members__["abstract"].values()):
@@ -425,12 +641,15 @@ def kind(x, typesystem=TYPESYSTEM):
         return "meta"
     if x in typesystem.__members__["type"]:
         return "type"
+
+    from typed.mods.err import NotDefined
     return NotDefined
 
 def name(t, typesystem=TYPESYSTEM):
     """
     The 'name' polymorphism.
     """
+    from typed.mods.err import NotDefined
     d = display(t)
     if d is not NotDefined:
         return d
@@ -442,36 +661,45 @@ def name(t, typesystem=TYPESYSTEM):
         if d is not NotDefined:
             return d
 
+    from typed.mods.err import Anonymous
     return getattr(t, '__name__', Anonymous.__name__)
 
-__UNIVERSE__ = TYPESYSTEM.universe
-__UNIVERSE__.__typesystems__ = [TYPESYSTEM]
-__UNIVERSE__.__type__ = type
+def term(value, type=None, typesystem=None):
+    from weakref import WeakSet
+    from typed.mods.err import NotDefined, TypeErr
 
-__ABSTRACT__ = TYPESYSTEM.abstract
-__ABSTRACT__.__typesystems__ = [TYPESYSTEM]
-__ABSTRACT__.__type__ = type
+    if typesystem is None:
+        typesystem = TYPESYSTEM
 
-def UNIVERSE(n: int, typesystem=TYPESYSTEM) -> type:
-    if n < 0:
-        return typesystem.universe
+    if type is None:
+        type = typeof(value)
 
-    typesystem.enrich(level=n+1)
-    UNI = typesystem.__members__["universe"][n]
-    UNI.__typesystems__ = [TYPESYSTEM]
-    UNI.__type__ = typesystem.__members__["universe"][n+1]
-    UNI.__builtin__ = NotDefined
-    UNI.__null__ = NotDefined
-    return UNI
+    if type is NotDefined:
+        raise NotDefined(
+            message="Type not defined",
+            type=name(type, typesystem),
+            typesystem=name(type, typesystem)
+        )
 
-def ABSTRACT(n: int, typesystem=TYPESYSTEM) -> type:
-    if n < 0:
-        return typesystem.abstract
+    if not isterm(value, type):
+        raise TypeErr(
+            message="Type mismatch in term declaration",
+            term=value,
+            expected=type,
+            received=typeof(value)
+        )
 
-    typesystem.enrich(level=n+1)
-    ABS = typesystem.__members__["abstract"][n]
-    ABS.__typesystems__ = [TYPESYSTEM]
-    ABS.__type__ = typesystem.__members__["universe"][n+1]
-    ABS.__builtin__ = NotDefined
-    ABS.__null__ = NotDefined
-    return ABS
+    tracked = track(builtin(type))
+
+    if tracked is not NotDefined:
+        value = tracked(value)
+
+    if not hasattr(type, "__terms__"):
+        type.__terms__ = WeakSet()
+
+    type.__terms__.add(value)
+
+    return value
+
+UNIVERSE = TYPESYSTEM.universe
+ABSTRACT = TYPESYSTEM.abstract

@@ -1,4 +1,3 @@
-from builtins import type as __Type__
 from typed.mods.core import TYPESYSTEM, UNIVERSE, ABSTRACT
 from typed.mods.err import NotDefined
 
@@ -18,6 +17,8 @@ class EMPTY(TYPE):
 
     type(EMTPY) is UNIVERSE(1)
     """
+    __terms__ = {}
+
     def __isterm__(typ, trm):
         return False
 
@@ -37,7 +38,6 @@ class EMPTY(TYPE):
 class PARAMETRIC(TYPE):
     """
     The metatype of parametric types.
-
 
     """
     def __isterm__(typ, trm):
@@ -93,11 +93,11 @@ class INT(TYPE):
     """
     The metatype of integers.
     """
+
     def __isterm__(typ, trm):
-        from builtins import int as __Int__
         from typed.mods.types.base import Int
         from typed.mods.core import type, issub
-        return isinstance(trm, __Int__) or issub(type(trm), Int)
+        return isinstance(trm, int) or issub(type(trm), Int)
 
     is_meta = True
     __typesystems__ = [TYPESYSTEM]
@@ -111,11 +111,11 @@ class FLOAT(TYPE):
     """
     The metatype of floating-point numbers.
     """
+
     def __isterm__(typ, trm):
-        from builtins import float as __Float__
         from typed.mods.types.base import Float
         from typed.mods.core import type, issub
-        return isinstance(trm, __Float__) or issub(type(trm), Float)
+        return isinstance(trm, float) or issub(type(trm), Float)
 
     is_meta = True
     __typesystems__ = [TYPESYSTEM]
@@ -129,11 +129,11 @@ class STR(TYPE):
     """
     The metatype of strings.
     """
+
     def __isterm__(typ, trm):
-        from builtins import str as __Str__
         from typed.mods.types.base import Str
         from typed.mods.core import type, issub
-        return isinstance(trm, __Str__) or issub(type(trm), Str)
+        return isinstance(trm, str) or issub(type(trm), Str)
 
     is_meta = True
     __typesystems__ = [TYPESYSTEM]
@@ -147,11 +147,17 @@ class BOOL(TYPE):
     """
     The metatype of booleans.
     """
+
+    __terms__ = frozenset({True, False})
+
+    def __iter__(typ):
+        yield True
+        yield False
+
     def __isterm__(typ, trm):
-        from builtins import bool as __Bool__
         from typed.mods.types.base import Bool
         from typed.mods.core import type, issub
-        return isinstance(trm, __Bool__) or issub(type(trm), Bool)
+        return isinstance(trm, bool) or issub(type(trm), Bool)
 
     is_meta = True
     __typesystems__ = [TYPESYSTEM]
@@ -165,11 +171,12 @@ class BYTES(TYPE):
     """
     The metatype of bytes and bytearrays.
     """
+
     def __isterm__(typ, trm):
-        from builtins import bytes as __Bytes__, bytearray as __ByteArray__
+        from builtins import bytes, bytearray
         from typed.mods.types.base import Bytes
         from typed.mods.core import type, issub
-        return isinstance(trm, __Bytes__) or isinstance(trm, __ByteArray__) or issub(type(trm), Bytes)
+        return isinstance(trm, (bytes, bytearray)) or issub(type(trm), Bytes)
 
     is_meta = True
     __typesystems__ = [TYPESYSTEM]
@@ -183,12 +190,12 @@ class TUPLE(TYPE):
     """
     The metatype of tuples.
     """
+
     def __isterm__(typ, trm):
-        from builtins import tuple as __Tuple__
         from typed.mods.types.base import Tuple
         from typed.mods.core import type, issub, isterm
 
-        if not (isinstance(trm, __Tuple__) or issub(type(trm), Tuple)):
+        if not (isinstance(trm, tuple) or issub(type(trm), Tuple)):
             return False
 
         types = getattr(typ, '__types__', None)
@@ -226,7 +233,7 @@ class TUPLE(TYPE):
 
         name = f"Tuple({names(*types_set)})" if types_set else "Tuple"
 
-        return __Type__.__new__(typ.__class__, name, (typ,), {
+        return TYPE(name, (typ,), {
             "__display__": name,
             "__types__": types_set,
             "__typesystems__": [typesystem],
@@ -245,12 +252,12 @@ class LIST(TYPE):
     """
     The metatype of lists.
     """
+
     def __isterm__(typ, trm):
-        from builtins import list as __List__
         from typed.mods.types.base import List
         from typed.mods.core import type, issub, isterm
 
-        if not (isinstance(trm, __List__) or issub(type(trm), List)):
+        if not (isinstance(trm, list) or issub(type(trm), List)):
             return False
 
         types = getattr(typ, '__types__', None)
@@ -288,7 +295,7 @@ class LIST(TYPE):
 
         name = f"List({names(*types_set)})" if types_set else "List"
 
-        return __Type__.__new__(typ.__class__, name, (typ,), {
+        return type.__new__(typ.__class__, name, (typ,), {
             "__display__": name,
             "__types__": types_set,
             "__typesystems__": [typesystem],
@@ -350,7 +357,7 @@ class SET(TYPE):
 
         name = f"Set({names(*types_set)})" if types_set else "Set()"
 
-        return __Type__.__new__(typ.__class__, name, (typ,), {
+        return type.__new__(typ.__class__, name, (typ,), {
             "__display__": name,
             "__types__": types_set,
             "__typesystems__": [typesystem],
@@ -435,7 +442,7 @@ class DICT(TYPE):
         else:
             display_name = f"Dict({names(*types_set)})" if types_set else "Dict()"
 
-        return __Type__.__new__(typ.__class__, display_name, (typ,), {
+        return TYPE(typ.__class__, display_name, (typ,), {
             "__display__": display_name,
             "__types__": types_set,
             "__key_type__": key,

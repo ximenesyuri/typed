@@ -1,4 +1,4 @@
-class __STATEFUL__:
+class STATEFUL:
     SUBS  = set()
     SUPS  = set()
     TERMS = set()
@@ -6,10 +6,10 @@ class __STATEFUL__:
     @staticmethod
     def __issup__(typ, other):
         key = (id(typ), id(other))
-        if key in __STATEFUL__.SUPS:
+        if key in STATEFUL.SUPS:
             return False
 
-        __STATEFUL__.SUPS.add(key)
+        STATEFUL.SUPS.add(key)
         try:
             from typed.mods.core import extends
             if extends(typ, other):
@@ -17,7 +17,7 @@ class __STATEFUL__:
 
             if "__issup__" in getattr(typ, "__dict__", {}):
                 issup_func = typ.__dict__["__issup__"]
-                if issup_func is not __STATEFUL__.__issup__:
+                if issup_func is not STATEFUL.__issup__:
                     try:
                         res = issup_func(typ, other)
                         if res is not NotImplemented: return res
@@ -27,7 +27,7 @@ class __STATEFUL__:
             meta_typ = type(typ)
             if hasattr(meta_typ, "__issup__"):
                 issup_func = getattr(meta_typ, "__issup__")
-                if issup_func is not __STATEFUL__.__issup__:
+                if issup_func is not STATEFUL.__issup__:
                     try:
                         res = issup_func(typ, other)
                         if res is not NotImplemented: return res
@@ -36,7 +36,7 @@ class __STATEFUL__:
 
             if "__issub__" in getattr(other, "__dict__", {}):
                 issub_func = other.__dict__["__issub__"]
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(other, typ)
                         if res is not NotImplemented: return res
@@ -46,7 +46,7 @@ class __STATEFUL__:
             meta_other = type(other)
             if hasattr(meta_other, "__issub__"):
                 issub_func = getattr(meta_other, "__issub__")
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(other, typ)
                         if res is not NotImplemented: return res
@@ -55,14 +55,14 @@ class __STATEFUL__:
 
             return False
         finally:
-            __STATEFUL__.SUPS.remove(key)
+            STATEFUL.SUPS.remove(key)
 
     @staticmethod
     def __issub__(typ, other):
         key = (id(typ), id(other))
-        if key in __STATEFUL__.SUBS:
+        if key in STATEFUL.SUBS:
             return False
-        __STATEFUL__.SUBS.add(key)
+        STATEFUL.SUBS.add(key)
         try:
             from typed.mods.core import extends
             if extends(other, typ):
@@ -70,7 +70,7 @@ class __STATEFUL__:
 
             if "__issub__" in getattr(typ, "__dict__", {}):
                 issub_func = typ.__dict__["__issub__"]
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(typ, other)
                         if res is not NotImplemented: return res
@@ -80,7 +80,7 @@ class __STATEFUL__:
             meta_typ = type(typ)
             if hasattr(meta_typ, "__issub__"):
                 issub_func = getattr(meta_typ, "__issub__")
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(typ, other)
                         if res is not NotImplemented: return res
@@ -89,7 +89,7 @@ class __STATEFUL__:
 
             if "__issup__" in getattr(other, "__dict__", {}):
                 issup_func = other.__dict__["__issup__"]
-                if issup_func is not __STATEFUL__.__issup__:
+                if issup_func is not STATEFUL.__issup__:
                     try:
                         res = issup_func(other, typ)
                         if res is not NotImplemented: return res
@@ -99,7 +99,7 @@ class __STATEFUL__:
             meta_other = type(other)
             if hasattr(meta_other, "__issup__"):
                 issup_func = getattr(meta_other, "__issup__")
-                if issup_func is not __STATEFUL__.__issup__:
+                if issup_func is not STATEFUL.__issup__:
                     try:
                         res = issup_func(other, typ)
                         if res is not NotImplemented: return res
@@ -108,18 +108,18 @@ class __STATEFUL__:
 
             return False
         finally:
-            __STATEFUL__.SUBS.remove(key)
+            STATEFUL.SUBS.remove(key)
 
     @staticmethod
     def __isterm__(typ, trm):
         key = (id(typ), id(trm))
-        if key in __STATEFUL__.TERMS:
+        if key in STATEFUL.TERMS:
             return False
-        __STATEFUL__.TERMS.add(key)
+        STATEFUL.TERMS.add(key)
         try:
             if "__isterm__" in getattr(typ, "__dict__", {}):
                 isterm_func = typ.__dict__["__isterm__"]
-                if isterm_func is not __STATEFUL__.__isterm__:
+                if isterm_func is not STATEFUL.__isterm__:
                     try:
                         res = isterm_func(typ, trm)
                         if res is not NotImplemented: return res
@@ -129,7 +129,7 @@ class __STATEFUL__:
             meta = type(typ)
             if hasattr(meta, "__isterm__"):
                 isterm_func = getattr(meta, "__isterm__")
-                if isterm_func is not __STATEFUL__.__isterm__:
+                if isterm_func is not STATEFUL.__isterm__:
                     try:
                         res = isterm_func(typ, trm)
                         if res is not NotImplemented: return res
@@ -138,7 +138,7 @@ class __STATEFUL__:
 
             if "__issub__" in getattr(type(trm), "__dict__", {}):
                 issub_func = type(trm).__dict__["__issub__"]
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(type(trm), typ)
                         if res: return True
@@ -147,7 +147,7 @@ class __STATEFUL__:
 
             if hasattr(type(type(trm)), "__issub__"):
                 issub_func = getattr(type(type(trm)), "__issub__")
-                if issub_func is not __STATEFUL__.__issub__:
+                if issub_func is not STATEFUL.__issub__:
                     try:
                         res = issub_func(type(trm), typ)
                         if res: return True
@@ -160,30 +160,44 @@ class __STATEFUL__:
 
             return isinstance(trm, typ)
         finally:
-            __STATEFUL__.TERMS.remove(key)
+            STATEFUL.TERMS.remove(key)
 
-class __MAGIC__:
+class MAGIC:
     def __in__(typ, trm):
-        return __STATEFUL__.__isterm__(typ, trm)
+        return STATEFUL.__isterm__(typ, trm)
 
     def __le__(typ, other):
-        return __STATEFUL__.__issub__(typ, other)
+        return STATEFUL.__issub__(typ, other)
 
     def __lt__(typ, other):
-        return __STATEFUL__.__issub__(typ, other) and not __STATEFUL__.__issub__(other, typ)
+        return STATEFUL.__issub__(typ, other) and not STATEFUL.__issub__(other, typ)
 
     def __ge__(typ, other):
-        return __STATEFUL__.__issub__(other, typ)
+        return STATEFUL.__issub__(other, typ)
 
     def __gt__(typ, other):
-        return __STATEFUL__.__issub__(other, typ) and not __STATEFUL__.__issub__(typ, other)
+        return STATEFUL.__issub__(other, typ) and not STATEFUL.__issub__(typ, other)
 
     def __eq__(typ, other):
-        return __STATEFUL__.__issub__(typ, other) and __STATEFUL__.__issub__(other, typ)
+        return STATEFUL.__issub__(typ, other) and STATEFUL.__issub__(other, typ)
 
     def __ne__(typ, other):
-        return not __MAGIC__.__eq__(typ, other)
+        return not MAGIC.__eq__(typ, other)
 
+    def __iter__(cls):
+        if hasattr(cls, "__terms__"):
+            yield from list(cls.__terms__)
+            return
+
+        systems = getattr(cls, "__typesystems__", [])
+        if systems:
+            from typed.mods.core import isterm
+            for x in systems[0]:
+                if isterm(x, cls):
+                    yield x
+            return
+
+        raise TypeError(f"Cannot iterate over {getattr(cls, '__name__', str(cls))}")
 
 def _weaksubtype(t1, t2):
     from typed.mods.helper.general import _name

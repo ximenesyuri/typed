@@ -1,21 +1,12 @@
-from typed.mods.types.base import TYPE
-from typed.mods.types.func import Function
-from functools import lru_cache, update_wrapper
-from typed.mods.helper.general import _name
-from typed.mods.helper.func import (
-    _has_dependent_type,
-    _dependent_signature,
-    _check_defaults_match_hints,
-    _instrument_locals_check,
-)
+def func(*args, **kwargs):
+    from typed.mods.types.func import Func
 
-def function(*args, **kwargs):
     if args and callable(args[0]) and len(args) == 1 and not kwargs:
         f = args[0]
-        return Function(f)
+        return Func(f)
 
     def decorator(f):
-        return Function(f, **kwargs)
+        return Func(f, **kwargs)
 
     return decorator
 
@@ -47,19 +38,8 @@ def partial(func):
     return wrapper
 
 def hinted(func):
-    if isinstance(func, Function):
-        from typed.mods.types.func import Hinted
-        if isinstance(func, Hinted):
-            return func
-        hinted_func = Hinted(func)
-        hinted_func.__class__ = Hinted
-        return hinted_func
-    raise TypeError(
-        "Wrong type in 'hinted' decorator\n"
-        f" ==> '{_name(func)}': has an unexpected type\n"
-         "     [expected_type] subtype of 'Function'\n"
-        f"     [received_type] '{_name(TYPE(func))}'"
-    )
+    from typed.mods.types.func import Hinted
+    return Hinted(func)
 
 def typed(
     arg=None,
@@ -68,10 +48,8 @@ def typed(
     cache=False,
     locals=False,
     rigid=False,
-    dependent=False,
     lazy=True,
     enclose=None,
-    message=None,
     partials=True,
 ):
     def _build_typed(res_func):
@@ -79,14 +57,6 @@ def typed(
 
         if isinstance(res_func, Lazy):
             res_func = res_func.func
-
-        if _has_dependent_type(res_func):
-            if not dependent:
-                raise TypeError(
-                    f"Function '{res_func.__name__}' uses dependent types, "
-                    f"but 'dependent=True' was not specified in @typed()"
-                )
-            _dependent_signature(res_func)
 
         if defaults or rigid:
             _check_defaults_match_hints(res_func)
@@ -184,8 +154,6 @@ def condition(func):
          "     [expected_type] subtype of 'Function'\n"
         f"     [received_type] '{_name(TYPE(func))}'"
     )
-
-predicate = condition
 
 def factory(func):
     if isinstance(func, Function):

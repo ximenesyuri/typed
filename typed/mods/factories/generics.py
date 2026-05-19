@@ -1,116 +1,37 @@
-import re
 from functools import lru_cache as cache
-from typed.mods.helper.null import _null, _null_from_list
-from typed.mods.helper.general import (
-    _name,
-    _name_list,
-)
 
 @cache
-def Union(*args):
+def Union(*types, typesystem=None):
     """
     Build the 'union' of types:
         > an object 'p' of 'Union(X, Y, ...)'
         > is an object of some of 'X, Y, ...'
-    Can be applied to typed functions:
-        > 'Union(f, g, ...): Union(f.domain, g.domain) -> Union(f.codomain, g.codomain)'
     """
-    from typed.mods.types.base import TYPE, ABSTRACT
-    from typed.mods.types.func import Typed
-
-    T = (Typed, TYPE, ABSTRACT)
-
-    if args and all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
-        unique_types = set(args)
-        def _key(t):
-            return (t.__module__, getattr(t, '__qualname__', t.__name__))
-        sorted_types = tuple(sorted(unique_types, key=_key))
-        if len(sorted_types) == 1:
-            return sorted_types[0]
-        if sorted_types != args:
-            return Union(*sorted_types)
-
-    if not args:
+    if not types:
         from typed.mods.types.base import Nill
+        from typed.mods.core import typeof
         return Nill
-    if all((not isinstance(f, (TYPE, ABSTRACT))) and isinstance(f, Typed) for f in args):
-        funcs = args
-        domains = [f.domain for f in funcs]
-        codomains = [f.codomain for f in funcs]
-        dom_types = [d[0] if len(d) == 1 else d for d in domains]
-        for f in funcs:
-            if not (isinstance(f, Typed) and not isinstance(f, (TYPE, ABSTRACT))):
-                raise TypeError(
-                    "Wrong type in Union factory: \n"
-                    f" ==> {_name(f)}: has unexpected type\n"
-                     "     [expected_type] subtype of Typed"
-                    f"     [received_type] {_name(TYPE(f))}"
-                )
 
-        def union_dispatcher(x):
-            matching = []
-            for f, dom in zip(funcs, dom_types):
-                if isinstance(x, dom):
-                    matching.append(f)
-            if not matching:
-                allowed = ", ".join(_name(t) for t in dom_types)
-                raise TypeError(
-                    f"No available functor matches input {x!r}. Must be instance of one of {allowed}."
-                )
-            first_f = matching[0]
-            if len(first_f.domain) == 1:
-                first_val = first_f(x)
-            else:
-                first_val = first_f(*x)
+    if typesystem is None:
+        from typed.mods.core import TYPESYSTEM
+        typesystem = TYPESYSTEM
 
-            for f in matching[1:]:
-                if len(f.domain) == 1:
-                    fv = f(x)
-                else:
-                    fv = f(*x)
-                if fv != first_val:
-                    raise ValueError(
-                        f"Ambiguous value for {[_name(ff) for ff in matching]}:"
-                        f"\n ==> argument '{x!r}'"
-                        f"\n     [{matching[0].__name__} value]: '{first_val!r}'"
-                        f"\n     [{f.__name__} value]: '{fv!r}'"
-                    )
-            return first_val
+    if typesystem.is_restrictive:
+        if not all(typeof(t, typesystem) in typesystem.__universes__ for t in types):
+            from typed.mods.err import TypeSystemErr
+            raise TypeSystemErr(
+                types=[t for t in types if typeof(t, typesystem) not in typesystem.__universes__],
+                typesystem=typesystem
+            )
 
-        union_dispatcher.__name__ = f"Union({_name_list(*funcs)})"
-        union_dispatcher.__annotations__ = {
-            "x": tuple(dom_types),
-            "return": tuple(codomains)
-        }
-        return Typed(union_dispatcher)
+    if len(types) == 1:
+        return types[0]
 
-    elif all(isinstance(f, (TYPE, ABSTRACT)) for f in args):
-        types = tuple(dict.fromkeys(args))
-        if len(types) == 1:
-            return types[0]
-    elif all(isinstance(t, T) for t in args):
-        for t in args:
-            if isinstance(t, Typed):
-                raise TypeError(
-                    "Mixed types in Union factory:\n"
-                    f" ==> '{_name(t)}': it is a typed function."
-                     "     [received_type] subtype of Typed\n"
-                     "     [expected_type] subtype of TYPE or __UNIVERSE__"
-                )
-    else:
-        for t in args:
-            if not isinstance(t, T):
-                raise TypeError(
-                    "Wrong type in Union factory: \n"
-                    f" ==> {_name(t)}: has unexpected type\n"
-                     "     [expected_type] TYPE, __UNIVERSE__ or Typed\n"
-                    f"     [received_type] {_name(TYPE(t))}"
-                )
-
-    from typed.mods.meta.base import _TYPE_
-    class UNION(_TYPE_):
-        def __instancecheck__(cls, instance):
+    from typed.mods.meta.base import TYPE
+    class UNION(TYPE):
+        def __isterm__(cls, instance):
             return any(isinstance(instance, t) for t in cls.__types__)
+
         def __subclasscheck__(cls, subclass):
             if subclass is cls:
                 return True
@@ -326,27 +247,6 @@ def Unprod(*args):
         '__types__': args,
         "__null__": tuple(_null(t) for t in args)
     })
-
-@cache
-def Free(Discourse):
-    from typed.mods.types.base import TYPE, DISCOURSE
-    if not isinstance(Discourse, DISCOURSE):
-        raise TypeError(
-            "Wrong type in Free factory: \n"
-            f" ==> {_name(Discourse)}: has unexpected type\n"
-             "     [expected_type] DISCOURSE\n"
-            f"     [received_type] {_name(TYPE(Discourse))}"
-        )
-
-    from typed.mods.meta.base import _TYPE_
-    class FREE(_TYPE_):
-        def __instancecheck__(cls, instance):
-            return any(instance is x for x in Discourse)
-        def __iter__(cls):
-            return Discourse.__iter__(cls)
-
-    class_name = f"Free({_name(Discourse)})"
-    return FREE(class_name, (), {"__display__": class_name})
 
 @cache
 def Inter(*types):
@@ -795,29 +695,6 @@ def Null(typ):
     return NULL(class_name, (typ,), {
         "__display__": class_name,
         "__null__": _null(typ)
-    })
-
-@cache
-def NotNull(typ):
-    from typed.mods.types.base import TYPE
-    if not isinstance(typ, TYPE):
-        raise TypeError(
-            "Wrong type in 'NotNull' factory: \n"
-            f" ==> '{_name(typ)}': has unexpected type\n"
-             "     [expected_type] TYPE"
-            f"     [received_type] {_name(TYPE(typ))}"
-        )
-
-    class NULL(TYPE(typ)):
-        def __instancecheck__(cls, instance):
-            return instance != _null(typ)
-        def __repr__(cls):
-            return f"<NotNull({_name(typ)})>"
-
-    class_name = f"NotNull({_name(typ)})"
-    return NULL(class_name, (typ,), {
-        "__display__": class_name,
-        "__null__": None
     })
 
 @cache

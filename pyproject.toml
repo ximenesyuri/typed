@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "BSD"}
 authors = [
-    {name = "Yuri Ximenes", email = "ximenesyuri@gmx.ie"},
+    {name = "Yuri Ximenes", email = "typed@gmx.ie"},
 ]
 
 [build-system]

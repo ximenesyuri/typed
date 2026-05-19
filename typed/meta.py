@@ -1,11 +1,11 @@
 from typed.core import lazy
 
 __imports__ = {
-    "typed.mods.meta.base": (
+    "typed.mods.meta.base": [
         "EMPTY",
         "NILL", "INT", "BOOL", "STR", "FLOAT", "BYTES",
         "TUPLE", "LIST", "SET", "DICT"
-    )
+        ]
 
 }
 
